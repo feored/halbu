@@ -1,14 +1,12 @@
-use std::collections::HashMap;
+const D2S_SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 
-pub const D2S_SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
-
-pub struct HeaderSection {
+struct HeaderSection {
     pub offset: usize,
     pub bytes: usize,
 }
-
+#[derive(Debug)]
 pub enum HeaderID {
-    Identifier,
+    Signature,
     VersionID,
     FileSize,
     Checksum,
@@ -18,9 +16,14 @@ pub enum HeaderID {
     CharacterProgression,
 }
 
-pub fn get_header_data(id: HeaderID) -> HeaderSection {
+pub fn get_header_bytes_range(id:HeaderID) -> (usize, usize){
+    let header_data: HeaderSection = get_header_data(id);
+    (header_data.offset, header_data.offset+header_data.bytes)
+}
+
+fn get_header_data(id: HeaderID) -> HeaderSection {
     match id {
-        HeaderID::Identifier => HeaderSection {
+        HeaderID::Signature => HeaderSection {
             offset: (0),
             bytes: (4),
         },
@@ -53,4 +56,30 @@ pub fn get_header_data(id: HeaderID) -> HeaderSection {
             bytes: (1),
         },
     }
+}
+
+#[derive(Debug)]
+pub enum Version {
+    v100,
+    v107,
+    v108,
+    v109,
+    v110
+}
+
+pub fn get_version(version_bytes : &[u8;4]) -> Result<Version, &'static str> {
+    let version_number : u32 = u32::from_le_bytes(*version_bytes);
+    match version_number {
+        71  => Ok(Version::v100),
+        87  => Ok(Version::v107),
+        89  => Ok(Version::v108),
+        92  => Ok(Version::v109),
+        96  => Ok(Version::v110),
+        _   => Err("version ID does not match any known version of the game.")
+    }
+}
+
+pub fn check_valid_signature(bytes: &Vec<u8>) -> bool {
+    let (header_start, header_end) = get_header_bytes_range(HeaderID::Signature);
+    bytes[header_start..header_end] == D2S_SIGNATURE
 }
