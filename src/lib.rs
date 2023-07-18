@@ -1,10 +1,10 @@
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 
-const VERSION_v100: u32 = 71;
-const VERSION_v107: u32 = 87;
-const VERSION_v108: u32 = 89;
-const VERSION_v109: u32 = 92;
-const VERSION_v110: u32 = 96;
+const VERSION_100: u32 = 71;
+const VERSION_107: u32 = 87;
+const VERSION_108: u32 = 89;
+const VERSION_109: u32 = 92;
+const VERSION_110: u32 = 96;
 
 const CLASS_AMAZON: u8 = 0;
 const CLASS_SORCERESS: u8 = 1;
@@ -14,14 +14,14 @@ const CLASS_BARBARIAN: u8 = 4;
 const CLASS_DRUID: u8 = 5;
 const CLASS_ASSASSIN: u8 = 6;
 
-const TITLES_CLASSIC_STANDARD_MALE : [&'static str; 4]= ["", "Sir", "Lord", "Baron"];
-const TITLES_CLASSIC_STANDARD_FEMALE : [&'static str; 4]= ["", "Dame", "Lady", "Baroness"];
-const TITLES_CLASSIC_HARDCORE_MALE : [&'static str; 4]= ["", "Count", "Duke", "King"];
-const TITLES_CLASSIC_HARDCORE_FEMALE : [&'static str; 4]= ["", "Countess", "Duchess", "Queen"];
-const TITLES_LOD_STANDARD_MALE : [&'static str; 4]= ["", "Slayer", "Champion", "Patriarch"];
-const TITLES_LOD_STANDARD_FEMALE : [&'static str; 4]= ["", "Slayer", "Champion", "Matriarch"];
-const TITLES_LOD_HARDCORE_MALE : [&'static str; 4]= ["", "Destroyer", "Conqueror", "Guardian"];
-const TITLES_LOD_HARDCORE_FEMALE : [&'static str; 4]= ["", "Destroyer", "Conqueror", "Guardian"];
+const TITLES_CLASSIC_STANDARD_MALE: [&'static str; 4] = ["", "Sir", "Lord", "Baron"];
+const TITLES_CLASSIC_STANDARD_FEMALE: [&'static str; 4] = ["", "Dame", "Lady", "Baroness"];
+const TITLES_CLASSIC_HARDCORE_MALE: [&'static str; 4] = ["", "Count", "Duke", "King"];
+const TITLES_CLASSIC_HARDCORE_FEMALE: [&'static str; 4] = ["", "Countess", "Duchess", "Queen"];
+const TITLES_LOD_STANDARD_MALE: [&'static str; 4] = ["", "Slayer", "Champion", "Patriarch"];
+const TITLES_LOD_STANDARD_FEMALE: [&'static str; 4] = ["", "Slayer", "Champion", "Matriarch"];
+const TITLES_LOD_HARDCORE_MALE: [&'static str; 4] = ["", "Destroyer", "Conqueror", "Guardian"];
+const TITLES_LOD_HARDCORE_FEMALE: [&'static str; 4] = ["", "Destroyer", "Conqueror", "Guardian"];
 
 pub struct Character {
     pub version: Version,
@@ -35,23 +35,28 @@ pub struct Character {
     pub map: u32,
 }
 
-pub struct Status{
+pub struct Status {
     ladder: bool,
-    expansion : bool,
-    hardcore : bool,
-    died : bool
+    expansion: bool,
+    hardcore: bool,
+    died: bool,
 }
 
 impl Default for Status {
-    fn default() -> Self{
-        Self { expansion: (true), hardcore: (false), ladder: (false), died: (false) }
+    fn default() -> Self {
+        Self {
+            expansion: (true),
+            hardcore: (false),
+            ladder: (false),
+            died: (false),
+        }
     }
 }
 
 impl Default for Character {
     fn default() -> Self {
         Self {
-            version: Version::v110,
+            version: Version::V110,
             weapon_set: WeaponSet::Main,
             name: String::from(""),
             status: Status::default(),
@@ -70,9 +75,9 @@ impl Character {
         &self.version
     }
     // Secondary weapon set is only available in expansion
-    pub fn set_weapon_set(&self, new_weapon_set: WeaponSet) {
-        if new_weapon_set == WeaponSet::Main || self.status.contains(&CharacterStatus::Expansion) {
-            self.weapon_set = new_weapon_set
+    pub fn set_weapon_set(&mut self, new_weapon_set: WeaponSet) {
+        if new_weapon_set == WeaponSet::Main || self.status.expansion {
+            self.weapon_set = new_weapon_set;
         }
     }
 
@@ -80,7 +85,7 @@ impl Character {
         &self.name
     }
     // 16 bytes maximum, max one - or _
-    pub fn set_name(&self, new_name: String) {
+    pub fn set_name(&mut self, new_name: String) {
         if new_name.len() <= 16
             && new_name.matches("-").count() <= 1
             && new_name.matches("_").count() <= 1
@@ -89,21 +94,24 @@ impl Character {
         }
     }
 
-    pub fn level(&self) -> &u8{
+    pub fn level(&self) -> &u8 {
         &self.level
     }
-    pub fn set_level(&self, new_level:u8){
-        if new_level > 0 && new_level < 100{
+    pub fn set_level(&mut self, new_level: u8) {
+        if new_level > 0 && new_level < 100 {
             self.level = new_level
         }
     }
 
-    pub fn difficulty(&self) -> &(Difficulty, Act){
+    pub fn difficulty(&self) -> &(Difficulty, Act) {
         &self.difficulty
     }
-    pub fn set_difficulty(&self, new_difficulty : (Difficulty, Act)){
-        let (new_diff, new_act) = new_difficulty;
-        if new_act == Act::Act5 && !self.status.contains
+    pub fn set_difficulty(&mut self, new_difficulty: (Difficulty, Act)) {
+        if new_difficulty.1 == Act::Act5 && !self.status.expansion {
+            return;
+        }
+        //TODO: set progression accordingly
+        self.difficulty = new_difficulty
     }
 }
 
@@ -112,6 +120,7 @@ pub enum Difficulty {
     Nightmare,
     Hell,
 }
+#[derive(PartialEq, Eq)]
 pub enum Act {
     Act1,
     Act2,
@@ -196,21 +205,21 @@ fn get_header_data(id: HeaderID) -> HeaderSection {
 
 #[derive(Debug)]
 pub enum Version {
-    v100,
-    v107,
-    v108,
-    v109,
-    v110,
+    V100,
+    V107,
+    V108,
+    V109,
+    V110,
 }
 
 pub fn get_version(version_bytes: &[u8; 4]) -> Result<Version, &'static str> {
     let version_number: u32 = u32::from_le_bytes(*version_bytes);
     match version_number {
-        VERSION_v100 => Ok(Version::v100),
-        VERSION_v107 => Ok(Version::v107),
-        VERSION_v108 => Ok(Version::v108),
-        VERSION_v109 => Ok(Version::v109),
-        VERSION_v110 => Ok(Version::v110),
+        VERSION_100 => Ok(Version::V100),
+        VERSION_107 => Ok(Version::V107),
+        VERSION_108 => Ok(Version::V108),
+        VERSION_109 => Ok(Version::V109),
+        VERSION_110 => Ok(Version::V110),
         _ => Err("version ID does not match any known version of the game."),
     }
 }
@@ -254,11 +263,10 @@ impl Character {
                 3
             };
             match (self.status.hardcore, male) {
-                (_, _) => return Default::default(),
                 (false, false) => return String::from(TITLES_CLASSIC_STANDARD_FEMALE[stage]),
                 (false, true) => return String::from(TITLES_CLASSIC_STANDARD_MALE[stage]),
                 (true, false) => return String::from(TITLES_CLASSIC_HARDCORE_FEMALE[stage]),
-                (true, true) => return String::from(TITLES_CLASSIC_HARDCORE_MALE[stage])
+                (true, true) => return String::from(TITLES_CLASSIC_HARDCORE_MALE[stage]),
             }
         } else {
             let stage: usize = if self.progression < 5 {
@@ -271,11 +279,10 @@ impl Character {
                 3
             };
             match (self.status.hardcore, male) {
-                (_, _) => return Default::default(),
                 (false, false) => return String::from(TITLES_LOD_STANDARD_FEMALE[stage]),
                 (false, true) => return String::from(TITLES_LOD_STANDARD_MALE[stage]),
                 (true, false) => return String::from(TITLES_LOD_HARDCORE_FEMALE[stage]),
-                (true, true) => return String::from(TITLES_LOD_HARDCORE_MALE[stage])
+                (true, true) => return String::from(TITLES_LOD_HARDCORE_MALE[stage]),
             }
         }
     }
