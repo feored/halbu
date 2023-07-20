@@ -2,26 +2,103 @@
 
 Loading a single player file with "Ladder" bit set to 1 in Character Status does nothing (duh).
 
-## Character Menu Appearance
+### Character Menu Appearance
 
-Offset: 128
+32 bytes starting at offset 136.
 
-Bit 141: Weapon
+**Byte 141:  Weapon**
 
-Codes:
-04: Hand Axe
-09: Wand
-0D: Morning Star
-0F: Flail
-12: Sabre/Scimitar
-13: Falchion
-14: Crystal Sword
-15: Broad Sword
-1B: Short Spear/Knife
+Some codes gleaned from testing:
 
-Bits 137-140 || 144-145 -- Armor
+* 04: Hand Axe
+* 09: Wand
+* 0D: Morning Star
+* 0F: Flail
+* 12: Sabre/Scimitar
+* 13: Falchion
+* 14: Crystal Sword
+* 15: Broad Sword
+* 1B: Short Spear/Knife
 
-As far as I can tell, bits 137-140 decide the visuals of the body armor, and 144-145 decide the shoulderpads.
-02 02 02 02 || 02 02 -- Scale Mail
-03 03 03 03 || 03 03 -- Full Plate Mail
-01 02 02 01 || 02 02 -- Studded Leather
+**Bytes 137..141 and 144..146: Armor**
+
+As far as I can tell, bytes 137..141  the visuals of the body armor, and 144..145 decide the shoulderpads.
+
+Good resource: http://paul.siramy.free.fr/_divers2/Extracting%20Diablo%20II%20Animations.pdf (Page 11)
+
+Bytes 144..145 could be S1 and S2, and 137..141 obviously contain TR and probably RA and LA. More testing needed.
+
+* 02 02 02 02 // 02 02 -- Scale Mail
+
+* 03 03 03 03 // 03 03 -- Full Plate Mail
+
+* 01 02 02 01 // 02 02 -- Studded Leather
+
+
+### Mercenary
+
+Starts at offset 177
+
+**Mercenary ID**
+
+Offset 179, 4 bytes
+
+Appears to be 0 if you have never hired a merc, otherwise randomly generated.
+Can be edited with seemingly no impact.
+
+**Mercenary Name**
+
+Appears unchanged from the list at http://user.xmission.com/~trevin/DiabloIIv1.09_Mercenaries.html
+
+**Mercenary Variant**
+
+
+| #     | Code      | Difficulty   | Act    | Variant       |
+| ----- | ----      | ----------   | ---    | -------       |
+| 0     | 00 00     | Normal       | A1     | Fire          |
+| 1     | 01 00     | Normal       | A1     | Cold          |
+| 2     | 02 00     | Nightmare    | A1     | Fire          |
+| 3     | 03 00     | Nightmare    | A1     | Cold          |
+| 4     | 04 00     | Hell         | A1     | Fire          |
+| 5     | 05 00     | Hell         | A1     | Cold          |
+| 6     | 06 00     | Normal       | A2     | Prayer        |
+| 7     | 07 00     | Normal       | A2     | Defiance      |
+| 8     | 08 00     | Normal       | A2     | Blessed Aim   |
+| 9     | 09 00     | Nightmare    | A2     | Thorns        |
+| 10    | 0A 00     | Nightmare    | A2     | Holy Freeze   |
+| 11    | 0B 00     | Nightmare    | A2     | Might         |
+| 12    | 0C 00     | Hell         | A2     | Prayer        |
+| 13    | 0D 00     | Hell         | A2     | Defiance      |
+| 14    | 0E 00     | Hell         | A2     | Blessed Aim   |
+| 15    | 0F 00     | Normal       | A3     | Fire          |    
+| 16    | 10 00     | Normal       | A3     | Cold          |    
+| 17    | 11 00     | Normal       | A3     | Lightning     |    
+| 18    | 12 00     | Nightmare    | A3     | Fire          |    
+| 19    | 13 00     | Nightmare    | A3     | Cold          |    
+| 20    | 14 00     | Nightmare    | A3     | Lightning     |    
+| 21    | 15 00     | Hell         | A3     | Fire          |    
+| 22    | 16 00     | Hell         | A3     | Cold          |    
+| 23    | 17 00     | Hell         | A3     | Lightning     |
+| 24    | 18 00     | Normal       | A5     | Bash          |
+| 25    | 19 00     | Normal       | A5     | Bash          |
+| 26    | 1A 00     | Nightmare    | A5     | Bash          |
+| 27    | 1B 00     | Nightmare    | A5     | Bash          |
+| 28    | 1C 00     | Hell         | A5     | Bash          |
+| 29    | 1D 00     | Hell         | A5     | Bash          |
+| 30    | 1E 00     | Nightmare    | A2     | Prayer        |
+| 31    | 1F 00     | Nightmare    | A2     | Defiance      |
+| 32    | 20 00     | Nightmare    | A2     | Blessed Aim   |
+| 33    | 21 00     | Hell         | A2     | Thorns        |
+| 34    | 22 00     | Hell         | A2     | Holy Freeze   |
+| 35    | 23 00     | Hell         | A2     | Might         |
+| 36    | 24 00     | Normal       | A5     | Frenzy        |
+| 37    | 25 00     | Nightmare    | A5     | Frenzy        |
+| 38    | 26 00     | Hell         | A5     | Frenzy        |
+
+It appears that the codes have not been changed since: http://user.xmission.com/~trevin/DiabloIIv1.09_Mercenaries.html#code
+
+Instead, the new codes (Nightmare A2 mercs with Prayer/Defiance/Blessed Aim, Hell A2 mercs with Thorns/Holy Freeze/ Might, and Frenzy Barbarians) have been appended to the table.
+
+This also explains why Qual-Kehk usually has more Bash barbs than Frenzy: the two old codes per difficulty still mean bash, whereas there is only one of the new frenzy code per difficulty.
+
+

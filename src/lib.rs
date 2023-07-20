@@ -1,3 +1,5 @@
+pub mod mercenary;
+
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 
 const VERSION_100: u32 = 71;
@@ -33,6 +35,7 @@ pub struct Character {
     level: u8,
     difficulty: (Difficulty, Act),
     pub map: u32,
+    pub mercenary : mercenary::Mercenary
 }
 
 pub struct Status {
@@ -65,6 +68,7 @@ impl Default for Character {
             level: 1,
             difficulty: (Difficulty::Normal, Act::Act1),
             map: 0,
+            mercenary: mercenary::Mercenary::default()
         }
     }
 }
@@ -114,7 +118,7 @@ impl Character {
         self.difficulty = new_difficulty
     }
 }
-
+#[derive(PartialEq, Eq)]
 pub enum Difficulty {
     Normal,
     Nightmare,
@@ -212,7 +216,7 @@ pub enum Version {
     V110,
 }
 
-pub fn get_version(version_bytes: &[u8; 4]) -> Result<Version, &'static str> {
+pub fn into_version(version_bytes: &[u8; 4]) -> Result<Version, &'static str> {
     let version_number: u32 = u32::from_le_bytes(*version_bytes);
     match version_number {
         VERSION_100 => Ok(Version::V100),
@@ -224,7 +228,7 @@ pub fn get_version(version_bytes: &[u8; 4]) -> Result<Version, &'static str> {
     }
 }
 
-pub fn check_valid_signature(bytes: &Vec<u8>) -> bool {
+fn check_valid_signature(bytes: &Vec<u8>) -> bool {
     let (header_start, header_end) = get_header_bytes_range(HeaderID::Signature);
     bytes[header_start..header_end] == SIGNATURE
 }
@@ -285,5 +289,15 @@ impl Character {
                 (true, true) => return String::from(TITLES_LOD_HARDCORE_MALE[stage]),
             }
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        let result = 2 + 2;
+        assert_eq!(result, 4);
     }
 }
