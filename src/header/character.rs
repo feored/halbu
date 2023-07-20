@@ -1,5 +1,5 @@
-use super::Act;
-use super::Difficulty;
+use crate::Act;
+use crate::Difficulty;
 
 const CLASS_AMAZON: u8 = 0;
 const CLASS_SORCERESS: u8 = 1;

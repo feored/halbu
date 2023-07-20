@@ -1,4 +1,4 @@
-pub const OFFSET : usize = 335
+pub const OFFSET : usize = 335;
 const HEADER: [u8; 10] = [0x57, 0x6F, 0x6F, 0x21, 0x06, 0x00, 0x00, 0x00, 0x2A, 0x01];
 // Woo! + unknown
 const SECTION_LENGTH: usize = 298;

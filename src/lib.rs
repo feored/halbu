@@ -7,13 +7,6 @@ pub mod Statistics;
 use Header::Character as Character;
 use Header::Mercenary as Mercenary;
 
-const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
-
-const VERSION_100: u32 = 71;
-const VERSION_107: u32 = 87;
-const VERSION_108: u32 = 89;
-const VERSION_109: u32 = 92;
-const VERSION_110: u32 = 96;
 
 pub struct Save {
     version: Header::Version,

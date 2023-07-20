@@ -1,4 +1,4 @@
-use super::Difficulty;
+use crate::Difficulty;
 
 //TOOD ADD ROGUE NAMES
 // const ROGUE_NAMES : &'static [&'static str; 41] = [
