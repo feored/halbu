@@ -13,9 +13,7 @@ use super::Difficulty;
 //     ""
 // ]
 
-
-
-const MERCENARY_VARIANTS : &'static [MercenaryType;39] = &[
+const MERCENARY_VARIANTS: &'static [MercenaryType; 39] = &[
     MercenaryType {
         class: MercenaryClass::Rogue,
         variant: MercenaryVariant::Rogue(RogueVariant::Fire),
@@ -267,26 +265,25 @@ pub struct MercenaryType {
     difficulty: Difficulty,
 }
 
-
 impl From<u16> for &MercenaryType {
     fn from(id: u16) -> Self {
         let id_as_usize = usize::from(id);
-        if id_as_usize > MERCENARY_VARIANTS.len(){
-            return &MERCENARY_VARIANTS[0]
+        if id_as_usize > MERCENARY_VARIANTS.len() {
+            return &MERCENARY_VARIANTS[0];
         } else {
-            return &MERCENARY_VARIANTS[id_as_usize]
+            return &MERCENARY_VARIANTS[id_as_usize];
         }
     }
 }
 
 impl From<&MercenaryType> for u16 {
     fn from(mercenary_type: &MercenaryType) -> Self {
-        for i in 0..MERCENARY_VARIANTS.len(){
+        for i in 0..MERCENARY_VARIANTS.len() {
             if MERCENARY_VARIANTS[i] == *mercenary_type {
-                return i as u16
+                return i as u16;
             }
         }
-        return 0
+        return 0;
     }
 }
 
