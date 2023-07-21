@@ -8,11 +8,11 @@ const TRAILER : u8 = 0x01;
 pub fn build_section() -> Vec<u8>{
     let mut waypoints_section = vec!();
     waypoints_section.extend_from_slice(&HEADER);
-    for i in 0..3{
+    for _i in 0..3{
         waypoints_section.extend_from_slice(&DIFFICULTY_HEADER);
         waypoints_section.push(0x01);
-        let mut remaining_bytes = DIFFICULTY_LENGTH - DIFFICULTY_HEADER.len() - 1;
-        for j in 0..remaining_bytes{
+        let remaining_bytes = DIFFICULTY_LENGTH - DIFFICULTY_HEADER.len() - 1;
+        for _j in 0..remaining_bytes{
             waypoints_section.push(0x00);
         }
     }

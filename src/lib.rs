@@ -1,17 +1,31 @@
-pub mod Header;
-pub mod Quests;
-pub mod Waypoints;
-pub mod Npcs;
-pub mod Statistics;
+#![ warn
+(
+   anonymous_parameters          ,
+   nonstandard_style             ,
+   rust_2018_idioms              ,
+   single_use_lifetimes          ,
+   trivial_casts                 ,
+   trivial_numeric_casts         ,
+   unreachable_pub               ,
+   unused_extern_crates          ,
+   unused_qualifications         ,
+   variant_size_differences      ,
+)]
 
-use Header::Character as Character;
-use Header::Mercenary as Mercenary;
+pub mod header;
+pub mod quests;
+pub mod waypoints;
+pub mod npcs;
+pub mod statistics;
+
+use header::character as character;
+use header::mercenary as mercenary;
 
 
 pub struct Save {
-    version: Header::Version,
-    character: Character::Character,
-    mercenary: Mercenary::Mercenary,
+    version: header::Version,
+    character: character::Character,
+    mercenary: mercenary::Mercenary,
 }
 
 #[derive(PartialEq, Eq)]
