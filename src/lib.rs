@@ -16,7 +16,8 @@ pub mod header;
 pub mod quests;
 pub mod waypoints;
 pub mod npcs;
-pub mod statistics;
+pub mod attributes;
+pub mod skills;
 
 use header::character as character;
 use header::mercenary as mercenary;
