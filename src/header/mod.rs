@@ -1,5 +1,5 @@
-pub mod Character;
-pub mod Mercenary;
+pub mod character;
+pub mod mercenary;
 
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 
@@ -34,8 +34,8 @@ pub enum Version {
 
 
 struct FileSection {
-    pub offset: usize,
-    pub bytes: usize,
+    offset: usize,
+    bytes: usize,
 }
 
 

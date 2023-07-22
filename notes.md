@@ -102,3 +102,34 @@ Instead, the new codes (Nightmare A2 mercs with Prayer/Defiance/Blessed Aim, Hel
 This also explains why Qual-Kehk usually has more Bash barbs than Frenzy: the two old codes per difficulty still mean bash, whereas there is only one of the new frenzy code per difficulty.
 
 
+## Statistics
+
+https://d2mods.info/forum/kb/viewarticle?a=448
+
+Open as tab-separated csv.
+
+Incompatible with 1.09 and before.
+
+Saved is col 7
+CSvSigned is col 8
+CSvBits# is col 9
+
+
+| Stat                  | ID        | Saved | Signed    | Bits      |
+| --------------------- | --------- | ----- | --------- | --------- |
+| Strength              | 0         | 1     | 0         | 10        |
+| Energy                | 1         | 1     | 0         | 10        |
+| Dexterity             | 2         | 1     | 0         | 10        |
+| Vitality              | 3         | 1     | 0         | 10        |
+| Stat Points Left      | 4         | 1     | 0         | 10        |
+| Skill Points Left     | 5         | 1     | 0         | 8         |
+| Hit Points (Current)  | 6         | 1     | 0         | 21        |
+| Hit Points (Max)      | 7         | 1     | 0         | 21        |
+| Mana (Current)        | 8         | 1     | 0         | 21        |
+| Mana (Max)            | 9         | 1     | 0         | 21        |
+| Stamina (Current)     | 10        | 1     | 0         | 21        |
+| Stamina (Max)         | 11        | 1     | 0         | 21        |
+| Level                 | 12        | 1     | 0         | 7         |
+| Experience            | 13        | 1     | 0         | 32        |
+| Gold (Inventory)      | 14        | 1     | 0         | 25        |
+| Gold (Stash)          | 15        | 1     | 0         | 25        |
