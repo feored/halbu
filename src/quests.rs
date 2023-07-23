@@ -11,7 +11,7 @@ pub struct QuestFlags {
     pub jerhyn_introduction: u16,
 }
 
-pub fn build_section() -> Vec<u8> {
+pub fn generate_section() -> Vec<u8> {
     let mut section = vec![];
     section.extend_from_slice(&HEADER);
     for _i in 0..(SECTION_LENGTH - HEADER.len()) {

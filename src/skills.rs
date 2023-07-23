@@ -1,4 +1,4 @@
-use super::header::character::CharacterClass;
+use crate::character::Class;
 
 const SECTION_HEADER: [u8; 2] = [0x69, 0x66];
 const SECTION_BYTES: usize = 32;
@@ -387,23 +387,20 @@ pub fn check_valid(byte_vector: &Vec<u8>) -> bool {
 }
 
 /// Converts the value from 0-30 to the one found in the game's file by adding an offset specific to each class.
-fn get_offset(class: CharacterClass) -> usize {
+fn get_offset(class: Class) -> usize {
     match class {
-        CharacterClass::Amazon => SKILL_OFFSET_AMAZON,
-        CharacterClass::Assassin => SKILL_OFFSET_ASSASSIN,
-        CharacterClass::Barbarian => SKILL_OFFSET_BARBARIAN,
-        CharacterClass::Druid => SKILL_OFFSET_DRUID,
-        CharacterClass::Necromancer => SKILL_OFFSET_NECROMANCER,
-        CharacterClass::Paladin => SKILL_OFFSET_PALADIN,
-        CharacterClass::Sorceress => SKILL_OFFSET_SORCERESS,
+        Class::Amazon => SKILL_OFFSET_AMAZON,
+        Class::Assassin => SKILL_OFFSET_ASSASSIN,
+        Class::Barbarian => SKILL_OFFSET_BARBARIAN,
+        Class::Druid => SKILL_OFFSET_DRUID,
+        Class::Necromancer => SKILL_OFFSET_NECROMANCER,
+        Class::Paladin => SKILL_OFFSET_PALADIN,
+        Class::Sorceress => SKILL_OFFSET_SORCERESS,
     }
 }
 
 /// Parse a vector of bytes containg a character's skill tree (starting with header 0x69 0x66) and returns a Skillset on success.
-pub fn parse_skills(
-    byte_vector: &Vec<u8>,
-    class: CharacterClass,
-) -> Result<Skillset, &'static str> {
+pub fn parse_skills(byte_vector: &Vec<u8>, class: Class) -> Result<Skillset, &'static str> {
     let mut skills: Skillset = Skillset::default();
     if !check_valid(byte_vector) {
         return Err(
@@ -442,7 +439,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x14,
         ];
 
-        let skills = parse_skills(&byte_vector, CharacterClass::Sorceress).unwrap();
+        let skills = parse_skills(&byte_vector, Class::Sorceress).unwrap();
         for i in 0..30 {
             if skills[i].name == "Teleport" {
                 assert!(skills[i].id == 54 && skills[i].level == 1);
@@ -462,7 +459,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x14,
         ];
 
-        let skills = parse_skills(&byte_vector, CharacterClass::Sorceress).unwrap();
+        let skills = parse_skills(&byte_vector, Class::Sorceress).unwrap();
         // println!("{0:?}", skills);
         for skill in skills {
             if skill.name == "Ice Blast" {
