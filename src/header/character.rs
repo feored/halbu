@@ -18,6 +18,7 @@ const TITLES_LOD_STANDARD_FEMALE: [&'static str; 4] = ["", "Slayer", "Champion",
 const TITLES_LOD_HARDCORE_MALE: [&'static str; 4] = ["", "Destroyer", "Conqueror", "Guardian"];
 const TITLES_LOD_HARDCORE_FEMALE: [&'static str; 4] = ["", "Destroyer", "Conqueror", "Guardian"];
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct Character {
     weapon_set: WeaponSet,
     name: String,
@@ -27,7 +28,7 @@ pub struct Character {
     level: u8,
     difficulty: (Difficulty, Act),
 }
-
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Status {
     ladder: bool,
     expansion: bool,
@@ -35,13 +36,13 @@ pub struct Status {
     died: bool,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum WeaponSet {
     Main,
     Secondary,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum CharacterClass {
     Amazon,
     Sorceress,

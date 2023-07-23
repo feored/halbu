@@ -9,7 +9,7 @@ const VERSION_108: u32 = 89;
 const VERSION_109: u32 = 92;
 const VERSION_110: u32 = 96;
 
-pub const OFFSET : usize = 0;
+pub const OFFSET: usize = 0;
 
 #[derive(Debug)]
 pub enum HeaderID {
@@ -32,12 +32,10 @@ pub enum Version {
     V110,
 }
 
-
 struct FileSection {
     offset: usize,
     bytes: usize,
 }
-
 
 fn get_file_bytes_range(id: HeaderID) -> (usize, usize) {
     let data: FileSection = get_file_data(id);
