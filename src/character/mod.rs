@@ -1,13 +1,15 @@
 use crate::Act;
 use crate::Difficulty;
 
-const CLASS_AMAZON: u8 = 0;
-const CLASS_SORCERESS: u8 = 1;
-const CLASS_NECROMANCER: u8 = 2;
-const CLASS_PALADIN: u8 = 3;
-const CLASS_BARBARIAN: u8 = 4;
-const CLASS_DRUID: u8 = 5;
-const CLASS_ASSASSIN: u8 = 6;
+pub mod mercenary;
+
+const AMAZON: u8 = 0;
+const SORCERESS: u8 = 1;
+const NECROMANCER: u8 = 2;
+const PALADIN: u8 = 3;
+const BARBARIAN: u8 = 4;
+const DRUID: u8 = 5;
+const ASSASSIN: u8 = 6;
 
 const TITLES_CLASSIC_STANDARD_MALE: [&'static str; 4] = ["", "Sir", "Lord", "Baron"];
 const TITLES_CLASSIC_STANDARD_FEMALE: [&'static str; 4] = ["", "Dame", "Lady", "Baroness"];
@@ -24,7 +26,7 @@ pub struct Character {
     name: String,
     pub status: Status,
     pub progression: u8,
-    pub class: CharacterClass,
+    pub class: Class,
     level: u8,
     difficulty: (Difficulty, Act),
 }
@@ -43,7 +45,7 @@ pub enum WeaponSet {
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum CharacterClass {
+pub enum Class {
     Amazon,
     Sorceress,
     Necromancer,
@@ -71,7 +73,7 @@ impl Default for Character {
             name: String::from(""),
             status: Status::default(),
             progression: 0,
-            class: CharacterClass::Amazon,
+            class: Class::Amazon,
             level: 1,
             difficulty: (Difficulty::Normal, Act::Act1),
         }
@@ -127,13 +129,8 @@ impl Character {
 impl Character {
     // Return the appropriate title accounting for difficulties beaten
     pub fn title(&self) -> String {
-        let male: bool = [
-            CharacterClass::Barbarian,
-            CharacterClass::Paladin,
-            CharacterClass::Necromancer,
-            CharacterClass::Druid,
-        ]
-        .contains(&self.class);
+        let male: bool = [Class::Barbarian, Class::Paladin, Class::Necromancer, Class::Druid]
+            .contains(&self.class);
         if !self.status.expansion {
             let stage: usize = if self.progression < 4 {
                 0

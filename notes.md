@@ -1,3 +1,14 @@
+### Resources
+
+A list of resources that have helped with reverse engineering the .d2s format.
+
+* http://user.xmission.com/~trevin/DiabloIIv1.09_File_Format.shtm
+* https://github.com/oaken-source/pyd2s/blob/master/docs/d2s_save_file_format_1.13d.txt
+* https://github.com/WalterCouto/D2CE/blob/main/d2s_File_Format.md
+* https://github.com/krisives/d2s-format
+* https://github.com/nokka/d2s/blob/master/README.md
+
+
 ### Character Status
 
 Loading a single player file with "Ladder" bit set to 1 in Character Status does nothing (duh).
