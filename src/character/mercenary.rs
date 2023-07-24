@@ -1,9 +1,7 @@
 use crate::Difficulty;
-use crate::GameError;
+use crate::GameLogicError;
 use crate::ParseError;
 
-const SECTION_NAME: &'static str = "Mercenary";
-const SECTION_LENGTH: usize = 14;
 const VARIANTS: &'static [Variant; 39] = &[
     (Class::Rogue(Rogue::Fire), Difficulty::Normal),
     (Class::Rogue(Rogue::Cold), Difficulty::Normal),
@@ -184,7 +182,7 @@ const BARBARIAN_NAMES: [&'static str; 67] = [
 pub type Variant = (Class, Difficulty);
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-enum Class {
+pub enum Class {
     Rogue(Rogue),
     DesertMercenary(DesertMercenary),
     IronWolf(IronWolf),
@@ -192,13 +190,13 @@ enum Class {
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-enum Rogue {
+pub enum Rogue {
     Fire,
     Cold,
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-enum DesertMercenary {
+pub enum DesertMercenary {
     Prayer,
     Defiance,
     BlessedAim,
@@ -208,14 +206,14 @@ enum DesertMercenary {
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-enum IronWolf {
+pub enum IronWolf {
     Fire,
     Cold,
     Lightning,
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-enum Barbarian {
+pub enum Barbarian {
     Bash,
     Frenzy,
 }
@@ -243,53 +241,52 @@ impl Default for Mercenary {
     }
 }
 
-fn variant_id(variant: &Variant) -> Result<u16, GameError>{
-    let mut variant_id : u16 = 99;
-    
-    for i in 0..VARIANTS.len(){
-        if *variant == VARIANTS[i]{
+fn variant_id(variant: &Variant) -> Result<u16, GameLogicError> {
+    let mut variant_id: u16 = 99;
+
+    for i in 0..VARIANTS.len() {
+        if *variant == VARIANTS[i] {
             variant_id = i as u16;
             break;
         }
     }
-    if (variant_id as usize) > VARIANTS.len(){
-        Err(GameError{message: format!("There is no mercenary ID for type {0:?} recruited in {1:?}", variant.0, variant.1)})
+    if (variant_id as usize) > VARIANTS.len() {
+        Err(GameLogicError {
+            message: format!(
+                "There is no mercenary ID for type {0:?} recruited in {1:?}",
+                variant.0, variant.1
+            ),
+        })
     } else {
         Ok(variant_id)
     }
 }
 
-fn names_list(class : Class) -> &'static [&'static str]{
-    match class{
-        Class::Rogue(_) => {
-            &ROGUE_NAMES
-        },
-        Class::DesertMercenary(_) => {
-            &DESERTMERCENARY_NAMES
-        },
-        Class::IronWolf(_) => {
-            &IRONWOLF_NAMES
-        },
-        Class::Barbarian(_) => {
-            &BARBARIAN_NAMES
-        }
+fn names_list(class: Class) -> &'static [&'static str] {
+    match class {
+        Class::Rogue(_) => &ROGUE_NAMES,
+        Class::DesertMercenary(_) => &DESERTMERCENARY_NAMES,
+        Class::IronWolf(_) => &IRONWOLF_NAMES,
+        Class::Barbarian(_) => &BARBARIAN_NAMES,
     }
 }
 
-pub fn parse_mercenary(data: &[u8; 14]) -> Result<Mercenary, ParseError> {
+pub fn parse(data: &[u8; 14]) -> Result<Mercenary, ParseError> {
     let mut mercenary: Mercenary = Mercenary::default();
     if data[0..2] != [0x00, 0x00] {
         mercenary.dead = true;
     }
 
     mercenary.id = u32::from_le_bytes(<[u8; 4]>::try_from(&data[2..6]).unwrap());
-    let variant_id = u16::from_le_bytes(<[u8; 2]>::try_from(&data[8..10]).unwrap());
+    let variant_id: u16 = u16::from_le_bytes(<[u8; 2]>::try_from(&data[8..10]).unwrap());
     mercenary.variant = VARIANTS[variant_id as usize];
 
-    let name_id = u16::from_le_bytes(<[u8; 2]>::try_from(&data[6..8]).unwrap());
-    let names_list = names_list(mercenary.variant.0);
+    let name_id: u16 = u16::from_le_bytes(<[u8; 2]>::try_from(&data[6..8]).unwrap());
+    let names_list: &[&str] = names_list(mercenary.variant.0);
     if name_id as usize > names_list.len() {
-        return Err(ParseError{section: String::from(SECTION_NAME), message: format!("Found invalid name ID {} for mercenary", name_id)});
+        return Err(ParseError {
+            message: format!("Found invalid name ID {} for mercenary", name_id),
+        });
     }
     mercenary.name_id = name_id;
     mercenary.name = names_list[name_id as usize];
@@ -299,18 +296,18 @@ pub fn parse_mercenary(data: &[u8; 14]) -> Result<Mercenary, ParseError> {
     Ok(mercenary)
 }
 
-pub fn generate_mercenary(mercenary: &Mercenary) -> Result<[u8;14],  GameError>{
-    let mut bytes : [u8; 14] = [0x00; 14];
+pub fn generate_mercenary(mercenary: &Mercenary) -> Result<[u8; 14], GameLogicError> {
+    let mut bytes: [u8; 14] = [0x00; 14];
     bytes[0..2].clone_from_slice(match mercenary.dead {
         true => &[0x01, 0x00],
-        false => &[0x00, 0x00]
+        false => &[0x00, 0x00],
     });
 
     bytes[2..6].clone_from_slice(&mercenary.id.to_le_bytes());
     bytes[6..8].clone_from_slice(&mercenary.name_id.to_le_bytes());
-    let variant_id = match variant_id(&mercenary.variant){
+    let variant_id = match variant_id(&mercenary.variant) {
         Ok(id) => id,
-        Err(e) => return Err(e)
+        Err(e) => return Err(e),
     };
 
     bytes[8..10].clone_from_slice(&variant_id.to_le_bytes());
@@ -322,30 +319,48 @@ pub fn generate_mercenary(mercenary: &Mercenary) -> Result<[u8;14],  GameError>{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bit::BitIndex;
 
     #[test]
-    fn parse_mercenary_test(){
-        let expected_result = Mercenary{dead: false, id:3461679u32, name_id: 3, name: "Abhaya", variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal), experience: 63722u32};
-        let bytes = [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
-        let mut parsed_result : Mercenary = Mercenary::default();
-        match parse_mercenary(&bytes) {
-            Ok(res) => {parsed_result = res},
-            Err(e) => {println!{"Test failed: {e:?}"}}
+    fn parse_test() {
+        let expected_result = Mercenary {
+            dead: false,
+            id: 3461679u32,
+            name_id: 3,
+            name: "Abhaya",
+            variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal),
+            experience: 63722u32,
+        };
+        let bytes =
+            [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
+        let mut parsed_result: Mercenary = Mercenary::default();
+        match parse(&bytes) {
+            Ok(res) => parsed_result = res,
+            Err(e) => {
+                println! {"Test failed: {e:?}"}
+            }
         };
         assert_eq!(parsed_result, expected_result);
     }
 
     #[test]
-    fn generate_mercenary_test(){
-        let expected_result = [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
-        let merc = Mercenary{dead: false, id:3461679u32, name_id: 3, name: "Abhaya", variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal), experience: 63722u32};
-        let mut parsed_result : [u8; 14] = [0x00; 14];
+    fn generate_mercenary_test() {
+        let expected_result =
+            [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
+        let merc = Mercenary {
+            dead: false,
+            id: 3461679u32,
+            name_id: 3,
+            name: "Abhaya",
+            variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal),
+            experience: 63722u32,
+        };
+        let mut parsed_result: [u8; 14] = [0x00; 14];
         match generate_mercenary(&merc) {
-            Ok(res) => {parsed_result = res},
-            Err(e) => {println!{"Test failed: {e:?}"}}
+            Ok(res) => parsed_result = res,
+            Err(e) => {
+                println! {"Test failed: {e:?}"}
+            }
         };
         assert_eq!(parsed_result, expected_result);
     }
-
 }
