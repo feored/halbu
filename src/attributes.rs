@@ -90,7 +90,7 @@ impl fmt::Debug for FixedPointStat {
 
 /// Representation of a character's attributes.
 ///
-/// Can be serialized into a vector of u8 using  Vec<u8>::from().
+/// Can be serialized into a vector of u8 using  `Vec<u8>::from()`.
 /// Values can contain up to 32 bits (experience).
 /// Certain values are fixed point and stored with integer and
 /// fraction separately for precision and easier comparison.
