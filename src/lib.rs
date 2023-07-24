@@ -12,7 +12,6 @@
 
 use bit::BitIndex;
 use std::fmt;
-use std::ops::Range;
 
 pub mod attributes;
 pub mod character;
@@ -96,21 +95,17 @@ pub enum Version {
     V250R,
 }
 
-#[derive(PartialEq, Eq, Debug)]
-struct FileSection {
-    offset: usize,
-    bytes: usize,
-}
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub enum Difficulty {
+    #[default]
     Normal,
     Nightmare,
     Hell,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub enum Act {
+    #[default]
     Act1,
     Act2,
     Act3,
@@ -191,134 +186,11 @@ impl From<Class> for u8 {
     }
 }
 
-pub fn get_offset_from_position(id: OffsetID, start: usize) -> usize {
-    let data: FileSection = get_file_data(id);
-    if start > data.offset {
-        panic!("Start is after offset!");
-    }
-    data.offset - start
-}
 
-pub fn get_offset_range_from_position(id: OffsetID, start: usize) -> Range<usize> {
-    let data: FileSection = get_file_data(id);
-    if start > data.offset {
-        panic!("Start is after offset!");
-    }
-    (data.offset - start)..(data.offset + data.bytes - start)
-}
 
-pub fn get_offset_range(id: OffsetID) -> Range<usize> {
-    get_offset_range_from_position(id, 0)
-}
-
-fn get_file_data(id: OffsetID) -> FileSection {
-    match id {
-        OffsetID::Signature => FileSection {
-            offset: 0,
-            bytes: 4,
-        },
-        OffsetID::VersionID => FileSection {
-            offset: 4,
-            bytes: 4,
-        },
-        OffsetID::FileSize => FileSection {
-            offset: 8,
-            bytes: 4,
-        },
-        OffsetID::Checksum => FileSection {
-            offset: 12,
-            bytes: 4,
-        },
-        OffsetID::WeaponSet => FileSection {
-            offset: 16,
-            bytes: 4,
-        },
-        OffsetID::Status => FileSection {
-            offset: 36,
-            bytes: 1,
-        },
-        OffsetID::Progression => FileSection {
-            offset: 37,
-            bytes: 1,
-        },
-        OffsetID::Class => FileSection {
-            offset: 40,
-            bytes: 1,
-        },
-        OffsetID::Level => FileSection {
-            offset: 43,
-            bytes: 1,
-        },
-        OffsetID::LastPlayedDate => FileSection {
-            offset: 48,
-            bytes: 4,
-        },
-        OffsetID::AssignedSkills => FileSection {
-            offset: 56,
-            bytes: 64,
-        },
-        OffsetID::LeftMouseSkill => FileSection {
-            offset: 120,
-            bytes: 4,
-        },
-        OffsetID::RightMouseSkill => FileSection {
-            offset: 124,
-            bytes: 4,
-        },
-        OffsetID::LeftMouseSwitchSkill => FileSection {
-            offset: 128,
-            bytes: 4,
-        },
-        OffsetID::RightMouseSwitchSkill => FileSection {
-            offset: 132,
-            bytes: 4,
-        },
-        OffsetID::MenuAppearance => FileSection {
-            offset: 136,
-            bytes: 32,
-        },
-        OffsetID::Difficulty => FileSection {
-            offset: 168,
-            bytes: 3,
-        },
-        OffsetID::MapSeed => FileSection {
-            offset: 171,
-            bytes: 4,
-        },
-        OffsetID::Mercenary => FileSection {
-            offset: 177,
-            bytes: 14,
-        },
-        OffsetID::ResurrectedMenuAppearance => FileSection {
-            offset: 249,
-            bytes: 48,
-        },
-        OffsetID::Name => FileSection {
-            offset: 267,
-            bytes: 16,
-        },
-        OffsetID::Quests => FileSection {
-            offset: 335,
-            bytes: 298,
-        },
-        OffsetID::Waypoints => FileSection {
-            offset: 633,
-            bytes: 80,
-        },
-        OffsetID::NPCs => FileSection {
-            offset: 713,
-            bytes: 52,
-        },
-        OffsetID::Attributes => FileSection {
-            offset: 765,
-            bytes: 0,
-        },
-    }
-}
-
-fn check_valid_signature(bytes: &Vec<u8>) -> bool {
-    bytes[get_offset_range(OffsetID::Signature)] == SIGNATURE
-}
+// fn check_valid_signature(bytes: &Vec<u8>) -> bool {
+//     bytes[get_offset_range(OffsetID::Signature)] == SIGNATURE
+// }
 
 // pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
 //     let mut checksum: i32 = 0;

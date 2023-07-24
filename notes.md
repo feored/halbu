@@ -144,3 +144,13 @@ CSvBits# is col 9
 | Experience            | 13        | 1     | 0         | 32        |
 | Gold (Inventory)      | 14        | 1     | 0         | 25        |
 | Gold (Stash)          | 15        | 1     | 0         | 25        |
+
+
+## Quests
+
+Ex: Den of Evil
+Quest not started: 0x00 0x00 =>                                 0000 0000   0000 0000
+Quest started (Talked to Akara): 0x04 0x00 =>                   0000 0000   0000 0100
+Cleared Den of Evil (Return to Akara for reward): 0x1C 0x00 =>  0000 0000   0001 1100
+Talked to Akara (Completed quest): 0x01 0x30 =>                 0011 0000   0000 0001
+Used skill point: 0x01 0x10 =>                                  0001 0000   0000 0001

@@ -1,19 +1,24 @@
-use crate::get_offset_from_position;
-use crate::get_offset_range_from_position;
-use crate::utils::get_sys_time_in_secs;
+use std::ops::Range;
+use std::str;
+
+use bit::BitIndex;
+
 use crate::Act;
 use crate::Class;
 use crate::Difficulty;
 use crate::GameLogicError;
-use crate::OffsetID;
 use crate::ParseError;
-use bit::BitIndex;
+
+use crate::utils::get_sys_time_in_secs;
+use crate::utils::FileSection;
+use crate::utils::u32_from;
+use crate::utils::u8_from;
+
 use mercenary::Mercenary;
-use std::str;
+
 
 pub mod mercenary;
 
-const SECTION_OFFSET: usize = 16;
 
 const TITLES_CLASSIC_STANDARD_MALE: [&'static str; 4] = ["", "Sir", "Lord", "Baron"];
 const TITLES_CLASSIC_STANDARD_FEMALE: [&'static str; 4] = ["", "Dame", "Lady", "Baroness"];
@@ -23,6 +28,51 @@ const TITLES_LOD_STANDARD_MALE: [&'static str; 4] = ["", "Slayer", "Champion", "
 const TITLES_LOD_STANDARD_FEMALE: [&'static str; 4] = ["", "Slayer", "Champion", "Matriarch"];
 const TITLES_LOD_HARDCORE_MALE: [&'static str; 4] = ["", "Destroyer", "Conqueror", "Guardian"];
 const TITLES_LOD_HARDCORE_FEMALE: [&'static str; 4] = ["", "Destroyer", "Conqueror", "Guardian"];
+
+#[derive(PartialEq, Eq, Debug)]
+enum Section {
+    WeaponSet,
+    Status,
+    Progression,
+    Class,
+    Level,
+    LastPlayed,
+    AssignedSkills,
+    LeftMouseSkill,
+    RightMouseSkill,
+    LeftMouseSwitchSkill,
+    RightMouseSwitchSkill,
+    MenuAppearance,
+    Difficulty,
+    MapSeed,
+    Mercenary,
+    ResurrectedMenuAppearance,
+    Name
+}
+
+impl From<Section> for FileSection {
+    fn from(section: Section) -> FileSection {
+        match section {
+            Section::WeaponSet => FileSection { offset: 0, bytes: 4 },
+            Section::Status => FileSection { offset: 20, bytes: 1 },
+            Section::Progression => FileSection { offset: 21, bytes: 1 },
+            Section::Class => FileSection { offset: 26, bytes: 1 },
+            Section::Level => FileSection { offset: 27, bytes: 1 },
+            Section::LastPlayed => FileSection { offset: 32, bytes: 4 },
+            Section::AssignedSkills => FileSection { offset: 40, bytes: 64 },
+            Section::LeftMouseSkill => FileSection { offset: 104, bytes: 4 },
+            Section::RightMouseSkill => FileSection { offset: 108, bytes: 4 },
+            Section::LeftMouseSwitchSkill => FileSection { offset: 112, bytes: 4 },
+            Section::RightMouseSwitchSkill => FileSection { offset: 116, bytes: 4 },
+            Section::MenuAppearance => FileSection { offset: 120, bytes: 32 },
+            Section::Difficulty => FileSection { offset: 152, bytes: 3 },
+            Section::MapSeed => FileSection { offset: 155, bytes: 4 },
+            Section::Mercenary=> FileSection { offset: 161, bytes: 14 },
+            Section::ResurrectedMenuAppearance => FileSection { offset: 203, bytes: 48 },
+            Section::Name => FileSection { offset: 251, bytes: 16 },
+        }
+    }
+} 
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Character {
@@ -90,13 +140,14 @@ impl Default for Character {
 fn parse_character(bytes: &[u8; 319]) -> Result<Character, ParseError> {
     let mut character: Character = Character::default();
 
-    let active_weapon = get_u32(bytes, OffsetID::WeaponSet);
+    let active_weapon = u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::WeaponSet))]);
     character.weapon_set = WeaponSet::try_from(active_weapon)?;
-    character.status =
-        Status::from(bytes[get_offset_from_position(OffsetID::Status, SECTION_OFFSET)]);
-    character.progression = bytes[get_offset_from_position(OffsetID::Progression, SECTION_OFFSET)];
 
-    let class = Class::try_from(bytes[get_offset_from_position(OffsetID::Class, SECTION_OFFSET)])?;
+    character.status = Status::from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Status))]));
+
+    character.progression = u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Progression))]);
+
+    let class = Class::try_from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Class))]))?;
 
     character.class = match class {
         Class::Druid | Class::Assassin => {
@@ -114,7 +165,7 @@ fn parse_character(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         _ => class,
     };
 
-    let level = bytes[get_offset_from_position(OffsetID::Level, SECTION_OFFSET)];
+    let level = u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Level))]);
     character.level = match level {
         0u8 | 100u8..=255u8 => {
             return Err(ParseError {
@@ -127,9 +178,8 @@ fn parse_character(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         _ => level,
     };
 
-    character.last_played = get_u32(bytes, OffsetID::LastPlayedDate);
-    let assigned_skills =
-        &bytes[get_offset_range_from_position(OffsetID::AssignedSkills, SECTION_OFFSET)];
+    character.last_played = u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]);
+    let assigned_skills =  &bytes[Range::<usize>::from(FileSection::from(Section::AssignedSkills))];
     for i in 0..16 {
         let start = i * 4;
         let assigned_skill =
@@ -137,18 +187,19 @@ fn parse_character(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         character.assigned_skills[i] = assigned_skill;
     }
 
-    character.left_mouse_skill = get_u32(bytes, OffsetID::LeftMouseSkill);
-    character.right_mouse_skill = get_u32(bytes, OffsetID::RightMouseSkill);
-    character.left_mouse_switch_skill = get_u32(bytes, OffsetID::LeftMouseSwitchSkill);
-    character.right_mouse_switch_skill = get_u32(bytes, OffsetID::RightMouseSwitchSkill);
+    character.left_mouse_skill = u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::LeftMouseSkill))]);
+    character.right_mouse_skill = u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::RightMouseSkill))]);
+    character.left_mouse_switch_skill = u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::LeftMouseSwitchSkill))]);
+    character.right_mouse_switch_skill = u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::RightMouseSwitchSkill))]);
+
     let last_act = parse_last_act(
-        &bytes[get_offset_range_from_position(OffsetID::Difficulty, SECTION_OFFSET)]
+        &bytes[Range::<usize>::from(FileSection::from(Section::Difficulty))]
             .try_into()
             .unwrap(),
     );
 
     character.menu_appearance.clone_from_slice(
-        &bytes[get_offset_range_from_position(OffsetID::MenuAppearance, SECTION_OFFSET)],
+        &bytes[Range::<usize>::from(FileSection::from(Section::MenuAppearance))]
     );
 
     match last_act {
@@ -159,18 +210,19 @@ fn parse_character(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         Err(e) => return Err(e),
     };
 
-    character.map_seed = get_u32(bytes, OffsetID::MapSeed);
+    character.map_seed = u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::MapSeed))]);
     character.mercenary = mercenary::parse(
-        &bytes[get_offset_range_from_position(OffsetID::Mercenary, SECTION_OFFSET)]
+        &bytes[Range::<usize>::from(FileSection::from(Section::Mercenary))]
             .try_into()
             .unwrap(),
     )?;
+    
     character.resurrected_menu_appearence.clone_from_slice(
-        &bytes[get_offset_range_from_position(OffsetID::ResurrectedMenuAppearance, SECTION_OFFSET)],
+        &bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))]
     );
 
     let utf8name = match str::from_utf8(
-        &bytes[get_offset_range_from_position(OffsetID::Name, SECTION_OFFSET)],
+        &bytes[Range::<usize>::from(FileSection::from(Section::Name))]
     ) {
         Ok(res) => res.trim_matches(char::from(0)),
         Err(e) => {
@@ -371,20 +423,14 @@ impl Character {
     }
 }
 
-fn get_u32(bytes: &[u8], id: OffsetID) -> u32 {
-    u32::from_le_bytes(
-        bytes[get_offset_range_from_position(id, SECTION_OFFSET)]
-            .try_into()
-            .unwrap(),
-    )
-}
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_character() -> () {
+    fn test_parse_character() {
         let bytes: [u8; 319] = [
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x0F, 0x00, 0x00, 0x01, 0x10, 0x1E, 0x5C,
