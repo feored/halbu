@@ -1,4 +1,4 @@
-use crate::character::Class;
+use crate::Class;
 
 const SECTION_HEADER: [u8; 2] = [0x69, 0x66];
 const SECTION_BYTES: usize = 32;

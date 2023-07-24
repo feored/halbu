@@ -2,7 +2,6 @@ use bit::BitIndex;
 use std::cmp;
 use std::fmt;
 
-const OFFSET: usize = 765;
 const TRAILER: u32 = 0x1FF;
 
 const STAT_HEADER_LENGTH: usize = 9;
@@ -355,7 +354,6 @@ pub fn parse_attributes(byte_vector: &Vec<u8>) -> Attributes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bit::BitIndex;
 
     #[test]
     fn test_write_and_read_attributes() {
