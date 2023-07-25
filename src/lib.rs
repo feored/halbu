@@ -103,6 +103,12 @@ pub enum Difficulty {
     Hell,
 }
 
+impl fmt::Display for Difficulty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub enum Act {
     #[default]
@@ -111,6 +117,18 @@ pub enum Act {
     Act3,
     Act4,
     Act5,
+}
+
+impl fmt::Display for Act {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Act::Act1 => write!(f, "Act I"),
+            Act::Act2 => write!(f, "Act II"),
+            Act::Act3 => write!(f, "Act III"),
+            Act::Act4 => write!(f, "Act IV"),
+            Act::Act5 => write!(f, "Act V"),
+        }
+    }
 }
 
 impl TryFrom<u8> for Act {
