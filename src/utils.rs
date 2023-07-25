@@ -20,6 +20,7 @@ impl From<FileSection> for Range<usize> {
     }
 }
 
+
 pub fn u32_from(slice: &[u8]) -> u32 {
     u32::from_le_bytes(
         slice
