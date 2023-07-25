@@ -154,3 +154,9 @@ Quest started (Talked to Akara): 0x04 0x00 =>                   0000 0000   0000
 Cleared Den of Evil (Return to Akara for reward): 0x1C 0x00 =>  0000 0000   0001 1100
 Talked to Akara (Completed quest): 0x01 0x30 =>                 0011 0000   0000 0001
 Used skill point: 0x01 0x10 =>                                  0001 0000   0000 0001
+
+
+## Waypoints
+
+A new character will have three waypoints set to true by default: Rogue encampment in normal, nightmare and hell.
+Getting to a new act automatically unlocks the town wp.
