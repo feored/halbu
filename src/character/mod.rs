@@ -56,7 +56,7 @@ impl From<Section> for FileSection {
             Section::WeaponSet => FileSection { offset: 0, bytes: 4 },
             Section::Status => FileSection { offset: 20, bytes: 1 },
             Section::Progression => FileSection { offset: 21, bytes: 1 },
-            Section::Class => FileSection { offset: 26, bytes: 1 },
+            Section::Class => FileSection { offset: 24, bytes: 1 },
             Section::Level => FileSection { offset: 27, bytes: 1 },
             Section::LastPlayed => FileSection { offset: 32, bytes: 4 },
             Section::AssignedSkills => FileSection { offset: 40, bytes: 64 },
