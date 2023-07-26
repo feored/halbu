@@ -1,6 +1,20 @@
+### Resources
+
+A list of resources that have helped with reverse engineering the .d2s format.
+
+* http://user.xmission.com/~trevin/DiabloIIv1.09_File_Format.shtm
+* https://github.com/oaken-source/pyd2s/blob/master/docs/d2s_save_file_format_1.13d.txt
+* https://github.com/WalterCouto/D2CE/blob/main/d2s_File_Format.md
+* https://github.com/krisives/d2s-format
+* https://github.com/nokka/d2s/blob/master/README.md
+
+
+### Class
+
 ### Character Status
 
 Loading a single player file with "Ladder" bit set to 1 in Character Status does nothing (duh).
+
 
 ### Character Menu Appearance
 
@@ -133,3 +147,19 @@ CSvBits# is col 9
 | Experience            | 13        | 1     | 0         | 32        |
 | Gold (Inventory)      | 14        | 1     | 0         | 25        |
 | Gold (Stash)          | 15        | 1     | 0         | 25        |
+
+
+## Quests
+
+Ex: Den of Evil
+Quest not started: 0x00 0x00 =>                                 0000 0000   0000 0000
+Quest started (Talked to Akara): 0x04 0x00 =>                   0000 0000   0000 0100
+Cleared Den of Evil (Return to Akara for reward): 0x1C 0x00 =>  0000 0000   0001 1100
+Talked to Akara (Completed quest): 0x01 0x30 =>                 0011 0000   0000 0001
+Used skill point: 0x01 0x10 =>                                  0001 0000   0000 0001
+
+
+## Waypoints
+
+A new character will have three waypoints set to true by default: Rogue encampment in normal, nightmare and hell.
+Getting to a new act automatically unlocks the town wp.

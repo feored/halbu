@@ -2,8 +2,13 @@ use bit::BitIndex;
 use std::cmp;
 use std::fmt;
 
-const OFFSET: usize = 765;
-const TRAILER: u32 = 0x1FF;
+use crate::utils::BytePosition;
+use crate::Class;
+use crate::ParseError;
+
+const SECTION_TRAILER: u32 = 0x1FF;
+
+const SECTION_HEADER: [u8; 2] = [0x67, 0x66];
 
 const STAT_HEADER_LENGTH: usize = 9;
 const STAT_NUMBER: usize = 16;
@@ -91,7 +96,7 @@ impl fmt::Debug for FixedPointStat {
 
 /// Representation of a character's attributes.
 ///
-/// Can be serialized into a vector of u8 using  Vec<u8>::from().
+/// Can be serialized into a vector of u8 using  `Vec<u8>::from()`.
 /// Values can contain up to 32 bits (experience).
 /// Certain values are fixed point and stored with integer and
 /// fraction separately for precision and easier comparison.
@@ -115,11 +120,61 @@ pub struct Attributes {
     gold_stash: u32,
 }
 
-/// Keep track of current byte and bit index in the attributes byte vector.
-#[derive(Default)]
-pub struct BytePosition {
-    pub current_byte: usize,
-    pub current_bit: usize,
+pub fn default_character(class: Class) -> Attributes {
+    let amazon = (20, 25, 20, 15, 50, 84, 15);
+    let assassin = (20, 20, 20, 25, 50, 95, 25);
+    let barbarian = (30, 20, 25, 10, 55, 92, 10);
+    let paladin = (25, 20, 25, 15, 55, 89, 15);
+    let necromancer = (15, 25, 15, 25, 45, 79, 25);
+    let sorceress = (10, 25, 10, 35, 40, 74, 35);
+    let druid = (15, 20, 25, 20, 55, 84, 20);
+
+    let stats = match class {
+        Class::Amazon => amazon,
+        Class::Assassin => assassin,
+        Class::Barbarian => barbarian,
+        Class::Paladin => paladin,
+        Class::Necromancer => necromancer,
+        Class::Sorceress => sorceress,
+        Class::Druid => druid,
+    };
+
+    Attributes {
+        strength: stats.0,
+        dexterity: stats.1,
+        vitality: stats.2,
+        energy: stats.3,
+        stat_points_left: 0,
+        skill_points_left: 0,
+        life_current: FixedPointStat {
+            integer: stats.4,
+            fraction: 0,
+        },
+        life_base: FixedPointStat {
+            integer: stats.4,
+            fraction: 0,
+        },
+        mana_current: FixedPointStat {
+            integer: stats.6,
+            fraction: 0,
+        },
+        mana_base: FixedPointStat {
+            integer: stats.6,
+            fraction: 0,
+        },
+        stamina_current: FixedPointStat {
+            integer: stats.5,
+            fraction: 0,
+        },
+        stamina_base: FixedPointStat {
+            integer: stats.5,
+            fraction: 0,
+        },
+        level: 1,
+        experience: 0,
+        gold_inventory: 0,
+        gold_stash: 0,
+    }
 }
 
 /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
@@ -196,64 +251,64 @@ pub fn write_u32(
 }
 
 /// Get a byte-aligned vector of bytes representing a character's attribute.
-impl From<Attributes> for Vec<u8> {
-    fn from(attributes: Attributes) -> Vec<u8> {
-        let mut result: Vec<u8> = Vec::<u8>::new();
-        let mut byte_position: BytePosition = BytePosition::default();
-        for header in 0..STAT_NUMBER {
-            let stat = &STAT_KEY[header];
-            let header_as_u32 = header as u32;
+pub fn generate(attributes: &Attributes) -> Vec<u8> {
+    let mut result: Vec<u8> = Vec::<u8>::new();
+    let mut byte_position: BytePosition = BytePosition::default();
+    result.append(&mut SECTION_HEADER.to_vec());
+    byte_position.current_byte = 2;
+    for header in 0..STAT_NUMBER {
+        let stat = &STAT_KEY[header];
+        let header_as_u32 = header as u32;
 
-            write_u32(
-                &mut result,
-                &mut byte_position,
-                header_as_u32,
-                STAT_HEADER_LENGTH,
-            );
+        write_u32(
+            &mut result,
+            &mut byte_position,
+            header_as_u32,
+            STAT_HEADER_LENGTH,
+        );
 
-            let value: u32 = match stat {
-                Stat::Strength => attributes.strength,
-                Stat::Energy => attributes.energy,
-                Stat::Dexterity => attributes.dexterity,
-                Stat::Vitality => attributes.vitality,
-                Stat::StatPointsLeft => attributes.stat_points_left,
-                Stat::SkillPointsLeft => attributes.skill_points_left,
-                Stat::LifeCurrent => u32::from(&attributes.life_current),
-                Stat::LifeBase => u32::from(&attributes.life_base),
-                Stat::ManaCurrent => u32::from(&attributes.mana_current),
-                Stat::ManaBase => u32::from(&attributes.mana_base),
-                Stat::StaminaCurrent => u32::from(&attributes.stamina_current),
-                Stat::StaminaBase => u32::from(&attributes.stamina_base),
-                Stat::Level => attributes.level,
-                Stat::Experience => attributes.experience,
-                Stat::GoldInventory => attributes.gold_inventory,
-                Stat::GoldStash => attributes.gold_stash,
-            };
+        let value: u32 = match stat {
+            Stat::Strength => attributes.strength,
+            Stat::Energy => attributes.energy,
+            Stat::Dexterity => attributes.dexterity,
+            Stat::Vitality => attributes.vitality,
+            Stat::StatPointsLeft => attributes.stat_points_left,
+            Stat::SkillPointsLeft => attributes.skill_points_left,
+            Stat::LifeCurrent => u32::from(&attributes.life_current),
+            Stat::LifeBase => u32::from(&attributes.life_base),
+            Stat::ManaCurrent => u32::from(&attributes.mana_current),
+            Stat::ManaBase => u32::from(&attributes.mana_base),
+            Stat::StaminaCurrent => u32::from(&attributes.stamina_current),
+            Stat::StaminaBase => u32::from(&attributes.stamina_base),
+            Stat::Level => attributes.level,
+            Stat::Experience => attributes.experience,
+            Stat::GoldInventory => attributes.gold_inventory,
+            Stat::GoldStash => attributes.gold_stash,
+        };
 
-            write_u32(
-                &mut result,
-                &mut byte_position,
-                value,
-                STAT_BITLENGTH[header],
-            );
-        }
-        // add trailing 0x1FF to signal end of attributes section
-        write_u32(&mut result, &mut byte_position, 0x1FF, STAT_HEADER_LENGTH);
-
-        // If we end in the middle of a byte, add some padding so that the next section
-        // starts on a new byte
-        if byte_position.current_bit == 8 {
-            byte_position.current_byte += 1;
-            byte_position.current_bit = 0;
-        } else if byte_position.current_bit != 0 {
-            let bits_to_fill = 8 - byte_position.current_bit;
-            write_u8(&mut result, &mut byte_position, 0, bits_to_fill);
-            byte_position.current_byte += 1;
-            byte_position.current_bit = 0;
-        }
-
-        result
+        write_u32(
+            &mut result,
+            &mut byte_position,
+            value,
+            STAT_BITLENGTH[header],
+        );
     }
+    // add trailing 0x1FF to signal end of attributes section
+    write_u32(&mut result, &mut byte_position, 0x1FF, STAT_HEADER_LENGTH);
+
+    // If we end in the middle of a byte, add some padding so that the next section
+    // starts on a new byte
+    if byte_position.current_bit == 8 {
+        byte_position.current_byte += 1;
+        byte_position.current_bit = 0;
+    } else if byte_position.current_bit != 0 {
+        let bits_to_fill = 8 - byte_position.current_bit;
+        write_u8(&mut result, &mut byte_position, 0, bits_to_fill);
+        byte_position.current_byte += 1;
+        byte_position.current_bit = 0;
+    }
+
+    result
 }
 
 /// Read a certain number of bits in a vector of bytes, starting at a given byte and bit index, and return a u32 with the value.
@@ -303,15 +358,25 @@ fn parse_bits(byte_vector: &Vec<u8>, byte_position: &mut BytePosition, bits_to_r
 /// Attributes are stored in a pair format (header:value). Not all attributes are required to be
 /// present. Headers are always 9 bits, and the STAT_KEY array contains the relevant Stat enum
 /// for every header parsed. Values span different number of bits stored in STAT_BITLENGTH.
-pub fn parse_attributes_with_position(
+pub fn parse_with_position(
     byte_vector: &Vec<u8>,
     byte_position: &mut BytePosition,
-) -> Attributes {
+) -> Result<Attributes, ParseError> {
+    if byte_vector[0..2] != SECTION_HEADER {
+        return Err(ParseError {
+            message: format!(
+                "Found wrong header for attributes, expected {0:X?} but found {1:X?}",
+                SECTION_HEADER,
+                &byte_vector[0..2]
+            ),
+        });
+    }
+    byte_position.current_byte = 2;
     let mut stats = Attributes::default();
-
+    // println!("Parsed\n{0:?}", byte_vector);
     for _i in 0..STAT_NUMBER {
         let header = parse_bits(&byte_vector, byte_position, STAT_HEADER_LENGTH);
-        if header == TRAILER {
+        if header == SECTION_TRAILER {
             break;
         }
 
@@ -341,21 +406,20 @@ pub fn parse_attributes_with_position(
             Stat::GoldStash => stats.gold_stash = value,
         }
     }
-    stats
+    Ok(stats)
 }
 
 /// Parse vector of bytes containing attributes data and return an Attributes struct.
 ///
 /// Calls parse_attributes_with_position and discards the byte_position information.
-pub fn parse_attributes(byte_vector: &Vec<u8>) -> Attributes {
+pub fn parse(byte_vector: &Vec<u8>) -> Result<Attributes, ParseError> {
     let mut byte_position = BytePosition::default();
-    parse_attributes_with_position(byte_vector, &mut byte_position)
+    parse_with_position(byte_vector, &mut byte_position)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bit::BitIndex;
 
     #[test]
     fn test_write_and_read_attributes() {
@@ -395,8 +459,11 @@ mod tests {
             gold_inventory: 0,
             gold_stash: 45964,
         };
-        let result: Vec<u8> = Vec::<u8>::from(expected_attributes);
-        let parsed_attributes = parse_attributes(&result);
+        let result: Vec<u8> = generate(&expected_attributes);
+        let parsed_attributes = match parse(&result) {
+            Ok(res) => res,
+            Err(e) => panic!("Failed test_write_and_read_attributes: {e}"),
+        };
 
         assert_eq!(parsed_attributes, expected_attributes);
     }
@@ -444,9 +511,9 @@ mod tests {
     fn test_parse_attributes_1() {
         // Level 1 newly-created barbarian
         let bytes: Vec<u8> = vec![
-            0x00, 0x3C, 0x08, 0xA0, 0x80, 0x00, 0x0A, 0x06, 0x64, 0x60, 0x00, 0xE0, 0x06, 0x1C,
-            0x00, 0xB8, 0x01, 0x08, 0x00, 0x14, 0x40, 0x02, 0x00, 0x05, 0xA0, 0x00, 0x80, 0x0B,
-            0x2C, 0x00, 0xE0, 0x02, 0x0C, 0x02, 0xFF, 0x01,
+            0x67, 0x66, 0x00, 0x3C, 0x08, 0xA0, 0x80, 0x00, 0x0A, 0x06, 0x64, 0x60, 0x00, 0xE0,
+            0x06, 0x1C, 0x00, 0xB8, 0x01, 0x08, 0x00, 0x14, 0x40, 0x02, 0x00, 0x05, 0xA0, 0x00,
+            0x80, 0x0B, 0x2C, 0x00, 0xE0, 0x02, 0x0C, 0x02, 0xFF, 0x01,
         ];
 
         let expected_stats = Attributes {
@@ -486,7 +553,10 @@ mod tests {
             gold_stash: 0,
         };
 
-        let parsed_stats = parse_attributes(&bytes);
+        let parsed_stats = match parse(&bytes) {
+            Ok(res) => res,
+            Err(e) => panic!("Failed test_parse_attributes_1: {e}"),
+        };
 
         //println!("Parsed stats:");
         //println!("{parsed_stats:?}");
@@ -498,10 +568,10 @@ mod tests {
     fn test_parse_attributes_2() {
         // Level 92 sorceress
         let bytes: Vec<u8> = vec![
-            0x00, 0x38, 0x09, 0x30, 0x82, 0x80, 0x11, 0x06, 0x10, 0x65, 0x00, 0x80, 0x9D, 0x1C,
-            0x00, 0x98, 0x19, 0x08, 0x98, 0x2A, 0x45, 0x02, 0x80, 0x6C, 0xA0, 0x00, 0xA0, 0x44,
-            0x2C, 0x00, 0xF8, 0x0E, 0x0C, 0xB8, 0x0D, 0xDE, 0xA3, 0xD1, 0xF2, 0x1E, 0x30, 0xCE,
-            0x02, 0xF8, 0x0F,
+            0x67, 0x66, 0x00, 0x38, 0x09, 0x30, 0x82, 0x80, 0x11, 0x06, 0x10, 0x65, 0x00, 0x80,
+            0x9D, 0x1C, 0x00, 0x98, 0x19, 0x08, 0x98, 0x2A, 0x45, 0x02, 0x80, 0x6C, 0xA0, 0x00,
+            0xA0, 0x44, 0x2C, 0x00, 0xF8, 0x0E, 0x0C, 0xB8, 0x0D, 0xDE, 0xA3, 0xD1, 0xF2, 0x1E,
+            0x30, 0xCE, 0x02, 0xF8, 0x0F,
         ];
 
         let expected_stats = Attributes {
@@ -541,7 +611,10 @@ mod tests {
             gold_stash: 45964,
         };
 
-        let parsed_stats = parse_attributes(&bytes);
+        let parsed_stats = match parse(&bytes) {
+            Ok(res) => res,
+            Err(e) => panic!("Failed test_parse_attributes_2: {e}"),
+        };
         // println!("Expected stats:");
         // println!("{expected_stats:?}");
 
