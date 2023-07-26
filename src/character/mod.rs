@@ -137,7 +137,7 @@ impl Default for Character {
     }
 }
 
-fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
+pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
     let mut character: Character = Character::default();
 
     let active_weapon = u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::WeaponSet))]);

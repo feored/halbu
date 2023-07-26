@@ -20,6 +20,12 @@ impl From<FileSection> for Range<usize> {
     }
 }
 
+/// Keep track of current byte and bit index in the attributes byte vector.
+#[derive(Default, PartialEq, Eq, Debug,)]
+pub struct BytePosition {
+    pub current_byte: usize,
+    pub current_bit: usize,
+}
 
 pub fn u32_from(slice: &[u8]) -> u32 {
     u32::from_le_bytes(
