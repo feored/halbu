@@ -397,10 +397,16 @@ fn get_offset(class: Class) -> usize {
 }
 
 /// Parse a vector of bytes containg a character's skill tree (starting with header 0x69 0x66) and returns a SkillSet on success.
-pub fn parse(byte_vector: &[u8;32], class: Class) -> Result<SkillSet, ParseError> {
+pub fn parse(byte_vector: &[u8; 32], class: Class) -> Result<SkillSet, ParseError> {
     let mut skills: SkillSet = SkillSet::default();
     if byte_vector[0..2] != SECTION_HEADER {
-        return Err(ParseError{message: format!("Found wrong header for skills section: expected {0:?}, found {1:?}", SECTION_HEADER, &byte_vector[0..2])})
+        return Err(ParseError {
+            message: format!(
+                "Found wrong header for skills section: expected {0:?}, found {1:?}",
+                SECTION_HEADER,
+                &byte_vector[0..2]
+            ),
+        });
     }
     let offset = get_offset(class);
     for i in 0..30 {

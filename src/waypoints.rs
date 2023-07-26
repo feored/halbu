@@ -3,36 +3,54 @@ use std::ops::Range;
 
 use bit::BitIndex;
 
-
 use crate::utils::FileSection;
 use crate::Act;
 use crate::ParseError;
 
-enum Section{
+enum Section {
     Header,
     Normal,
     Nightmare,
     Hell,
     Trailer,
     DifficultyHeader,
-    DifficultyWaypointsValue
+    DifficultyWaypointsValue,
 }
-
 
 impl From<Section> for FileSection {
     fn from(section: Section) -> FileSection {
         match section {
-            Section::Header => FileSection { offset: 0, bytes: 8 },
-            Section::Normal => FileSection { offset: 8, bytes: 24},
-            Section::Nightmare => FileSection { offset: 32, bytes: 24},
-            Section::Hell => FileSection { offset: 56, bytes: 24},
-            Section::Trailer => FileSection { offset: 80, bytes: 1},
-            Section::DifficultyHeader => FileSection {offset: 0, bytes: 2},
-            Section::DifficultyWaypointsValue => FileSection {offset:2, bytes: 8}
+            Section::Header => FileSection {
+                offset: 0,
+                bytes: 8,
+            },
+            Section::Normal => FileSection {
+                offset: 8,
+                bytes: 24,
+            },
+            Section::Nightmare => FileSection {
+                offset: 32,
+                bytes: 24,
+            },
+            Section::Hell => FileSection {
+                offset: 56,
+                bytes: 24,
+            },
+            Section::Trailer => FileSection {
+                offset: 80,
+                bytes: 1,
+            },
+            Section::DifficultyHeader => FileSection {
+                offset: 0,
+                bytes: 2,
+            },
+            Section::DifficultyWaypointsValue => FileSection {
+                offset: 2,
+                bytes: 8,
+            },
         }
     }
-} 
-
+}
 
 const SECTION_HEADER: [u8; 8] = [0x57, 0x53, 0x01, 0x00, 0x00, 0x00, 0x50, 0x00];
 const DIFFICULTY_HEADER: [u8; 2] = [0x02, 0x01];
@@ -320,7 +338,9 @@ impl TryFrom<usize> for Waypoint {
 
 fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> {
     let mut waypoints: DifficultyWaypoints = DifficultyWaypoints::default();
-    if bytes[Range::<usize>::from(FileSection::from(Section::DifficultyHeader))] != DIFFICULTY_HEADER {
+    if bytes[Range::<usize>::from(FileSection::from(Section::DifficultyHeader))]
+        != DIFFICULTY_HEADER
+    {
         return Err(ParseError {
             message: format!(
                 "Found wrong waypoint difficulty header: {0:X?}",
@@ -381,15 +401,30 @@ pub fn parse(bytes: &[u8; 81]) -> Result<Waypoints, ParseError> {
     let mut waypoints = Waypoints::default();
     if bytes[Range::<usize>::from(FileSection::from(Section::Header))] != SECTION_HEADER {
         return Err(ParseError {
-            message: format!("Found wrong waypoints header: {0:X?}", &bytes[Range::<usize>::from(FileSection::from(Section::Header))]),
+            message: format!(
+                "Found wrong waypoints header: {0:X?}",
+                &bytes[Range::<usize>::from(FileSection::from(Section::Header))]
+            ),
         });
     }
-    waypoints.normal = match parse_waypoints(&bytes[Range::<usize>::from(FileSection::from(Section::Normal))].try_into().unwrap()) {
+    waypoints.normal = match parse_waypoints(
+        &bytes[Range::<usize>::from(FileSection::from(Section::Normal))]
+            .try_into()
+            .unwrap(),
+    ) {
         Ok(res) => res,
         Err(e) => return Err(e),
     };
-    waypoints.nightmare = parse_waypoints(&bytes[Range::<usize>::from(FileSection::from(Section::Nightmare))].try_into().unwrap())?;
-    waypoints.hell = parse_waypoints(&bytes[Range::<usize>::from(FileSection::from(Section::Hell))].try_into().unwrap())?;
+    waypoints.nightmare = parse_waypoints(
+        &bytes[Range::<usize>::from(FileSection::from(Section::Nightmare))]
+            .try_into()
+            .unwrap(),
+    )?;
+    waypoints.hell = parse_waypoints(
+        &bytes[Range::<usize>::from(FileSection::from(Section::Hell))]
+            .try_into()
+            .unwrap(),
+    )?;
     Ok(waypoints)
 }
 
@@ -409,17 +444,22 @@ fn generate_difficulty(waypoints: &DifficultyWaypoints) -> [u8; 24] {
     flags.set_bit_range(18..27, fill_flags(&waypoints.act3, 9).bit_range(0..9));
     flags.set_bit_range(27..30, fill_flags(&waypoints.act4, 3).bit_range(0..3));
     flags.set_bit_range(30..39, fill_flags(&waypoints.act5, 9).bit_range(0..9));
-    bytes[Range::<usize>::from(FileSection::from(Section::DifficultyWaypointsValue))].copy_from_slice(&u64::to_le_bytes(flags));
+    bytes[Range::<usize>::from(FileSection::from(Section::DifficultyWaypointsValue))]
+        .copy_from_slice(&u64::to_le_bytes(flags));
     bytes
 }
 
 pub fn generate(waypoints: &Waypoints) -> [u8; 81] {
     let mut bytes: [u8; 81] = [0x00; 81];
-    bytes[Range::<usize>::from(FileSection::from(Section::Header))].copy_from_slice(&SECTION_HEADER);
-    bytes[Range::<usize>::from(FileSection::from(Section::Normal))].copy_from_slice(&generate_difficulty(&waypoints.normal));
-    bytes[Range::<usize>::from(FileSection::from(Section::Nightmare))].copy_from_slice(&generate_difficulty(&waypoints.nightmare));
-    bytes[Range::<usize>::from(FileSection::from(Section::Hell))].copy_from_slice(&generate_difficulty(&waypoints.hell));
-    bytes[Range::<usize>::from(FileSection::from(Section::Trailer))][0] = SECTION_TRAILER;
+    bytes[Range::<usize>::from(FileSection::from(Section::Header))]
+        .copy_from_slice(&SECTION_HEADER);
+    bytes[Range::<usize>::from(FileSection::from(Section::Normal))]
+        .copy_from_slice(&generate_difficulty(&waypoints.normal));
+    bytes[Range::<usize>::from(FileSection::from(Section::Nightmare))]
+        .copy_from_slice(&generate_difficulty(&waypoints.nightmare));
+    bytes[Range::<usize>::from(FileSection::from(Section::Hell))]
+        .copy_from_slice(&generate_difficulty(&waypoints.hell));
+    bytes[Range::<usize>::from(FileSection::from(Section::Trailer)).start] = SECTION_TRAILER;
     bytes
 }
 

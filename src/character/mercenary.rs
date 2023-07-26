@@ -218,7 +218,6 @@ pub enum Barbarian {
     Frenzy,
 }
 
-
 /// TODO: Make private, add getters and setters that throw GameLogicError
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub struct Mercenary {
@@ -243,7 +242,7 @@ impl Default for Mercenary {
     }
 }
 
-fn variant_id(variant: &Variant) -> u16{
+fn variant_id(variant: &Variant) -> u16 {
     let mut variant_id: u16 = 99;
 
     for i in 0..VARIANTS.len() {
@@ -253,9 +252,10 @@ fn variant_id(variant: &Variant) -> u16{
         }
     }
     if (variant_id as usize) > VARIANTS.len() {
-        panic!("There is no mercenary ID for type {0:?} recruited in {1:?}",
-                variant.0, variant.1);
-            
+        panic!(
+            "There is no mercenary ID for type {0:?} recruited in {1:?}",
+            variant.0, variant.1
+        );
     }
     variant_id
 }

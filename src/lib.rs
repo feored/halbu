@@ -10,17 +10,17 @@
     variant_size_differences
 )]
 
-use std::ops::Range;
 use bit::BitIndex;
 use std::fmt;
-use utils::FileSection;
+use std::ops::Range;
 use utils::BytePosition;
+use utils::FileSection;
 
-use character::Character as Character;
-use quests::Quests as Quests;
-use waypoints::Waypoints as Waypoints;
-use attributes::Attributes as Attributes;
-use skills::SkillSet as SkillSet;
+use attributes::Attributes;
+use character::Character;
+use quests::Quests;
+use skills::SkillSet;
+use waypoints::Waypoints;
 
 pub mod attributes;
 pub mod character;
@@ -33,19 +33,12 @@ pub mod waypoints;
 
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 
-const ATTRIBUTES_OFFSET : usize = 765;
+const ATTRIBUTES_OFFSET: usize = 765;
 
-const VERSION_100: u32 = 71;
-const VERSION_107: u32 = 87;
-const VERSION_108: u32 = 89;
-const VERSION_109: u32 = 92;
-const VERSION_110: u32 = 96;
-const VERSION_D2R_100: u32 = 97;
-const VERSION_D2R_240: u32 = 98;
-const VERSION_D2R_250: u32 = 99;
+
 
 #[derive(PartialEq, Eq, Debug)]
-enum Section{
+enum Section {
     Signature,
     Version,
     FileSize,
@@ -53,24 +46,47 @@ enum Section{
     Character,
     Quests,
     Waypoints,
-    Npcs
-    // Attributes has no fixed length, and therefore the Skills and Item sections that come after have no fixed offset
+    Npcs, // Attributes has no fixed length, and therefore the Skills and Item sections that come after have no fixed offset
 }
 
 impl From<Section> for FileSection {
     fn from(section: Section) -> FileSection {
         match section {
-            Section::Signature => FileSection{offset:0, bytes:4},
-            Section::Version => FileSection{offset:4, bytes:4},
-            Section::FileSize => FileSection{offset:8, bytes:4},
-            Section::Checksum => FileSection{offset:12, bytes:4},
-            Section::Character => FileSection{offset:16, bytes:319},
-            Section::Quests => FileSection {offset:335, bytes:298},
-            Section::Waypoints => FileSection {offset: 633, bytes: 81},
-            Section::Npcs => FileSection{offset:714, bytes: 51},
+            Section::Signature => FileSection {
+                offset: 0,
+                bytes: 4,
+            },
+            Section::Version => FileSection {
+                offset: 4,
+                bytes: 4,
+            },
+            Section::FileSize => FileSection {
+                offset: 8,
+                bytes: 4,
+            },
+            Section::Checksum => FileSection {
+                offset: 12,
+                bytes: 4,
+            },
+            Section::Character => FileSection {
+                offset: 16,
+                bytes: 319,
+            },
+            Section::Quests => FileSection {
+                offset: 335,
+                bytes: 298,
+            },
+            Section::Waypoints => FileSection {
+                offset: 633,
+                bytes: 81,
+            },
+            Section::Npcs => FileSection {
+                offset: 714,
+                bytes: 51,
+            },
         }
     }
-} 
+}
 
 #[derive(PartialEq, Eq, Debug, Default)]
 pub struct Save {
@@ -81,38 +97,100 @@ pub struct Save {
     npcs: npcs::Placeholder,
     attributes: Attributes,
     skills: SkillSet,
-    items: items::Placeholder
+    items: items::Placeholder,
 }
 
-
 pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
-    let mut save : Save = Save::default();
-    
+    let mut save: Save = Save::default();
+
     if byte_vector.len() < (765 + 32 + 16) {
         // inferior to size of header + skills + minimum attributes, can't be valid
-        return Err(ParseError{message:format!("File is smaller than 765 bytes, the fixed size of the header. Length: {0:?}", byte_vector.len())})
+        return Err(ParseError {
+            message: format!(
+                "File is smaller than 765 bytes, the fixed size of the header. Length: {0:?}",
+                byte_vector.len()
+            ),
+        });
     }
 
     if byte_vector[Range::<usize>::from(FileSection::from(Section::Signature))] != SIGNATURE {
-        return Err(ParseError{message:format!("File signature should be {:0X?} but is {1:X?}", SIGNATURE, &byte_vector[Range::<usize>::from(FileSection::from(Section::Signature))])})
+        return Err(ParseError {
+            message: format!(
+                "File signature should be {:0X?} but is {1:X?}",
+                SIGNATURE,
+                &byte_vector[Range::<usize>::from(FileSection::from(Section::Signature))]
+            ),
+        });
     }
 
+    save.character = character::parse(
+        &byte_vector[Range::<usize>::from(FileSection::from(Section::Character))]
+            .try_into()
+            .unwrap(),
+    )?;
+    save.quests = quests::parse(
+        &byte_vector[Range::<usize>::from(FileSection::from(Section::Quests))]
+            .try_into()
+            .unwrap(),
+    )?;
+    save.waypoints = waypoints::parse(
+        &byte_vector[Range::<usize>::from(FileSection::from(Section::Waypoints))]
+            .try_into()
+            .unwrap(),
+    )?;
+    save.npcs = npcs::parse(
+        &byte_vector[Range::<usize>::from(FileSection::from(Section::Npcs))]
+            .try_into()
+            .unwrap(),
+    );
 
-    save.character = character::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Character))].try_into().unwrap())?;
-    save.quests = quests::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Quests))].try_into().unwrap())?;
-    save.waypoints = waypoints::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Waypoints))].try_into().unwrap())?;
-    save.npcs = npcs::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Npcs))].try_into().unwrap());
-
-    let mut byte_position : BytePosition = BytePosition::default();
-    save.attributes = attributes::parse_with_position(&byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()].try_into().unwrap(), &mut byte_position)?;
+    let mut byte_position: BytePosition = BytePosition::default();
+    save.attributes = attributes::parse_with_position(
+        &byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()]
+            .try_into()
+            .unwrap(),
+        &mut byte_position,
+    )?;
     let skills_offset = ATTRIBUTES_OFFSET + byte_position.current_byte + 1;
-    save.skills = skills::parse(&byte_vector[skills_offset..(skills_offset+32)].try_into().unwrap(), save.character.class)?;
+    save.skills = skills::parse(
+        &byte_vector[skills_offset..(skills_offset + 32)]
+            .try_into()
+            .unwrap(),
+        save.character.class,
+    )?;
     let items_offset = skills_offset + 32;
     // TODO make byte_vector not mut
-    save.items = items::parse(&mut byte_vector[items_offset..byte_vector.len()].try_into().unwrap());
+    save.items = items::parse(
+        &mut byte_vector[items_offset..byte_vector.len()]
+            .try_into()
+            .unwrap(),
+    );
     Ok(save)
 }
 
+
+pub fn generate(save: &mut Save) -> Vec<u8> {
+    let mut result : Vec<u8> = Vec::<u8>::new();
+    result.resize(765, 0x00);
+    
+    result[Range::<usize>::from(FileSection::from(Section::Signature))].copy_from_slice(&SIGNATURE);
+    result[Range::<usize>::from(FileSection::from(Section::Version))].copy_from_slice(&u32::to_le_bytes(u32::from(save.version)));
+    result[Range::<usize>::from(FileSection::from(Section::Character))].copy_from_slice(&character::generate(&save.character));
+    result[Range::<usize>::from(FileSection::from(Section::Quests))].copy_from_slice(&quests::generate(&save.quests));
+    result[Range::<usize>::from(FileSection::from(Section::Waypoints))].copy_from_slice(&waypoints::generate(&save.waypoints));
+    result[Range::<usize>::from(FileSection::from(Section::Npcs))].copy_from_slice(&npcs::generate(save.npcs));
+    result.append(&mut attributes::generate(&save.attributes));
+    result.append(&mut skills::generate(&save.skills));
+    result.append(&mut items::generate(&mut save.items));
+
+    let length = result.len() as u32;
+    result[Range::<usize>::from(FileSection::from(Section::FileSize))].copy_from_slice(&u32::to_le_bytes(length));
+    let checksum = calc_checksum(&result);
+    result[Range::<usize>::from(FileSection::from(Section::Checksum))].copy_from_slice(&i32::to_le_bytes(checksum));
+    
+
+    result
+}
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -130,7 +208,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Copy, Clone)]
 pub enum Version {
     V100,
     V107,
@@ -142,6 +220,22 @@ pub enum Version {
     #[default]
     V250R,
 }
+
+impl From<Version> for u32{
+    fn from(version: Version) -> u32 {
+        match version {
+            Version::V100 => 71,
+            Version::V107 => 87,
+            Version::V108 => 89,
+            Version::V109 => 92,
+            Version::V110 => 96,
+            Version::V200R => 97,
+            Version::V240R => 98,
+            Version::V250R => 99
+        }
+    }
+}
+
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub enum Difficulty {
@@ -253,44 +347,61 @@ impl From<Class> for u8 {
 }
 
 
-
-// fn check_valid_signature(bytes: &Vec<u8>) -> bool {
-//     bytes[get_offset_range(OffsetID::Signature)] == SIGNATURE
-// }
-
-// pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
-//     let mut checksum: i32 = 0;
-//     let (checksum_start, checksum_end) = get_file_bytes_range(OffsetID::Checksum);
-//     for i in 0..bytes.len() {
-//         let mut ch: i32 = bytes[i] as i32;
-//         if i >= checksum_start && i < checksum_end {
-//             ch = 0;
-//         }
-//         checksum = (checksum << 1) + ch + ((checksum < 0) as i32);
-//     }
-//     checksum
-// }
-
+pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
+    let mut checksum: i32 = 0;
+    let range = Range::<usize>::from(FileSection::from(Section::Checksum));
+    for i in 0..bytes.len() {
+        let mut ch: i32 = bytes[i] as i32;
+        if i >= range.start && i < range.end {
+            ch = 0;
+        }
+        checksum = (checksum << 1) + ch + ((checksum < 0) as i32);
+    }
+    checksum
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::Path;
-    
+    use std::io::Write;
+    use std::fs;
 
     #[test]
     fn test_parse_save() {
-        let path: &Path = Path::new("C:/Users/feord/Saved Games/Diablo II Resurrected/Nyahallo.d2s");
+        let path: &Path =
+            Path::new("assets/Joe.d2s");
         let save_file: Vec<u8> = match std::fs::read(path) {
-        Ok(bytes) => bytes,
-        Err(e) => panic!("File invalid: {e:?}"),
-    };
+            Ok(bytes) => bytes,
+            Err(e) => panic!("File invalid: {e:?}"),
+        };
 
-    let save = match parse(&save_file){
-        Ok(res) => res,
-        Err(e) => panic!("PARSE TEST FAILED WITH ERROR: {e}")
-    };
+        let save = match parse(&save_file) {
+            Ok(res) => res,
+            Err(e) => panic!("PARSE TEST FAILED WITH ERROR: {e}"),
+        };
 
-    println!("TEST SUCCESSFUL: {0:?}", save);
+        //println!("TEST SUCCESSFUL: {0:?}", save);
+    }
+
+    #[test]
+    fn test_generate_save() {
+        let path: &Path =
+            Path::new("assets/Test.d2s");
+
+        let mut save : Save = Save::default();
+        save.character.set_name(String::from("test"));
+        save.attributes = attributes::default_character(Class::Amazon);
+
+        let generated_save = generate(&mut save);
+
+        let mut file = fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(path)
+        .unwrap();
+
+    
+        file.write_all(&generated_save).unwrap();
     }
 }
