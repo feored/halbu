@@ -9,9 +9,12 @@ A list of resources that have helped with reverse engineering the .d2s format.
 * https://github.com/nokka/d2s/blob/master/README.md
 
 
+### Class
+
 ### Character Status
 
 Loading a single player file with "Ladder" bit set to 1 in Character Status does nothing (duh).
+
 
 ### Character Menu Appearance
 
