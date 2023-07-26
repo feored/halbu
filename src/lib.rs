@@ -10,8 +10,17 @@
     variant_size_differences
 )]
 
+use std::ops::Range;
 use bit::BitIndex;
 use std::fmt;
+use utils::FileSection;
+use utils::BytePosition;
+
+use character::Character as Character;
+use quests::Quests as Quests;
+use waypoints::Waypoints as Waypoints;
+use attributes::Attributes as Attributes;
+use skills::SkillSet as SkillSet;
 
 pub mod attributes;
 pub mod character;
@@ -24,6 +33,8 @@ pub mod waypoints;
 
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 
+const ATTRIBUTES_OFFSET : usize = 765;
+
 const VERSION_100: u32 = 71;
 const VERSION_107: u32 = 87;
 const VERSION_108: u32 = 89;
@@ -33,19 +44,74 @@ const VERSION_D2R_100: u32 = 97;
 const VERSION_D2R_240: u32 = 98;
 const VERSION_D2R_250: u32 = 99;
 
-enum FileStructure{
+#[derive(PartialEq, Eq, Debug)]
+enum Section{
     Signature,
     Version,
+    FileSize,
     Checksum,
     Character,
     Quests,
     Waypoints,
-    Npcs,
-    Attributes,
-    Skills,
-    Items
+    Npcs
+    // Attributes has no fixed length, and therefore the Skills and Item sections that come after have no fixed offset
 }
 
+impl From<Section> for FileSection {
+    fn from(section: Section) -> FileSection {
+        match section {
+            Section::Signature => FileSection{offset:0, bytes:4},
+            Section::Version => FileSection{offset:4, bytes:4},
+            Section::FileSize => FileSection{offset:8, bytes:4},
+            Section::Checksum => FileSection{offset:12, bytes:4},
+            Section::Character => FileSection{offset:16, bytes:319},
+            Section::Quests => FileSection {offset:335, bytes:298},
+            Section::Waypoints => FileSection {offset: 633, bytes: 81},
+            Section::Npcs => FileSection{offset:714, bytes: 51},
+        }
+    }
+} 
+
+#[derive(PartialEq, Eq, Debug, Default)]
+pub struct Save {
+    version: Version,
+    character: Character,
+    quests: Quests,
+    waypoints: Waypoints,
+    npcs: npcs::Placeholder,
+    attributes: Attributes,
+    skills: SkillSet,
+    items: items::Placeholder
+}
+
+
+pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
+    let mut save : Save = Save::default();
+    
+    if byte_vector.len() < (765 + 32 + 16) {
+        // inferior to size of header + skills + minimum attributes, can't be valid
+        return Err(ParseError{message:format!("File is smaller than 765 bytes, the fixed size of the header. Length: {0:?}", byte_vector.len())})
+    }
+
+    if byte_vector[Range::<usize>::from(FileSection::from(Section::Signature))] != SIGNATURE {
+        return Err(ParseError{message:format!("File signature should be {:0X?} but is {1:X?}", SIGNATURE, &byte_vector[Range::<usize>::from(FileSection::from(Section::Signature))])})
+    }
+
+
+    save.character = character::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Character))].try_into().unwrap())?;
+    save.quests = quests::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Quests))].try_into().unwrap())?;
+    save.waypoints = waypoints::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Waypoints))].try_into().unwrap())?;
+    save.npcs = npcs::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Npcs))].try_into().unwrap());
+
+    let mut byte_position : BytePosition = BytePosition::default();
+    save.attributes = attributes::parse_with_position(&byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()].try_into().unwrap(), &mut byte_position)?;
+    let skills_offset = ATTRIBUTES_OFFSET + byte_position.current_byte + 1;
+    save.skills = skills::parse(&byte_vector[skills_offset..(skills_offset+32)].try_into().unwrap(), save.character.class)?;
+    let items_offset = skills_offset + 32;
+    // TODO make byte_vector not mut
+    save.items = items::parse(&mut byte_vector[items_offset..byte_vector.len()].try_into().unwrap());
+    Ok(save)
+}
 
 
 #[derive(Debug, Clone)]
@@ -64,13 +130,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-pub struct Save {
-    version: Version,
-    character: character::Character,
-}
-
-
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Default)]
 pub enum Version {
     V100,
     V107,
@@ -79,6 +139,7 @@ pub enum Version {
     V110,
     V200R,
     V240R,
+    #[default]
     V250R,
 }
 
@@ -209,3 +270,27 @@ impl From<Class> for u8 {
 //     }
 //     checksum
 // }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+    
+
+    #[test]
+    fn test_parse_save() {
+        let path: &Path = Path::new("C:/Users/feord/Saved Games/Diablo II Resurrected/Nyahallo.d2s");
+        let save_file: Vec<u8> = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(e) => panic!("File invalid: {e:?}"),
+    };
+
+    let save = match parse(&save_file){
+        Ok(res) => res,
+        Err(e) => panic!("PARSE TEST FAILED WITH ERROR: {e}")
+    };
+
+    println!("TEST SUCCESSFUL: {0:?}", save);
+    }
+}

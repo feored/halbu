@@ -2,7 +2,12 @@ use bit::BitIndex;
 use std::cmp;
 use std::fmt;
 
-const TRAILER: u32 = 0x1FF;
+use crate::ParseError;
+use crate::utils::BytePosition;
+
+const SECTION_TRAILER: u32 = 0x1FF;
+
+const SECTION_HEADER : [u8;2] = [0x67, 0x66];
 
 const STAT_HEADER_LENGTH: usize = 9;
 const STAT_NUMBER: usize = 16;
@@ -114,12 +119,6 @@ pub struct Attributes {
     gold_stash: u32,
 }
 
-/// Keep track of current byte and bit index in the attributes byte vector.
-#[derive(Default)]
-pub struct BytePosition {
-    pub current_byte: usize,
-    pub current_bit: usize,
-}
 
 /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
 pub fn write_u8(
@@ -196,9 +195,12 @@ pub fn write_u32(
 
 /// Get a byte-aligned vector of bytes representing a character's attribute.
 impl From<Attributes> for Vec<u8> {
+    // TODO: MAKE THSI INTO ITS OWN FUNCTION
     fn from(attributes: Attributes) -> Vec<u8> {
         let mut result: Vec<u8> = Vec::<u8>::new();
         let mut byte_position: BytePosition = BytePosition::default();
+        result.append(&mut SECTION_HEADER.to_vec());
+        byte_position.current_byte=2;
         for header in 0..STAT_NUMBER {
             let stat = &STAT_KEY[header];
             let header_as_u32 = header as u32;
@@ -302,15 +304,20 @@ fn parse_bits(byte_vector: &Vec<u8>, byte_position: &mut BytePosition, bits_to_r
 /// Attributes are stored in a pair format (header:value). Not all attributes are required to be
 /// present. Headers are always 9 bits, and the STAT_KEY array contains the relevant Stat enum
 /// for every header parsed. Values span different number of bits stored in STAT_BITLENGTH.
-pub fn parse_attributes_with_position(
+pub fn parse_with_position(
     byte_vector: &Vec<u8>,
     byte_position: &mut BytePosition,
-) -> Attributes {
-    let mut stats = Attributes::default();
+) -> Result<Attributes, ParseError> {
 
+    if byte_vector[0..2] != SECTION_HEADER{
+        return Err(ParseError{message: format!("Found wrong header for attributes, expected {0:X?} but found {1:X?}", SECTION_HEADER, &byte_vector[0..2])})
+    }
+    byte_position.current_byte = 2;
+    let mut stats = Attributes::default();
+    // println!("Parsed\n{0:?}", byte_vector);
     for _i in 0..STAT_NUMBER {
         let header = parse_bits(&byte_vector, byte_position, STAT_HEADER_LENGTH);
-        if header == TRAILER {
+        if header == SECTION_TRAILER {
             break;
         }
 
@@ -340,15 +347,15 @@ pub fn parse_attributes_with_position(
             Stat::GoldStash => stats.gold_stash = value,
         }
     }
-    stats
+    Ok(stats)
 }
 
 /// Parse vector of bytes containing attributes data and return an Attributes struct.
 ///
 /// Calls parse_attributes_with_position and discards the byte_position information.
-pub fn parse_attributes(byte_vector: &Vec<u8>) -> Attributes {
+pub fn parse(byte_vector: &Vec<u8>) -> Result<Attributes, ParseError> {
     let mut byte_position = BytePosition::default();
-    parse_attributes_with_position(byte_vector, &mut byte_position)
+    parse_with_position(byte_vector, &mut byte_position)
 }
 
 #[cfg(test)]
@@ -394,7 +401,10 @@ mod tests {
             gold_stash: 45964,
         };
         let result: Vec<u8> = Vec::<u8>::from(expected_attributes);
-        let parsed_attributes = parse_attributes(&result);
+        let parsed_attributes = match parse(&result){
+            Ok(res) => res,
+            Err(e) => panic!("Failed test_write_and_read_attributes: {e}")
+        };
 
         assert_eq!(parsed_attributes, expected_attributes);
     }
@@ -442,7 +452,7 @@ mod tests {
     fn test_parse_attributes_1() {
         // Level 1 newly-created barbarian
         let bytes: Vec<u8> = vec![
-            0x00, 0x3C, 0x08, 0xA0, 0x80, 0x00, 0x0A, 0x06, 0x64, 0x60, 0x00, 0xE0, 0x06, 0x1C,
+            0x67, 0x66, 0x00, 0x3C, 0x08, 0xA0, 0x80, 0x00, 0x0A, 0x06, 0x64, 0x60, 0x00, 0xE0, 0x06, 0x1C,
             0x00, 0xB8, 0x01, 0x08, 0x00, 0x14, 0x40, 0x02, 0x00, 0x05, 0xA0, 0x00, 0x80, 0x0B,
             0x2C, 0x00, 0xE0, 0x02, 0x0C, 0x02, 0xFF, 0x01,
         ];
@@ -484,7 +494,10 @@ mod tests {
             gold_stash: 0,
         };
 
-        let parsed_stats = parse_attributes(&bytes);
+        let parsed_stats = match parse(&bytes){
+            Ok(res) => res,
+            Err(e) => panic!("Failed test_parse_attributes_1: {e}")
+        };
 
         //println!("Parsed stats:");
         //println!("{parsed_stats:?}");
@@ -496,7 +509,7 @@ mod tests {
     fn test_parse_attributes_2() {
         // Level 92 sorceress
         let bytes: Vec<u8> = vec![
-            0x00, 0x38, 0x09, 0x30, 0x82, 0x80, 0x11, 0x06, 0x10, 0x65, 0x00, 0x80, 0x9D, 0x1C,
+            0x67, 0x66, 0x00, 0x38, 0x09, 0x30, 0x82, 0x80, 0x11, 0x06, 0x10, 0x65, 0x00, 0x80, 0x9D, 0x1C,
             0x00, 0x98, 0x19, 0x08, 0x98, 0x2A, 0x45, 0x02, 0x80, 0x6C, 0xA0, 0x00, 0xA0, 0x44,
             0x2C, 0x00, 0xF8, 0x0E, 0x0C, 0xB8, 0x0D, 0xDE, 0xA3, 0xD1, 0xF2, 0x1E, 0x30, 0xCE,
             0x02, 0xF8, 0x0F,
@@ -539,7 +552,10 @@ mod tests {
             gold_stash: 45964,
         };
 
-        let parsed_stats = parse_attributes(&bytes);
+        let parsed_stats = match parse(&bytes){
+            Ok(res) => res,
+            Err(e) => panic!("Failed test_parse_attributes_2: {e}")
+        };
         // println!("Expected stats:");
         // println!("{expected_stats:?}");
 
