@@ -2,8 +2,8 @@ use bit::BitIndex;
 use std::cmp;
 use std::fmt;
 
-use crate::Class;
 use crate::utils::BytePosition;
+use crate::Class;
 use crate::ParseError;
 
 const SECTION_TRAILER: u32 = 0x1FF;
@@ -120,8 +120,7 @@ pub struct Attributes {
     gold_stash: u32,
 }
 
-
-pub fn default_character(class : Class) -> Attributes{
+pub fn default_character(class: Class) -> Attributes {
     let amazon = (20, 25, 20, 15, 50, 84, 15);
     let assassin = (20, 20, 20, 25, 50, 95, 25);
     let barbarian = (30, 20, 25, 10, 55, 92, 10);
@@ -137,7 +136,7 @@ pub fn default_character(class : Class) -> Attributes{
         Class::Paladin => paladin,
         Class::Necromancer => necromancer,
         Class::Sorceress => sorceress,
-        Class::Druid => druid
+        Class::Druid => druid,
     };
 
     Attributes {
@@ -146,21 +145,37 @@ pub fn default_character(class : Class) -> Attributes{
         vitality: stats.2,
         energy: stats.3,
         stat_points_left: 0,
-        skill_points_left:0,
-        life_current: FixedPointStat {integer: stats.4, fraction: 0},
-        life_base: FixedPointStat {integer: stats.4, fraction: 0},
-        mana_current: FixedPointStat {integer: stats.6, fraction: 0},
-        mana_base: FixedPointStat {integer: stats.6, fraction: 0},
-        stamina_current: FixedPointStat {integer: stats.5, fraction: 0},
-        stamina_base: FixedPointStat {integer: stats.5, fraction: 0},
+        skill_points_left: 0,
+        life_current: FixedPointStat {
+            integer: stats.4,
+            fraction: 0,
+        },
+        life_base: FixedPointStat {
+            integer: stats.4,
+            fraction: 0,
+        },
+        mana_current: FixedPointStat {
+            integer: stats.6,
+            fraction: 0,
+        },
+        mana_base: FixedPointStat {
+            integer: stats.6,
+            fraction: 0,
+        },
+        stamina_current: FixedPointStat {
+            integer: stats.5,
+            fraction: 0,
+        },
+        stamina_base: FixedPointStat {
+            integer: stats.5,
+            fraction: 0,
+        },
         level: 1,
         experience: 0,
         gold_inventory: 0,
-        gold_stash: 0
+        gold_stash: 0,
     }
-    
 }
-
 
 /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
 pub fn write_u8(
@@ -238,62 +253,62 @@ pub fn write_u32(
 /// Get a byte-aligned vector of bytes representing a character's attribute.
 pub fn generate(attributes: &Attributes) -> Vec<u8> {
     let mut result: Vec<u8> = Vec::<u8>::new();
-        let mut byte_position: BytePosition = BytePosition::default();
-        result.append(&mut SECTION_HEADER.to_vec());
-        byte_position.current_byte = 2;
-        for header in 0..STAT_NUMBER {
-            let stat = &STAT_KEY[header];
-            let header_as_u32 = header as u32;
+    let mut byte_position: BytePosition = BytePosition::default();
+    result.append(&mut SECTION_HEADER.to_vec());
+    byte_position.current_byte = 2;
+    for header in 0..STAT_NUMBER {
+        let stat = &STAT_KEY[header];
+        let header_as_u32 = header as u32;
 
-            write_u32(
-                &mut result,
-                &mut byte_position,
-                header_as_u32,
-                STAT_HEADER_LENGTH,
-            );
+        write_u32(
+            &mut result,
+            &mut byte_position,
+            header_as_u32,
+            STAT_HEADER_LENGTH,
+        );
 
-            let value: u32 = match stat {
-                Stat::Strength => attributes.strength,
-                Stat::Energy => attributes.energy,
-                Stat::Dexterity => attributes.dexterity,
-                Stat::Vitality => attributes.vitality,
-                Stat::StatPointsLeft => attributes.stat_points_left,
-                Stat::SkillPointsLeft => attributes.skill_points_left,
-                Stat::LifeCurrent => u32::from(&attributes.life_current),
-                Stat::LifeBase => u32::from(&attributes.life_base),
-                Stat::ManaCurrent => u32::from(&attributes.mana_current),
-                Stat::ManaBase => u32::from(&attributes.mana_base),
-                Stat::StaminaCurrent => u32::from(&attributes.stamina_current),
-                Stat::StaminaBase => u32::from(&attributes.stamina_base),
-                Stat::Level => attributes.level,
-                Stat::Experience => attributes.experience,
-                Stat::GoldInventory => attributes.gold_inventory,
-                Stat::GoldStash => attributes.gold_stash,
-            };
+        let value: u32 = match stat {
+            Stat::Strength => attributes.strength,
+            Stat::Energy => attributes.energy,
+            Stat::Dexterity => attributes.dexterity,
+            Stat::Vitality => attributes.vitality,
+            Stat::StatPointsLeft => attributes.stat_points_left,
+            Stat::SkillPointsLeft => attributes.skill_points_left,
+            Stat::LifeCurrent => u32::from(&attributes.life_current),
+            Stat::LifeBase => u32::from(&attributes.life_base),
+            Stat::ManaCurrent => u32::from(&attributes.mana_current),
+            Stat::ManaBase => u32::from(&attributes.mana_base),
+            Stat::StaminaCurrent => u32::from(&attributes.stamina_current),
+            Stat::StaminaBase => u32::from(&attributes.stamina_base),
+            Stat::Level => attributes.level,
+            Stat::Experience => attributes.experience,
+            Stat::GoldInventory => attributes.gold_inventory,
+            Stat::GoldStash => attributes.gold_stash,
+        };
 
-            write_u32(
-                &mut result,
-                &mut byte_position,
-                value,
-                STAT_BITLENGTH[header],
-            );
-        }
-        // add trailing 0x1FF to signal end of attributes section
-        write_u32(&mut result, &mut byte_position, 0x1FF, STAT_HEADER_LENGTH);
+        write_u32(
+            &mut result,
+            &mut byte_position,
+            value,
+            STAT_BITLENGTH[header],
+        );
+    }
+    // add trailing 0x1FF to signal end of attributes section
+    write_u32(&mut result, &mut byte_position, 0x1FF, STAT_HEADER_LENGTH);
 
-        // If we end in the middle of a byte, add some padding so that the next section
-        // starts on a new byte
-        if byte_position.current_bit == 8 {
-            byte_position.current_byte += 1;
-            byte_position.current_bit = 0;
-        } else if byte_position.current_bit != 0 {
-            let bits_to_fill = 8 - byte_position.current_bit;
-            write_u8(&mut result, &mut byte_position, 0, bits_to_fill);
-            byte_position.current_byte += 1;
-            byte_position.current_bit = 0;
-        }
+    // If we end in the middle of a byte, add some padding so that the next section
+    // starts on a new byte
+    if byte_position.current_bit == 8 {
+        byte_position.current_byte += 1;
+        byte_position.current_bit = 0;
+    } else if byte_position.current_bit != 0 {
+        let bits_to_fill = 8 - byte_position.current_bit;
+        write_u8(&mut result, &mut byte_position, 0, bits_to_fill);
+        byte_position.current_byte += 1;
+        byte_position.current_bit = 0;
+    }
 
-        result
+    result
 }
 
 /// Read a certain number of bits in a vector of bytes, starting at a given byte and bit index, and return a u32 with the value.
