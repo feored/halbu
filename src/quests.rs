@@ -218,11 +218,7 @@ pub struct QuestFlags {
 
 impl fmt::Display for QuestFlags {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Completed difficulty: {0:?}",
-            self.completed_difficulty
-        )
+        write!(f, "Completed difficulty: {0:?}", self.completed_difficulty)
     }
 }
 
@@ -234,7 +230,7 @@ impl Quest {
         self.set_stage(Stage::Completed, true);
         self.set_stage(Stage::Closed, true);
     }
-    fn clear(&mut self){
+    fn clear(&mut self) {
         self.flags = 0;
     }
 }
@@ -272,8 +268,12 @@ fn write_flags(bytes: &mut Vec<u8>, flags: &QuestFlags) {
         .copy_from_slice(&u16::to_le_bytes(flags.completed_base_game as u16));
     bytes[Range::<usize>::from(FileSection::from(Section::ResetStats))]
         .copy_from_slice(&u8::to_le_bytes(flags.reset_stats as u8));
-    bytes[Range::<usize>::from(FileSection::from(Section::DifficultyComplete))]
-        .copy_from_slice(match flags.completed_difficulty { true => &[0x80], false => &[0x00]});
+    bytes[Range::<usize>::from(FileSection::from(Section::DifficultyComplete))].copy_from_slice(
+        match flags.completed_difficulty {
+            true => &[0x80],
+            false => &[0x00],
+        },
+    );
 }
 
 fn parse_flags(bytes: &[u8; 96]) -> Result<QuestFlags, ParseError> {
@@ -310,7 +310,7 @@ fn write_quests(byte_vector: &mut Vec<u8>, quests: &QuestSet) {
         let quests_number = match act {
             0..=2 | 4 => 6,
             3 => 3,
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         for i in 0..quests_number {
             let quest_index = i + match act {
@@ -319,7 +319,7 @@ fn write_quests(byte_vector: &mut Vec<u8>, quests: &QuestSet) {
                 2 => 12,
                 3 => 18,
                 4 => 21,
-                _ => unreachable!()
+                _ => unreachable!(),
             };
             let quest_value = u16::to_le_bytes(quests[quest_index].flags);
             // println!{"@@@@@ Quest: {0}", quests[quest_index]};
@@ -335,7 +335,7 @@ fn write_quests(byte_vector: &mut Vec<u8>, quests: &QuestSet) {
             2 => Section::Act3Quests,
             3 => Section::Act4Quests,
             4 => Section::Act5Quests,
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         // println!{"############# Writing quests: {0:X?}", act_quests};
         byte_vector[Range::<usize>::from(FileSection::from(section))].copy_from_slice(&act_quests);
@@ -353,7 +353,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
             name: ACT_1_QUESTS[i],
             act: Act::Act1,
             difficulty: difficulty,
-            flags: u16_from(&act_1_quests[(i*2)..((i*2) + 2)])
+            flags: u16_from(&act_1_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
 
@@ -364,7 +364,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
             name: ACT_2_QUESTS[i],
             act: Act::Act2,
             difficulty: difficulty,
-            flags: u16_from(&act_2_quests[(i*2)..((i*2) + 2)])
+            flags: u16_from(&act_2_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
 
@@ -375,7 +375,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
             name: ACT_3_QUESTS[i],
             act: Act::Act3,
             difficulty: difficulty,
-            flags: u16_from(&act_3_quests[(i*2)..((i*2) + 2)])
+            flags: u16_from(&act_3_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
 
@@ -386,7 +386,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
             name: ACT_4_QUESTS[i],
             act: Act::Act4,
             difficulty: difficulty,
-            flags: u16_from(&act_4_quests[(i*2)..((i*2) + 2)])
+            flags: u16_from(&act_4_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
 
@@ -397,10 +397,10 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
             name: ACT_5_QUESTS[i],
             act: Act::Act5,
             difficulty: difficulty,
-            flags: u16_from(&act_5_quests[(i*2)..((i*2) + 2)])
+            flags: u16_from(&act_5_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
-    
+
     Ok(quests)
 }
 
@@ -444,7 +444,7 @@ pub fn generate(all_quests: &Quests) -> Vec<u8> {
     hell.resize(96, 0x00);
     write_quests(&mut hell, &all_quests.hell.quests);
     write_flags(&mut hell, &all_quests.hell.flags);
-    byte_vector[202..298].copy_from_slice(&hell);    
+    byte_vector[202..298].copy_from_slice(&hell);
 
     byte_vector
 }
