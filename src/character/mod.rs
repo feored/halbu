@@ -303,11 +303,14 @@ pub fn generate(character: &Character) -> [u8; 319] {
 
     bytes[Range::<usize>::from(FileSection::from(Section::WeaponSet))]
         .copy_from_slice(&u32::to_le_bytes(u32::from(character.weapon_set)));
-    bytes[Range::<usize>::from(FileSection::from(Section::Status)).start] = u8::from(character.status);
+    bytes[Range::<usize>::from(FileSection::from(Section::Status)).start] =
+        u8::from(character.status);
     bytes[Range::<usize>::from(FileSection::from(Section::Progression)).start] =
         u8::from(character.progression);
-    bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] = u8::from(character.class);
-    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = u8::from(character.level);
+    bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] =
+        u8::from(character.class);
+    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] =
+        u8::from(character.level);
     bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]
         .copy_from_slice(&u32::to_le_bytes(u32::from(character.last_played)));
 
