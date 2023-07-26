@@ -33,6 +33,21 @@ const VERSION_D2R_100: u32 = 97;
 const VERSION_D2R_240: u32 = 98;
 const VERSION_D2R_250: u32 = 99;
 
+enum FileStructure{
+    Signature,
+    Version,
+    Checksum,
+    Character,
+    Quests,
+    Waypoints,
+    Npcs,
+    Attributes,
+    Skills,
+    Items
+}
+
+
+
 #[derive(Debug, Clone)]
 pub struct ParseError {
     message: String,
@@ -54,34 +69,6 @@ pub struct Save {
     character: character::Character,
 }
 
-#[derive(Debug)]
-pub enum OffsetID {
-    Signature,
-    VersionID,
-    FileSize,
-    Checksum,
-    WeaponSet,
-    Status,
-    Progression,
-    Class,
-    Level,
-    LastPlayedDate,
-    AssignedSkills,
-    LeftMouseSkill,
-    RightMouseSkill,
-    LeftMouseSwitchSkill,
-    RightMouseSwitchSkill,
-    MenuAppearance,
-    Difficulty,
-    MapSeed,
-    Mercenary,
-    ResurrectedMenuAppearance,
-    Name,
-    Quests,
-    Waypoints,
-    NPCs,
-    Attributes,
-}
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Version {

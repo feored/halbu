@@ -218,14 +218,16 @@ pub enum Barbarian {
     Frenzy,
 }
 
+
+/// TODO: Make private, add getters and setters that throw GameLogicError
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub struct Mercenary {
-    dead: bool,
-    id: u32,
-    name_id: u16,
-    name: &'static str,
-    variant: Variant,
-    experience: u32,
+    pub dead: bool,
+    pub id: u32,
+    pub name_id: u16,
+    pub name: &'static str,
+    pub variant: Variant,
+    pub experience: u32,
 }
 
 impl Default for Mercenary {
@@ -241,7 +243,7 @@ impl Default for Mercenary {
     }
 }
 
-fn variant_id(variant: &Variant) -> Result<u16, GameLogicError> {
+fn variant_id(variant: &Variant) -> u16{
     let mut variant_id: u16 = 99;
 
     for i in 0..VARIANTS.len() {
@@ -251,15 +253,11 @@ fn variant_id(variant: &Variant) -> Result<u16, GameLogicError> {
         }
     }
     if (variant_id as usize) > VARIANTS.len() {
-        Err(GameLogicError {
-            message: format!(
-                "There is no mercenary ID for type {0:?} recruited in {1:?}",
-                variant.0, variant.1
-            ),
-        })
-    } else {
-        Ok(variant_id)
+        panic!("There is no mercenary ID for type {0:?} recruited in {1:?}",
+                variant.0, variant.1);
+            
     }
+    variant_id
 }
 
 fn names_list(class: Class) -> &'static [&'static str] {
@@ -296,24 +294,21 @@ pub fn parse(data: &[u8; 14]) -> Result<Mercenary, ParseError> {
     Ok(mercenary)
 }
 
-pub fn generate_mercenary(mercenary: &Mercenary) -> Result<[u8; 14], GameLogicError> {
+pub fn generate(mercenary: &Mercenary) -> [u8; 14] {
     let mut bytes: [u8; 14] = [0x00; 14];
-    bytes[0..2].clone_from_slice(match mercenary.dead {
+    bytes[0..2].copy_from_slice(match mercenary.dead {
         true => &[0x01, 0x00],
         false => &[0x00, 0x00],
     });
 
-    bytes[2..6].clone_from_slice(&mercenary.id.to_le_bytes());
-    bytes[6..8].clone_from_slice(&mercenary.name_id.to_le_bytes());
-    let variant_id = match variant_id(&mercenary.variant) {
-        Ok(id) => id,
-        Err(e) => return Err(e),
-    };
+    bytes[2..6].copy_from_slice(&mercenary.id.to_le_bytes());
+    bytes[6..8].copy_from_slice(&mercenary.name_id.to_le_bytes());
+    let variant_id = variant_id(&mercenary.variant);
 
-    bytes[8..10].clone_from_slice(&variant_id.to_le_bytes());
-    bytes[10..14].clone_from_slice(&mercenary.experience.to_le_bytes());
+    bytes[8..10].copy_from_slice(&variant_id.to_le_bytes());
+    bytes[10..14].copy_from_slice(&mercenary.experience.to_le_bytes());
 
-    Ok(bytes)
+    bytes
 }
 
 #[cfg(test)]
@@ -354,13 +349,7 @@ mod tests {
             variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal),
             experience: 63722u32,
         };
-        let mut parsed_result: [u8; 14] = [0x00; 14];
-        match generate_mercenary(&merc) {
-            Ok(res) => parsed_result = res,
-            Err(e) => {
-                println! {"Test failed: {e:?}"}
-            }
-        };
+        let mut parsed_result: [u8; 14] = generate(&merc);
         assert_eq!(parsed_result, expected_result);
     }
 }

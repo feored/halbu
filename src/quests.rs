@@ -5,13 +5,10 @@ use std::str;
 use bit::BitIndex;
 
 use crate::Act;
-use crate::Class;
 use crate::Difficulty;
-use crate::GameLogicError;
 use crate::ParseError;
 
 use crate::utils::u16_from;
-use crate::utils::u32_from;
 use crate::utils::u8_from;
 use crate::utils::FileSection;
 
@@ -489,7 +486,7 @@ mod tests {
     //             panic!("{e:?}")
     //         }
     //     };
-    //     println!("{0}", parsed_result);
+    //     //println!("{0}", parsed_result);
     //     assert_eq!(parsed_result.hell.flags.completed_difficulty, true);
     //     assert_eq!(parsed_result.hell.quests[26].name, "Eve of Destruction");
 
