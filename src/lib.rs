@@ -376,9 +376,9 @@ mod tests {
             Err(e) => panic!("File invalid: {e:?}"),
         };
 
-        let save = match parse(&save_file) {
+        let _save = match parse(&save_file) {
             Ok(res) => res,
-            Err(e) => panic!("PARSE TEST FAILED WITH ERROR: {e}"),
+            Err(e) => panic!("test_parse_save failed: {e}"),
         };
 
         //println!("TEST SUCCESSFUL: {0:?}", save);

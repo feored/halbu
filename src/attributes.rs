@@ -73,8 +73,8 @@ impl From<u32> for FixedPointStat {
         let integer: u32 = fixed_point_number.bit_range(8..21);
         let fraction: u32 = fixed_point_number.bit_range(0..8);
         FixedPointStat {
-            integer: integer,
-            fraction: fraction,
+            integer,
+            fraction,
         }
     }
 }
@@ -183,7 +183,7 @@ pub fn write_u8(
     byte_position: &mut BytePosition,
     bits_source: u8,
     bits_count: usize,
-) -> () {
+) {
     let mut bits_left_to_write: usize = bits_count;
     let mut bit_index = 0;
     loop {
@@ -226,7 +226,7 @@ pub fn write_u32(
     byte_position: &mut BytePosition,
     bits_source: u32,
     bits_count: usize,
-) -> () {
+) {
     let mut bits_left_to_write: usize = bits_count;
     // println!(
     //     "Writing {bits_left_to_write:?} bits of binary: {0:#034b}",
@@ -337,7 +337,7 @@ fn parse_bits(byte_vector: &Vec<u8>, byte_position: &mut BytePosition, bits_to_r
             u32::from_le_bytes([bits_parsed, 0x00, 0x00, 0x00]),
         );
         buffer_bit_position += bits_parsing_count;
-        bits_left_to_read = bits_left_to_read - bits_parsing_count;
+        bits_left_to_read -= bits_parsing_count;
         byte_position.current_bit += bits_parsing_count;
 
         // println!("Bits left to read: {bits_left_to_read:?},
@@ -375,14 +375,14 @@ pub fn parse_with_position(
     let mut stats = Attributes::default();
     // println!("Parsed\n{0:?}", byte_vector);
     for _i in 0..STAT_NUMBER {
-        let header = parse_bits(&byte_vector, byte_position, STAT_HEADER_LENGTH);
+        let header = parse_bits(byte_vector, byte_position, STAT_HEADER_LENGTH);
         if header == SECTION_TRAILER {
             break;
         }
 
         let bits_to_parse = STAT_BITLENGTH[header as usize];
         // println!("Now parsing length: {bits_to_parse:?}, header : {header:?}");
-        let value = parse_bits(&byte_vector, byte_position, bits_to_parse);
+        let value = parse_bits(byte_vector, byte_position, bits_to_parse);
         // println!(
         //     "Now parsed: {0:?}, length: {bits_to_parse:?}, value: {value:?}",
         //     STAT_KEY[header as usize]
