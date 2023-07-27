@@ -1,8 +1,13 @@
 use crate::Difficulty;
-use crate::GameLogicError;
+
 use crate::ParseError;
 
-const VARIANTS: &'static [Variant; 39] = &[
+pub mod consts;
+
+#[cfg(test)]
+pub mod tests;
+
+const VARIANTS: &[Variant; 39] = &[
     (Class::Rogue(Rogue::Fire), Difficulty::Normal),
     (Class::Rogue(Rogue::Cold), Difficulty::Normal),
     (Class::Rogue(Rogue::Fire), Difficulty::Nightmare),
@@ -89,96 +94,6 @@ const VARIANTS: &'static [Variant; 39] = &[
     (Class::Barbarian(Barbarian::Frenzy), Difficulty::Hell),
 ];
 
-const ROGUE_NAMES: [&'static str; 41] = [
-    "Aliza", "Ampliza", "Annor", "Abhaya", "Elly", "Paige", "Basanti", "Blaise", "Kyoko",
-    "Klaudia", "Kundri", "Kyle", "Visala", "Elexa", "Floria", "Fiona", "Gwinni", "Gaile", "Hannah",
-    "Heather", "Iantha", "Diane", "Isolde", "Divo", "Ithera", "Itonya", "Liene", "Maeko", "Mahala",
-    "Liaza", "Meghan", "Olena", "Oriana", "Ryann", "Rozene", "Raissa", "Sharyn", "Shikha", "Debi",
-    "Tylena", "Wendy",
-];
-
-const DESERTMERCENARY_NAMES: [&'static str; 21] = [
-    "Hazade", "Alhizeer", "Azrael", "Ahsab", "Chalan", "Haseen", "Razan", "Emilio", "Pratham",
-    "Fazel", "Jemali", "Kasim", "Gulzar", "Mizan", "Leharas", "Durga", "Neeraj", "Ilzan",
-    "Zanarhi", "Waheed", "Vikhyat",
-];
-
-const IRONWOLF_NAMES: [&'static str; 20] = [
-    "Jelani", "Barani", "Jabari", "Devak", "Raldin", "Telash", "Ajheed", "Narphet", "Khaleel",
-    "Phaet", "Geshef", "Vanji", "Haphet", "Thadar", "Yatiraj", "Rhadge", "Yashied", "Jarulf",
-    "Flux", "Scorch",
-];
-
-const BARBARIAN_NAMES: [&'static str; 67] = [
-    "Varaya",
-    "Khan",
-    "Klisk",
-    "Bors",
-    "Brom",
-    "Wiglaf",
-    "Hrothgar",
-    "Scyld",
-    "Healfdane",
-    "Heorogar",
-    "Halgaunt",
-    "Hygelac",
-    "Egtheow",
-    "Bohdan",
-    "Wulfgar",
-    "Hild",
-    "Heatholaf",
-    "Weder",
-    "Vikhyat",
-    "Unferth",
-    "Sigemund",
-    "Heremod",
-    "Hengest",
-    "Folcwald",
-    "Frisian",
-    "Hnaef",
-    "Guthlaf",
-    "Oslaf",
-    "Yrmenlaf",
-    "Garmund",
-    "Freawaru",
-    "Eadgils",
-    "Onela",
-    "Damien",
-    "Erfor",
-    "Weohstan",
-    "Wulf",
-    "Bulwye",
-    "Lief",
-    "Magnus",
-    "Klatu",
-    "Drus",
-    "Hoku",
-    "Kord",
-    "Uther",
-    "Ip",
-    "Ulf",
-    "Tharr",
-    "Kaelim",
-    "Ulric",
-    "Alaric",
-    "Ethelred",
-    "Caden",
-    "Elgifu",
-    "Tostig",
-    "Alcuin",
-    "Emund",
-    "Sigurd",
-    "Gorm",
-    "Hollis",
-    "Ragnar",
-    "Torkel",
-    "Wulfstan",
-    "Alban",
-    "Barloc",
-    "Bill",
-    "Theodoric",
-];
-
 pub type Variant = (Class, Difficulty);
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
@@ -235,7 +150,7 @@ impl Default for Mercenary {
             dead: false,
             id: 0,
             name_id: 0,
-            name: ROGUE_NAMES[0],
+            name: consts::ROGUE_NAMES[0],
             variant: VARIANTS[0],
             experience: 0,
         }
@@ -262,10 +177,10 @@ fn variant_id(variant: &Variant) -> u16 {
 
 fn names_list(class: Class) -> &'static [&'static str] {
     match class {
-        Class::Rogue(_) => &ROGUE_NAMES,
-        Class::DesertMercenary(_) => &DESERTMERCENARY_NAMES,
-        Class::IronWolf(_) => &IRONWOLF_NAMES,
-        Class::Barbarian(_) => &BARBARIAN_NAMES,
+        Class::Rogue(_) => &consts::ROGUE_NAMES,
+        Class::DesertMercenary(_) => &consts::DESERTMERCENARY_NAMES,
+        Class::IronWolf(_) => &consts::IRONWOLF_NAMES,
+        Class::Barbarian(_) => &consts::BARBARIAN_NAMES,
     }
 }
 
@@ -309,47 +224,4 @@ pub fn generate(mercenary: &Mercenary) -> [u8; 14] {
     bytes[10..14].copy_from_slice(&mercenary.experience.to_le_bytes());
 
     bytes
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_test() {
-        let expected_result = Mercenary {
-            dead: false,
-            id: 3461679u32,
-            name_id: 3,
-            name: "Abhaya",
-            variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal),
-            experience: 63722u32,
-        };
-        let bytes =
-            [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
-        let mut parsed_result: Mercenary = Mercenary::default();
-        match parse(&bytes) {
-            Ok(res) => parsed_result = res,
-            Err(e) => {
-                println! {"Test failed: {e:?}"}
-            }
-        };
-        assert_eq!(parsed_result, expected_result);
-    }
-
-    #[test]
-    fn generate_mercenary_test() {
-        let expected_result =
-            [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
-        let merc = Mercenary {
-            dead: false,
-            id: 3461679u32,
-            name_id: 3,
-            name: "Abhaya",
-            variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal),
-            experience: 63722u32,
-        };
-        let mut parsed_result: [u8; 14] = generate(&merc);
-        assert_eq!(parsed_result, expected_result);
-    }
 }

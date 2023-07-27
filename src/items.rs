@@ -16,7 +16,7 @@ pub fn parse(byte_vector: &Vec<u8>) -> Placeholder {
     placeholder
 }
 
-pub fn generate(placeholder: &Placeholder) -> Vec<u8> {
+pub fn generate(_placeholder: &Placeholder) -> Vec<u8> {
     let byte_vector: Vec<u8> = NO_ITEMS.to_vec();
     byte_vector
 }

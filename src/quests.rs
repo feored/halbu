@@ -12,40 +12,8 @@ use crate::utils::u16_from;
 use crate::utils::u8_from;
 use crate::utils::FileSection;
 
-const SECTION_HEADER: [u8; 10] = [0x57, 0x6F, 0x6F, 0x21, 0x06, 0x00, 0x00, 0x00, 0x2A, 0x01];
-const ACT_1_QUESTS: [&'static str; 6] = [
-    "Den of Evil",
-    "Sisters' Burial Ground",
-    "Search For Cain",
-    "The Forgotten Tower",
-    "Tools of the Trade",
-    "Sisters to the Slaughter",
-];
-const ACT_2_QUESTS: [&'static str; 6] = [
-    "Radament's Lair",
-    "The Horadric Staff",
-    "Tainted Sun",
-    "Arcane Sanctuary",
-    "The Summoner",
-    "The Seven Tombs",
-];
-const ACT_3_QUESTS: [&'static str; 6] = [
-    "The Golden Bird",
-    "Blade of the Old Religion",
-    "Khalim's Will",
-    "Lam Esen's Tome",
-    "The Blackened Temple",
-    "The Guardian",
-];
-const ACT_4_QUESTS: [&'static str; 3] = ["Fallen Angel", "Hell's Forge", "Terror's End"];
-const ACT_5_QUESTS: [&'static str; 6] = [
-    "Siege on Harrogath",
-    "Rescue on Mount Arreat",
-    "Prison of Ice",
-    "Betrayal of Harrogath",
-    "Rite of Passage",
-    "Eve of Destruction",
-];
+pub mod consts;
+
 
 #[derive(PartialEq, Eq, Debug)]
 enum Section {
@@ -350,9 +318,9 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
         // println!("{0:X?}", &act_1_quests[(i*2)..((i*2)+ 2)]);
         quests[i] = Quest {
             id: i,
-            name: ACT_1_QUESTS[i],
+            name: consts::ACT_1_QUESTS[i],
             act: Act::Act1,
-            difficulty: difficulty,
+            difficulty,
             flags: u16_from(&act_1_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
@@ -361,9 +329,9 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..6 {
         quests[i + 6] = Quest {
             id: i + 6,
-            name: ACT_2_QUESTS[i],
+            name: consts::ACT_2_QUESTS[i],
             act: Act::Act2,
-            difficulty: difficulty,
+            difficulty,
             flags: u16_from(&act_2_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
@@ -372,9 +340,9 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..6 {
         quests[i + 12] = Quest {
             id: i + 12,
-            name: ACT_3_QUESTS[i],
+            name: consts::ACT_3_QUESTS[i],
             act: Act::Act3,
-            difficulty: difficulty,
+            difficulty,
             flags: u16_from(&act_3_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
@@ -383,9 +351,9 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..3 {
         quests[i + 18] = Quest {
             id: i + 18,
-            name: ACT_4_QUESTS[i],
+            name: consts::ACT_4_QUESTS[i],
             act: Act::Act4,
-            difficulty: difficulty,
+            difficulty,
             flags: u16_from(&act_4_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
@@ -394,9 +362,9 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..6 {
         quests[i + 21] = Quest {
             id: i + 21,
-            name: ACT_5_QUESTS[i],
+            name: consts::ACT_5_QUESTS[i],
             act: Act::Act5,
-            difficulty: difficulty,
+            difficulty,
             flags: u16_from(&act_5_quests[(i * 2)..((i * 2) + 2)]),
         };
     }
@@ -405,7 +373,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
 }
 
 pub fn parse(bytes: &[u8; 298]) -> Result<Quests, ParseError> {
-    if bytes[0..10] != SECTION_HEADER {
+    if bytes[0..10] != consts::SECTION_HEADER {
         return Err(ParseError {
             message: format! {"Found wrong header for quests: {:02X?}", &bytes[0..10]},
         });
@@ -425,7 +393,7 @@ pub fn parse(bytes: &[u8; 298]) -> Result<Quests, ParseError> {
 }
 
 pub fn generate(all_quests: &Quests) -> Vec<u8> {
-    let mut byte_vector = SECTION_HEADER.to_vec();
+    let mut byte_vector = consts::SECTION_HEADER.to_vec();
     byte_vector.resize(298, 0x00);
 
     let mut normal = Vec::<u8>::new();
@@ -451,7 +419,7 @@ pub fn generate(all_quests: &Quests) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     // #[test]
     // fn test_generate_and_parse() {
