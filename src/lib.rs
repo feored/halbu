@@ -86,7 +86,7 @@ impl From<Section> for FileSection {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct Save {
     version: Version,
     character: Character,
@@ -200,6 +200,7 @@ pub struct ParseError {
     message: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct GameLogicError {
     message: String,
