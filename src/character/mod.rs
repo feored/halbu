@@ -6,7 +6,6 @@ use bit::BitIndex;
 use crate::Act;
 use crate::Class;
 use crate::Difficulty;
-use crate::GameLogicError;
 use crate::ParseError;
 
 use crate::utils::get_sys_time_in_secs;
@@ -20,7 +19,7 @@ pub mod mercenary;
 pub mod consts;
 pub mod tests;
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 enum Section {
     WeaponSet,
     Status,
@@ -116,7 +115,7 @@ impl From<Section> for FileSection {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Character {
     weapon_set: WeaponSet,
     pub status: Status,

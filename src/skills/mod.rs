@@ -4,7 +4,7 @@ use crate::ParseError;
 pub mod consts;
 mod tests;
 /// Represents a single skill. The id values match the ones found in Skills.txt in the game's files.
-#[derive(Default, PartialEq, Eq, Debug, Ord, PartialOrd)]
+#[derive(Default, PartialEq, Eq, Debug, Ord, PartialOrd, Clone)]
 pub struct Skill {
     id: u8,
     name: String,

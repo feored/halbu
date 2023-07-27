@@ -134,7 +134,7 @@ impl fmt::Display for Quest {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy)]
 pub struct Quests {
     pub normal: DifficultyQuests,
     pub nightmare: DifficultyQuests,
@@ -151,7 +151,7 @@ impl fmt::Display for Quests {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy)]
 pub struct DifficultyQuests {
     pub flags: QuestFlags,
     pub quests: QuestSet,
@@ -169,7 +169,7 @@ impl fmt::Display for DifficultyQuests {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy)]
 pub struct QuestFlags {
     pub act_1_introduction: bool,
     pub act_2_travel: bool,
@@ -190,6 +190,7 @@ impl fmt::Display for QuestFlags {
     }
 }
 
+#[allow(dead_code)]
 impl Quest {
     fn set_stage(&mut self, stage: Stage, value: bool) {
         self.flags.set_bit(usize::from(stage), value);
