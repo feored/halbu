@@ -1,11 +1,14 @@
 use std::fmt;
 use std::ops::Range;
 
+use serde::{Serialize, Deserialize};
 use bit::BitIndex;
 
 use crate::utils::FileSection;
 use crate::Act;
 use crate::ParseError;
+
+pub mod consts;
 
 enum Section {
     Header,
@@ -52,65 +55,10 @@ impl From<Section> for FileSection {
     }
 }
 
-const SECTION_HEADER: [u8; 8] = [0x57, 0x53, 0x01, 0x00, 0x00, 0x00, 0x50, 0x00];
-const DIFFICULTY_HEADER: [u8; 2] = [0x02, 0x01];
-const SECTION_TRAILER: u8 = 0x01;
-
-const NAMES_ACT1: [&'static str; 9] = [
-    "Rogue Encampment",
-    "Cold Plains",
-    "Stony Field",
-    "Dark Wood",
-    "Black Marsh",
-    "Outer Cloister",
-    "Jail",
-    "Inner Cloister",
-    "Catacombs",
-];
-
-const NAMES_ACT2: [&'static str; 9] = [
-    "Lut Gholein",
-    "Sewers",
-    "Dry Hills",
-    "Halls of the Dead",
-    "Far Oasis",
-    "Lost City",
-    "Palace Cellar",
-    "Arcane Sanctuary",
-    "Canyon of the Magi",
-];
-
-const NAMES_ACT3: [&'static str; 9] = [
-    "Kurast Docks",
-    "Spider Forest",
-    "Great Marsh",
-    "Flayer Jungle",
-    "Lower Kurast",
-    "Kurast Bazaar",
-    "Upper Kurast",
-    "Travincal",
-    "Durance of Hate",
-];
-
-const NAMES_ACT4: [&'static str; 3] =
-    ["Pandemonium Fortress", "City of the Damned", "River of Flames"];
-
-const NAMES_ACT5: [&'static str; 9] = [
-    "Harrogath",
-    "Frigid Highlands",
-    "Arreat Plateau",
-    "Crystalline Passage",
-    "Halls of Pain",
-    "Glacial Trail",
-    "Frozen Tundra",
-    "The Ancients' Way",
-    "Worldstone Keep",
-];
-
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WaypointInfo {
     id: Waypoint,
-    name: &'static str,
+    name: String,
     act: Act,
     acquired: bool,
 }
@@ -121,7 +69,7 @@ impl fmt::Display for WaypointInfo {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Waypoints {
     normal: DifficultyWaypoints,
     nightmare: DifficultyWaypoints,
@@ -146,7 +94,7 @@ impl fmt::Display for Waypoints {
 //     }
 // }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct DifficultyWaypoints {
     act1: [WaypointInfo; 9],
     act2: [WaypointInfo; 9],
@@ -161,7 +109,7 @@ impl fmt::Display for DifficultyWaypoints {
             let mut final_string = String::default();
             for i in 0..length {
                 final_string.push_str(&array[i].to_string());
-                final_string.push_str("\n");
+                final_string.push('\n');
             }
             final_string
         };
@@ -183,11 +131,11 @@ impl Default for DifficultyWaypoints {
             for i in 0..9 {
                 default_waypoints[i].act = act;
                 default_waypoints[i].name = match act {
-                    Act::Act1 => NAMES_ACT1[i],
-                    Act::Act2 => NAMES_ACT2[i],
-                    Act::Act3 => NAMES_ACT3[i],
-                    Act::Act4 => NAMES_ACT4[i],
-                    Act::Act5 => NAMES_ACT5[i],
+                    Act::Act1 => String::from(consts::NAMES_ACT1[i]),
+                    Act::Act2 => String::from(consts::NAMES_ACT2[i]),
+                    Act::Act3 => String::from(consts::NAMES_ACT3[i]),
+                    Act::Act4 => String::from(consts::NAMES_ACT4[i]),
+                    Act::Act5 => String::from(consts::NAMES_ACT5[i]),
                 };
                 let absolute_id: usize = i + match act {
                     Act::Act1 => 0,
@@ -215,7 +163,7 @@ impl Default for DifficultyWaypoints {
                 let mut default_waypoints: [WaypointInfo; 3] = <[WaypointInfo; 3]>::default();
                 for i in 0..3 {
                     default_waypoints[i].act = Act::Act4;
-                    default_waypoints[i].name = NAMES_ACT4[i];
+                    default_waypoints[i].name = String::from(consts::NAMES_ACT4[i]);
                     default_waypoints[i].id = match Waypoint::try_from(27 + i) {
                         Ok(res) => res,
                         Err(e) => panic!("Error getting default difficulty waypoint: {e}"),
@@ -229,7 +177,7 @@ impl Default for DifficultyWaypoints {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Default, Serialize, Deserialize)]
 pub enum Waypoint {
     #[default]
     RogueEncampment = 0,
@@ -339,7 +287,7 @@ impl TryFrom<usize> for Waypoint {
 fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> {
     let mut waypoints: DifficultyWaypoints = DifficultyWaypoints::default();
     if bytes[Range::<usize>::from(FileSection::from(Section::DifficultyHeader))]
-        != DIFFICULTY_HEADER
+        != consts::DIFFICULTY_HEADER
     {
         return Err(ParseError {
             message: format!(
@@ -355,7 +303,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act1 => {
                 waypoints.act1[id] = WaypointInfo {
                     id: waypoint,
-                    name: NAMES_ACT1[id],
+                    name: String::from(consts::NAMES_ACT1[id]),
                     act: Act::Act1,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -363,7 +311,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act2 => {
                 waypoints.act2[id - 9] = WaypointInfo {
                     id: waypoint,
-                    name: NAMES_ACT2[id - 9],
+                    name: String::from(consts::NAMES_ACT2[id - 9]),
                     act: Act::Act2,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -371,7 +319,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act3 => {
                 waypoints.act3[id - 18] = WaypointInfo {
                     id: waypoint,
-                    name: NAMES_ACT3[id - 18],
+                    name: String::from(consts::NAMES_ACT3[id - 18]),
                     act: Act::Act3,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -379,7 +327,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act4 => {
                 waypoints.act4[id - 27] = WaypointInfo {
                     id: waypoint,
-                    name: NAMES_ACT4[id - 27],
+                    name: String::from(consts::NAMES_ACT4[id - 27]),
                     act: Act::Act4,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -387,7 +335,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act5 => {
                 waypoints.act5[id - 30] = WaypointInfo {
                     id: waypoint,
-                    name: NAMES_ACT5[id - 30],
+                    name: String::from(consts::NAMES_ACT5[id - 30]),
                     act: Act::Act5,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -399,7 +347,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
 
 pub fn parse(bytes: &[u8; 81]) -> Result<Waypoints, ParseError> {
     let mut waypoints = Waypoints::default();
-    if bytes[Range::<usize>::from(FileSection::from(Section::Header))] != SECTION_HEADER {
+    if bytes[Range::<usize>::from(FileSection::from(Section::Header))] != consts::SECTION_HEADER {
         return Err(ParseError {
             message: format!(
                 "Found wrong waypoints header: {0:X?}",
@@ -430,7 +378,7 @@ pub fn parse(bytes: &[u8; 81]) -> Result<Waypoints, ParseError> {
 
 fn generate_difficulty(waypoints: &DifficultyWaypoints) -> [u8; 24] {
     let mut bytes: [u8; 24] = [0x00; 24];
-    bytes[0..2].copy_from_slice(&DIFFICULTY_HEADER);
+    bytes[0..2].copy_from_slice(&consts::DIFFICULTY_HEADER);
     fn fill_flags(waypoints: &[WaypointInfo], length: usize) -> u64 {
         let mut flags: u64 = 0;
         for i in 0..length {
@@ -452,67 +400,14 @@ fn generate_difficulty(waypoints: &DifficultyWaypoints) -> [u8; 24] {
 pub fn generate(waypoints: &Waypoints) -> [u8; 81] {
     let mut bytes: [u8; 81] = [0x00; 81];
     bytes[Range::<usize>::from(FileSection::from(Section::Header))]
-        .copy_from_slice(&SECTION_HEADER);
+        .copy_from_slice(&consts::SECTION_HEADER);
     bytes[Range::<usize>::from(FileSection::from(Section::Normal))]
         .copy_from_slice(&generate_difficulty(&waypoints.normal));
     bytes[Range::<usize>::from(FileSection::from(Section::Nightmare))]
         .copy_from_slice(&generate_difficulty(&waypoints.nightmare));
     bytes[Range::<usize>::from(FileSection::from(Section::Hell))]
         .copy_from_slice(&generate_difficulty(&waypoints.hell));
-    bytes[Range::<usize>::from(FileSection::from(Section::Trailer)).start] = SECTION_TRAILER;
+    bytes[Range::<usize>::from(FileSection::from(Section::Trailer)).start] = consts::SECTION_TRAILER;
     bytes
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_waypoints_test() {
-        let bytes: [u8; 81] = [
-            0x57, 0x53, 0x01, 0x00, 0x00, 0x00, 0x50, 0x00, 0x02, 0x01, 0xEF, 0xEB, 0xD7, 0xFF,
-            0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x02, 0x01, 0xEF, 0xE3, 0xBD, 0xFF, 0x51, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x02, 0x01, 0xEF, 0xEF, 0xEF, 0xFE, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-        ];
-        let parsed_waypoints = match parse(&bytes) {
-            Ok(res) => res,
-            Err(e) => panic!("parse_waypoints_test: {0}", e),
-        };
-        //println!("{0}", parsed_waypoints);
-        assert_eq!(
-            parsed_waypoints.hell.act1[8],
-            WaypointInfo {
-                id: Waypoint::Catacombs,
-                name: "Catacombs",
-                act: Act::Act1,
-                acquired: true
-            }
-        );
-        assert_eq!(
-            parsed_waypoints.nightmare.act2[3],
-            WaypointInfo {
-                id: Waypoint::HallsOfTheDead,
-                name: "Halls of the Dead",
-                act: Act::Act2,
-                acquired: false
-            }
-        );
-    }
-
-    #[test]
-    fn generate_waypoints_test() {
-        let expected_bytes: [u8; 81] = [
-            0x57, 0x53, 0x01, 0x00, 0x00, 0x00, 0x50, 0x00, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-        ];
-
-        assert_eq!(expected_bytes, generate(&Waypoints::default()));
-    }
-}

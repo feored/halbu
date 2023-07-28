@@ -15,6 +15,7 @@ use std::fmt;
 use std::ops::Range;
 use utils::BytePosition;
 use utils::FileSection;
+use serde::{Serialize, Deserialize};
 
 use attributes::Attributes;
 use character::Character;
@@ -86,16 +87,16 @@ impl From<Section> for FileSection {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Default, Clone)]
 pub struct Save {
-    version: Version,
-    character: Character,
-    quests: Quests,
-    waypoints: Waypoints,
-    npcs: npcs::Placeholder,
-    attributes: Attributes,
-    skills: SkillSet,
-    items: items::Placeholder,
+    pub version: Version,
+    pub character: Character,
+    pub quests: Quests,
+    pub waypoints: Waypoints,
+    pub npcs: npcs::Placeholder,
+    pub attributes: Attributes,
+    pub skills: SkillSet,
+    pub items: items::Placeholder,
 }
 
 pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
@@ -195,12 +196,20 @@ pub fn generate(save: &mut Save) -> Vec<u8> {
     result
 }
 
-#[derive(Debug, Clone)]
+
+pub fn new_character(class : Class) -> Save {
+    let mut new_character : Save = Save::default();
+    new_character.attributes = attributes::default_character(class);
+    new_character
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParseError {
     message: String,
 }
 
-#[derive(Debug, Clone)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct GameLogicError {
     message: String,
 }
@@ -211,7 +220,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Default, Copy, Clone, Serialize, Deserialize)]
 pub enum Version {
     V100,
     V107,
@@ -239,7 +248,7 @@ impl From<Version> for u32 {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Difficulty {
     #[default]
     Normal,
@@ -253,7 +262,7 @@ impl fmt::Display for Difficulty {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Act {
     #[default]
     Act1,
@@ -305,7 +314,7 @@ impl From<Act> for u8 {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Class {
     Amazon,
     Sorceress,
@@ -329,6 +338,25 @@ impl TryFrom<u8> for Class {
             0x06 => Ok(Class::Assassin),
             _ => Err(ParseError {
                 message: format!("Found invalid class: {0:?}.", byte),
+            }),
+        }
+    }
+}
+
+impl TryFrom<String> for Class {
+    type Error = ParseError;
+    fn try_from(string: String) -> Result<Class, ParseError> {
+        let stripped_string: String = string.trim().to_lowercase();
+        match stripped_string.as_str() {
+            "amazon" => Ok(Class::Amazon),
+            "sorceress" => Ok(Class::Sorceress),
+            "necromancer" => Ok(Class::Necromancer),
+            "paladin" => Ok(Class::Paladin),
+            "barbarian" => Ok(Class::Barbarian),
+            "druid" => Ok(Class::Druid),
+            "assassin" => Ok(Class::Assassin),
+            _ => Err(ParseError {
+                message: format!("Not a valid character class: {0}.", stripped_string),
             }),
         }
     }
@@ -376,9 +404,9 @@ mod tests {
             Err(e) => panic!("File invalid: {e:?}"),
         };
 
-        let save = match parse(&save_file) {
+        let _save = match parse(&save_file) {
             Ok(res) => res,
-            Err(e) => panic!("PARSE TEST FAILED WITH ERROR: {e}"),
+            Err(e) => panic!("test_parse_save failed: {e}"),
         };
 
         //println!("TEST SUCCESSFUL: {0:?}", save);

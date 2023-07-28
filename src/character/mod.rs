@@ -1,12 +1,13 @@
 use std::ops::Range;
 use std::str;
 
+use serde_with::{serde_as, Bytes};
+use serde::{Serialize, Deserialize};
 use bit::BitIndex;
 
 use crate::Act;
 use crate::Class;
 use crate::Difficulty;
-use crate::GameLogicError;
 use crate::ParseError;
 
 use crate::utils::get_sys_time_in_secs;
@@ -17,17 +18,10 @@ use crate::utils::FileSection;
 use mercenary::Mercenary;
 
 pub mod mercenary;
+pub mod consts;
+pub mod tests;
 
-const TITLES_CLASSIC_STANDARD_MALE: [&'static str; 4] = ["", "Sir", "Lord", "Baron"];
-const TITLES_CLASSIC_STANDARD_FEMALE: [&'static str; 4] = ["", "Dame", "Lady", "Baroness"];
-const TITLES_CLASSIC_HARDCORE_MALE: [&'static str; 4] = ["", "Count", "Duke", "King"];
-const TITLES_CLASSIC_HARDCORE_FEMALE: [&'static str; 4] = ["", "Countess", "Duchess", "Queen"];
-const TITLES_LOD_STANDARD_MALE: [&'static str; 4] = ["", "Slayer", "Champion", "Patriarch"];
-const TITLES_LOD_STANDARD_FEMALE: [&'static str; 4] = ["", "Slayer", "Champion", "Matriarch"];
-const TITLES_LOD_HARDCORE_MALE: [&'static str; 4] = ["", "Destroyer", "Conqueror", "Guardian"];
-const TITLES_LOD_HARDCORE_FEMALE: [&'static str; 4] = ["", "Destroyer", "Conqueror", "Guardian"];
-
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 enum Section {
     WeaponSet,
     Status,
@@ -123,7 +117,8 @@ impl From<Section> for FileSection {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[serde_as]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Character {
     weapon_set: WeaponSet,
     pub status: Status,
@@ -142,11 +137,12 @@ pub struct Character {
     pub act: Act,
     pub map_seed: u32,
     pub mercenary: Mercenary,
-    pub resurrected_menu_appearence: [u8; 48],
+    #[serde_as(as = "Bytes")]
+    pub resurrected_menu_appearance: [u8; 48],
     name: String,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Status {
     ladder: bool,
     expansion: bool,
@@ -154,7 +150,7 @@ pub struct Status {
     died: bool,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum WeaponSet {
     Main,
     Switch,
@@ -180,7 +176,7 @@ impl Default for Character {
             act: Act::Act1,
             map_seed: 0,
             mercenary: Mercenary::default(),
-            resurrected_menu_appearence: [0x00; 48],
+            resurrected_menu_appearance: [0x00; 48],
             name: String::from("default"),
         }
     }
@@ -278,7 +274,7 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
             .unwrap(),
     )?;
 
-    character.resurrected_menu_appearence.clone_from_slice(
+    character.resurrected_menu_appearance.clone_from_slice(
         &bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))],
     );
 
@@ -303,14 +299,11 @@ pub fn generate(character: &Character) -> [u8; 319] {
 
     bytes[Range::<usize>::from(FileSection::from(Section::WeaponSet))]
         .copy_from_slice(&u32::to_le_bytes(u32::from(character.weapon_set)));
-    bytes[Range::<usize>::from(FileSection::from(Section::Status)).start] =
-        u8::from(character.status);
+    bytes[Range::<usize>::from(FileSection::from(Section::Status)).start] = u8::from(character.status);
     bytes[Range::<usize>::from(FileSection::from(Section::Progression)).start] =
         u8::from(character.progression);
-    bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] =
-        u8::from(character.class);
-    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] =
-        u8::from(character.level);
+    bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] = u8::from(character.class);
+    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = u8::from(character.level);
     bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]
         .copy_from_slice(&u32::to_le_bytes(u32::from(character.last_played)));
 
@@ -338,7 +331,7 @@ pub fn generate(character: &Character) -> [u8; 319] {
     bytes[Range::<usize>::from(FileSection::from(Section::Mercenary))]
         .copy_from_slice(&mercenary::generate(&character.mercenary));
     bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))]
-        .copy_from_slice(&character.resurrected_menu_appearence);
+        .copy_from_slice(&character.resurrected_menu_appearance);
     let mut name: [u8; 16] = [0x00; 16];
     let name_as_bytes = character.name.as_bytes();
     name[0..name_as_bytes.len()].clone_from_slice(&name_as_bytes);
@@ -497,20 +490,19 @@ impl Character {
         let male: bool = [Class::Barbarian, Class::Paladin, Class::Necromancer, Class::Druid]
             .contains(&self.class);
         if !self.status.expansion {
-            let stage: usize = if self.progression < 4 {
-                0
-            } else if self.progression < 8 {
-                1
-            } else if self.progression < 12 {
-                2
-            } else {
-                3
+            let stage: usize = match self.progression{
+                0..=3 => 0,
+                4..=7 => 1,
+                8..=11 => 2,
+                12..=15 => 3,
+                _  => 3 // should panic here
             };
+            
             match (self.status.hardcore, male) {
-                (false, false) => return String::from(TITLES_CLASSIC_STANDARD_FEMALE[stage]),
-                (false, true) => return String::from(TITLES_CLASSIC_STANDARD_MALE[stage]),
-                (true, false) => return String::from(TITLES_CLASSIC_HARDCORE_FEMALE[stage]),
-                (true, true) => return String::from(TITLES_CLASSIC_HARDCORE_MALE[stage]),
+                (false, false) => return String::from(consts::TITLES_CLASSIC_STANDARD_FEMALE[stage]),
+                (false, true) => return String::from(consts::TITLES_CLASSIC_STANDARD_MALE[stage]),
+                (true, false) => return String::from(consts::TITLES_CLASSIC_HARDCORE_FEMALE[stage]),
+                (true, true) => return String::from(consts::TITLES_CLASSIC_HARDCORE_MALE[stage]),
             }
         } else {
             let stage: usize = if self.progression < 5 {
@@ -523,181 +515,11 @@ impl Character {
                 3
             };
             match (self.status.hardcore, male) {
-                (false, false) => return String::from(TITLES_LOD_STANDARD_FEMALE[stage]),
-                (false, true) => return String::from(TITLES_LOD_STANDARD_MALE[stage]),
-                (true, false) => return String::from(TITLES_LOD_HARDCORE_FEMALE[stage]),
-                (true, true) => return String::from(TITLES_LOD_HARDCORE_MALE[stage]),
+                (false, false) => return String::from(consts::TITLES_LOD_STANDARD_FEMALE[stage]),
+                (false, true) => return String::from(consts::TITLES_LOD_STANDARD_MALE[stage]),
+                (true, false) => return String::from(consts::TITLES_LOD_HARDCORE_FEMALE[stage]),
+                (true, true) => return String::from(consts::TITLES_LOD_HARDCORE_MALE[stage]),
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse() {
-        let bytes: [u8; 319] = [
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x0F, 0x00, 0x00, 0x01, 0x10, 0x1E, 0x5C,
-            0x00, 0x00, 0x00, 0x00, 0xBB, 0x29, 0xBD, 0x64, 0xFF, 0xFF, 0xFF, 0xFF, 0x28, 0x00,
-            0x00, 0x00, 0x3B, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x2A, 0x00, 0x00, 0x00,
-            0x2B, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x9B, 0x00,
-            0x00, 0x00, 0x95, 0x00, 0x00, 0x00, 0x34, 0x00, 0x00, 0x00, 0xDC, 0x00, 0x00, 0x00,
-            0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF,
-            0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x37, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x39, 0x03, 0x02, 0x02, 0x02, 0x35,
-            0xFF, 0x51, 0x02, 0x02, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x4D, 0xFF, 0xFF, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00,
-            0x80, 0x43, 0x2D, 0x95, 0x53, 0x00, 0x00, 0x00, 0x00, 0x19, 0x50, 0x40, 0x5C, 0x07,
-            0x00, 0x23, 0x00, 0xD6, 0x9B, 0x19, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6F, 0x62, 0x61, 0x20, 0xFF, 0x07, 0x1C,
-            0x01, 0x04, 0x00, 0x00, 0x00, 0x75, 0x69, 0x74, 0x20, 0xFF, 0x02, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x78, 0x70, 0x6C, 0x20, 0xFF, 0x07, 0xD9, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x75, 0x61, 0x70, 0x20, 0x4D, 0x07, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4E,
-            0x79, 0x61, 0x68, 0x61, 0x6C, 0x6C, 0x6F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ];
-
-        let expected_result = Character {
-            weapon_set: WeaponSet::Main,
-            status: Status {
-                expansion: true,
-                hardcore: false,
-                ladder: false,
-                died: true,
-            },
-            progression: 15,
-            title: String::from("Matriarch"),
-            class: Class::Sorceress,
-            level: 92,
-            last_played: 1690118587,
-            assigned_skills: [
-                40, 59, 54, 42, 43, 65535, 65535, 155, 149, 52, 220, 65535, 65535, 65535, 65535,
-                65535,
-            ],
-            left_mouse_skill: 55,
-            right_mouse_skill: 54,
-            left_mouse_switch_skill: 0,
-            right_mouse_switch_skill: 54,
-            menu_appearance: [
-                57, 3, 2, 2, 2, 53, 255, 81, 2, 2, 255, 255, 255, 255, 255, 255, 77, 255, 255, 255,
-                255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-            ],
-            difficulty: Difficulty::Hell,
-            act: Act::Act1,
-            map_seed: 1402285379,
-            mercenary: Mercenary {
-                dead: false,
-                id: 1547718681,
-                name_id: 7,
-                name: "Emilio",
-                variant: (
-                    mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
-                    Difficulty::Hell,
-                ),
-                experience: 102341590,
-            },
-            resurrected_menu_appearence: [
-                111, 98, 97, 32, 255, 7, 28, 1, 4, 0, 0, 0, 117, 105, 116, 32, 255, 2, 0, 0, 0, 0,
-                0, 0, 120, 112, 108, 32, 255, 7, 217, 0, 0, 0, 0, 0, 117, 97, 112, 32, 77, 7, 248,
-                0, 0, 0, 0, 0,
-            ],
-            name: String::from("Nyahallo"),
-        };
-        let parsed_result = match parse(&bytes) {
-            Ok(result) => result,
-            Err(e) => {
-                println!("{e:?}");
-                assert_eq!(false, true);
-                return;
-            }
-        };
-        //println!("{0:?}", parsed_result);
-        assert_eq!(parsed_result, expected_result);
-    }
-
-    #[test]
-    fn test_generate() {
-        let expected_result: [u8; 319] = [
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x0F, 0x00, 0x00, 0x01, 0x10, 0x1E, 0x5C,
-            0x00, 0x00, 0x00, 0x00, 0xBB, 0x29, 0xBD, 0x64, 0xFF, 0xFF, 0xFF, 0xFF, 0x28, 0x00,
-            0x00, 0x00, 0x3B, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x2A, 0x00, 0x00, 0x00,
-            0x2B, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x9B, 0x00,
-            0x00, 0x00, 0x95, 0x00, 0x00, 0x00, 0x34, 0x00, 0x00, 0x00, 0xDC, 0x00, 0x00, 0x00,
-            0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF,
-            0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x37, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x39, 0x03, 0x02, 0x02, 0x02, 0x35,
-            0xFF, 0x51, 0x02, 0x02, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x4D, 0xFF, 0xFF, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00,
-            0x80, 0x43, 0x2D, 0x95, 0x53, 0x00, 0x00, 0x00, 0x00, 0x19, 0x50, 0x40, 0x5C, 0x07,
-            0x00, 0x23, 0x00, 0xD6, 0x9B, 0x19, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6F, 0x62, 0x61, 0x20, 0xFF, 0x07, 0x1C,
-            0x01, 0x04, 0x00, 0x00, 0x00, 0x75, 0x69, 0x74, 0x20, 0xFF, 0x02, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x78, 0x70, 0x6C, 0x20, 0xFF, 0x07, 0xD9, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x75, 0x61, 0x70, 0x20, 0x4D, 0x07, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4E,
-            0x79, 0x61, 0x68, 0x61, 0x6C, 0x6C, 0x6F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ];
-
-        let character = Character {
-            weapon_set: WeaponSet::Main,
-            status: Status {
-                expansion: true,
-                hardcore: false,
-                ladder: false,
-                died: true,
-            },
-            progression: 15,
-            title: String::from("Matriarch"),
-            class: Class::Sorceress,
-            level: 92,
-            last_played: 1690118587,
-            assigned_skills: [
-                40, 59, 54, 42, 43, 65535, 65535, 155, 149, 52, 220, 65535, 65535, 65535, 65535,
-                65535,
-            ],
-            left_mouse_skill: 55,
-            right_mouse_skill: 54,
-            left_mouse_switch_skill: 0,
-            right_mouse_switch_skill: 54,
-            menu_appearance: [
-                57, 3, 2, 2, 2, 53, 255, 81, 2, 2, 255, 255, 255, 255, 255, 255, 77, 255, 255, 255,
-                255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-            ],
-            difficulty: Difficulty::Hell,
-            act: Act::Act1,
-            map_seed: 1402285379,
-            mercenary: Mercenary {
-                dead: false,
-                id: 1547718681,
-                name_id: 7,
-                name: "Emilio",
-                variant: (
-                    mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
-                    Difficulty::Hell,
-                ),
-                experience: 102341590,
-            },
-            resurrected_menu_appearence: [
-                111, 98, 97, 32, 255, 7, 28, 1, 4, 0, 0, 0, 117, 105, 116, 32, 255, 2, 0, 0, 0, 0,
-                0, 0, 120, 112, 108, 32, 255, 7, 217, 0, 0, 0, 0, 0, 117, 97, 112, 32, 77, 7, 248,
-                0, 0, 0, 0, 0,
-            ],
-            name: String::from("Nyahallo"),
-        };
-        let generated_result = generate(&character);
-
-        assert_eq!(expected_result, generated_result);
     }
 }
