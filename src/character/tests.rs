@@ -63,14 +63,14 @@ mod tests {
                 dead: false,
                 id: 1547718681,
                 name_id: 7,
-                name: "Emilio",
+                name: String::from("Emilio"),
                 variant: (
                     mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
                     Difficulty::Hell,
                 ),
                 experience: 102341590,
             },
-            resurrected_menu_appearence: [
+            resurrected_menu_appearance: [
                 111, 98, 97, 32, 255, 7, 28, 1, 4, 0, 0, 0, 117, 105, 116, 32, 255, 2, 0, 0, 0, 0,
                 0, 0, 120, 112, 108, 32, 255, 7, 217, 0, 0, 0, 0, 0, 117, 97, 112, 32, 77, 7, 248,
                 0, 0, 0, 0, 0,
@@ -149,14 +149,14 @@ mod tests {
                 dead: false,
                 id: 1547718681,
                 name_id: 7,
-                name: "Emilio",
+                name: String::from("Emilio"),
                 variant: (
                     mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
                     Difficulty::Hell,
                 ),
                 experience: 102341590,
             },
-            resurrected_menu_appearence: [
+            resurrected_menu_appearance: [
                 111, 98, 97, 32, 255, 7, 28, 1, 4, 0, 0, 0, 117, 105, 116, 32, 255, 2, 0, 0, 0, 0,
                 0, 0, 120, 112, 108, 32, 255, 7, 217, 0, 0, 0, 0, 0, 117, 97, 112, 32, 77, 7, 248,
                 0, 0, 0, 0, 0,

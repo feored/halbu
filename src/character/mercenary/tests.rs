@@ -9,7 +9,7 @@ mod tests {
             dead: false,
             id: 3461679u32,
             name_id: 3,
-            name: "Abhaya",
+            name: String::from("Abhaya"),
             variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal),
             experience: 63722u32,
         };
@@ -33,7 +33,7 @@ mod tests {
             dead: false,
             id: 3461679u32,
             name_id: 3,
-            name: "Abhaya",
+            name: String::from("Abhaya"),
             variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal),
             experience: 63722u32,
         };
