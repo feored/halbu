@@ -16,7 +16,7 @@ pub struct FileSection {
 
 impl From<FileSection> for Range<usize> {
     fn from(file_section: FileSection) -> Range<usize> {
-        return file_section.offset..(file_section.offset + file_section.bytes);
+        file_section.offset..(file_section.offset + file_section.bytes)
     }
 }
 

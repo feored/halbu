@@ -1,9 +1,14 @@
+use serde::{Serialize, Deserialize};
+use serde_with::{serde_as, Bytes};
+
 use crate::ParseError;
 
 const SECTION_HEADER: [u8; 4] = [0x01, 0x77, 0x34, 0x00];
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[serde_as]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Placeholder {
+    #[serde_as(as = "Bytes")]
     data: [u8; 52],
 }
 

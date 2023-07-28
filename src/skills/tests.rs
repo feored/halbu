@@ -1,0 +1,41 @@
+#[cfg(test)]
+mod tests {
+    use crate::skills::*;
+
+    #[test]
+    fn test_parse_and_generate() {
+        let byte_vector = [
+            0x69, 0x66, 0x00, 0x01, 0x00, 0x14, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x14, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x14,
+        ];
+
+        let skills = parse(&byte_vector, Class::Sorceress).unwrap();
+        for i in 0..30 {
+            if skills[i].name == "Teleport" {
+                assert!(skills[i].id == 54 && skills[i].level == 1);
+            }
+        }
+
+        let result = generate(&skills);
+
+        assert_eq!(result, byte_vector);
+    }
+
+    #[test]
+    fn test_parse() {
+        let byte_vector = [
+            0x69, 0x66, 0x00, 0x01, 0x00, 0x14, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x14, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x14,
+        ];
+
+        let skills = parse(&byte_vector, Class::Sorceress).unwrap();
+        // println!("{0:?}", skills);
+        for skill in skills {
+            if skill.name == "Ice Blast" {
+                assert!(skill.id == 45 && skill.level == 17);
+            }
+        }
+    }
+}
