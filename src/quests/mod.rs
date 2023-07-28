@@ -2,6 +2,7 @@ use std::fmt;
 use std::ops::Range;
 use std::str;
 
+use serde::{Serialize, Deserialize};
 use bit::BitIndex;
 
 use crate::Act;
@@ -106,7 +107,7 @@ impl From<Section> for FileSection {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Stage {
     Completed,
     RequirementsMet,
@@ -115,10 +116,10 @@ pub enum Stage {
     CompletedInGame,
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Quest {
     id: usize,
-    name: &'static str,
+    name: String,
     flags: u16,
     act: Act,
     difficulty: Difficulty,
@@ -134,7 +135,7 @@ impl fmt::Display for Quest {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Quests {
     pub normal: DifficultyQuests,
     pub nightmare: DifficultyQuests,
@@ -151,7 +152,7 @@ impl fmt::Display for Quests {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct DifficultyQuests {
     pub flags: QuestFlags,
     pub quests: QuestSet,
@@ -169,7 +170,7 @@ impl fmt::Display for DifficultyQuests {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub struct QuestFlags {
     pub act_1_introduction: bool,
     pub act_2_travel: bool,
@@ -319,7 +320,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
         // println!("{0:X?}", &act_1_quests[(i*2)..((i*2)+ 2)]);
         quests[i] = Quest {
             id: i,
-            name: consts::ACT_1_QUESTS[i],
+            name: String::from(consts::ACT_1_QUESTS[i]),
             act: Act::Act1,
             difficulty,
             flags: u16_from(&act_1_quests[(i * 2)..((i * 2) + 2)]),
@@ -330,7 +331,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..6 {
         quests[i + 6] = Quest {
             id: i + 6,
-            name: consts::ACT_2_QUESTS[i],
+            name: String::from(consts::ACT_2_QUESTS[i]),
             act: Act::Act2,
             difficulty,
             flags: u16_from(&act_2_quests[(i * 2)..((i * 2) + 2)]),
@@ -341,7 +342,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..6 {
         quests[i + 12] = Quest {
             id: i + 12,
-            name: consts::ACT_3_QUESTS[i],
+            name: String::from(consts::ACT_3_QUESTS[i]),
             act: Act::Act3,
             difficulty,
             flags: u16_from(&act_3_quests[(i * 2)..((i * 2) + 2)]),
@@ -352,7 +353,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..3 {
         quests[i + 18] = Quest {
             id: i + 18,
-            name: consts::ACT_4_QUESTS[i],
+            name: String::from(consts::ACT_4_QUESTS[i]),
             act: Act::Act4,
             difficulty,
             flags: u16_from(&act_4_quests[(i * 2)..((i * 2) + 2)]),
@@ -363,7 +364,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..6 {
         quests[i + 21] = Quest {
             id: i + 21,
-            name: consts::ACT_5_QUESTS[i],
+            name: String::from(consts::ACT_5_QUESTS[i]),
             act: Act::Act5,
             difficulty,
             flags: u16_from(&act_5_quests[(i * 2)..((i * 2) + 2)]),

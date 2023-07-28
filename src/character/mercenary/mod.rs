@@ -1,10 +1,9 @@
-use crate::Difficulty;
+use serde::{Serialize, Deserialize};
 
+use crate::Difficulty;
 use crate::ParseError;
 
 pub mod consts;
-
-#[cfg(test)]
 pub mod tests;
 
 const VARIANTS: &[Variant; 39] = &[
@@ -96,7 +95,7 @@ const VARIANTS: &[Variant; 39] = &[
 
 pub type Variant = (Class, Difficulty);
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Class {
     Rogue(Rogue),
     DesertMercenary(DesertMercenary),
@@ -104,13 +103,13 @@ pub enum Class {
     Barbarian(Barbarian),
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Rogue {
     Fire,
     Cold,
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum DesertMercenary {
     Prayer,
     Defiance,
@@ -120,26 +119,26 @@ pub enum DesertMercenary {
     Might,
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum IronWolf {
     Fire,
     Cold,
     Lightning,
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Barbarian {
     Bash,
     Frenzy,
 }
 
 /// TODO: Make private, add getters and setters that throw GameLogicError
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Mercenary {
     pub dead: bool,
     pub id: u32,
     pub name_id: u16,
-    pub name: &'static str,
+    pub name: String,
     pub variant: Variant,
     pub experience: u32,
 }
@@ -150,7 +149,7 @@ impl Default for Mercenary {
             dead: false,
             id: 0,
             name_id: 0,
-            name: consts::ROGUE_NAMES[0],
+            name: String::from(consts::ROGUE_NAMES[0]),
             variant: VARIANTS[0],
             experience: 0,
         }
@@ -202,7 +201,7 @@ pub fn parse(data: &[u8; 14]) -> Result<Mercenary, ParseError> {
         });
     }
     mercenary.name_id = name_id;
-    mercenary.name = names_list[name_id as usize];
+    mercenary.name = String::from(names_list[name_id as usize]);
 
     mercenary.experience = u32::from_le_bytes(<[u8; 4]>::try_from(&data[10..14]).unwrap());
 

@@ -6,3 +6,5 @@ authors = ["feor"]
 
 [dependencies]
 bit = "0.1.1"
+serde = {version = "1.0.177", features = ["derive"]}
+serde_with = "3.1.0"

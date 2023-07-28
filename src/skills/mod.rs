@@ -1,10 +1,12 @@
 use crate::Class;
 use crate::ParseError;
 
+use serde::{Serialize, Deserialize};
+
 pub mod consts;
 mod tests;
 /// Represents a single skill. The id values match the ones found in Skills.txt in the game's files.
-#[derive(Default, PartialEq, Eq, Debug, Ord, PartialOrd, Clone)]
+#[derive(Default, PartialEq, Eq, Debug, Ord, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct Skill {
     id: u8,
     name: String,

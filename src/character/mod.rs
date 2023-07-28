@@ -1,6 +1,8 @@
 use std::ops::Range;
 use std::str;
 
+use serde_with::{serde_as, Bytes};
+use serde::{Serialize, Deserialize};
 use bit::BitIndex;
 
 use crate::Act;
@@ -115,7 +117,8 @@ impl From<Section> for FileSection {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[serde_as]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Character {
     weapon_set: WeaponSet,
     pub status: Status,
@@ -134,11 +137,12 @@ pub struct Character {
     pub act: Act,
     pub map_seed: u32,
     pub mercenary: Mercenary,
-    pub resurrected_menu_appearence: [u8; 48],
+    #[serde_as(as = "Bytes")]
+    pub resurrected_menu_appearance: [u8; 48],
     name: String,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Status {
     ladder: bool,
     expansion: bool,
@@ -146,7 +150,7 @@ pub struct Status {
     died: bool,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum WeaponSet {
     Main,
     Switch,
@@ -172,7 +176,7 @@ impl Default for Character {
             act: Act::Act1,
             map_seed: 0,
             mercenary: Mercenary::default(),
-            resurrected_menu_appearence: [0x00; 48],
+            resurrected_menu_appearance: [0x00; 48],
             name: String::from("default"),
         }
     }
@@ -270,7 +274,7 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
             .unwrap(),
     )?;
 
-    character.resurrected_menu_appearence.clone_from_slice(
+    character.resurrected_menu_appearance.clone_from_slice(
         &bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))],
     );
 
@@ -327,7 +331,7 @@ pub fn generate(character: &Character) -> [u8; 319] {
     bytes[Range::<usize>::from(FileSection::from(Section::Mercenary))]
         .copy_from_slice(&mercenary::generate(&character.mercenary));
     bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))]
-        .copy_from_slice(&character.resurrected_menu_appearence);
+        .copy_from_slice(&character.resurrected_menu_appearance);
     let mut name: [u8; 16] = [0x00; 16];
     let name_as_bytes = character.name.as_bytes();
     name[0..name_as_bytes.len()].clone_from_slice(&name_as_bytes);

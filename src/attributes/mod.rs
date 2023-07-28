@@ -2,6 +2,9 @@ use bit::BitIndex;
 use std::cmp;
 use std::fmt;
 
+use serde::{Serialize, Deserialize};
+
+
 use crate::utils::BytePosition;
 use crate::Class;
 use crate::ParseError;
@@ -39,7 +42,7 @@ const STAT_KEY: [Stat; STAT_NUMBER] = [
 const STAT_BITLENGTH: [usize; STAT_NUMBER] =
     [10, 10, 10, 10, 10, 8, 21, 21, 21, 21, 21, 21, 7, 32, 25, 25];
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum Stat {
     Strength,
     Energy,
@@ -64,7 +67,7 @@ pub enum Stat {
 /// Life, mana and stamina are represented
 /// as 21 bit fixed point numbers, 13 bit
 /// for the integer and 8 for the fraction.
-#[derive(Default, PartialEq, Eq, Copy, Clone)]
+#[derive(Default, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct FixedPointStat {
     integer: u32,
     fraction: u32,
@@ -102,24 +105,24 @@ impl fmt::Debug for FixedPointStat {
 /// Values can contain up to 32 bits (experience).
 /// Certain values are fixed point and stored with integer and
 /// fraction separately for precision and easier comparison.
-#[derive(Default, PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(Default, PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Attributes {
-    strength: u32,
-    energy: u32,
-    dexterity: u32,
-    vitality: u32,
-    stat_points_left: u32,
-    skill_points_left: u32,
-    life_current: FixedPointStat,
-    life_base: FixedPointStat,
-    mana_current: FixedPointStat,
-    mana_base: FixedPointStat,
-    stamina_current: FixedPointStat,
-    stamina_base: FixedPointStat,
-    level: u32,
-    experience: u32,
-    gold_inventory: u32,
-    gold_stash: u32,
+    pub strength: u32,
+    pub energy: u32,
+    pub dexterity: u32,
+    pub vitality: u32,
+    pub stat_points_left: u32,
+    pub skill_points_left: u32,
+    pub life_current: FixedPointStat,
+    pub life_base: FixedPointStat,
+    pub mana_current: FixedPointStat,
+    pub mana_base: FixedPointStat,
+    pub stamina_current: FixedPointStat,
+    pub stamina_base: FixedPointStat,
+    pub level: u32,
+    pub experience: u32,
+    pub gold_inventory: u32,
+    pub gold_stash: u32,
 }
 
 pub fn default_character(class: Class) -> Attributes {

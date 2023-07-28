@@ -1,6 +1,7 @@
 use std::fmt;
 use std::ops::Range;
 
+use serde::{Serialize, Deserialize};
 use bit::BitIndex;
 
 use crate::utils::FileSection;
@@ -54,10 +55,10 @@ impl From<Section> for FileSection {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WaypointInfo {
     id: Waypoint,
-    name: &'static str,
+    name: String,
     act: Act,
     acquired: bool,
 }
@@ -68,7 +69,7 @@ impl fmt::Display for WaypointInfo {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Waypoints {
     normal: DifficultyWaypoints,
     nightmare: DifficultyWaypoints,
@@ -93,7 +94,7 @@ impl fmt::Display for Waypoints {
 //     }
 // }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct DifficultyWaypoints {
     act1: [WaypointInfo; 9],
     act2: [WaypointInfo; 9],
@@ -130,11 +131,11 @@ impl Default for DifficultyWaypoints {
             for i in 0..9 {
                 default_waypoints[i].act = act;
                 default_waypoints[i].name = match act {
-                    Act::Act1 => consts::NAMES_ACT1[i],
-                    Act::Act2 => consts::NAMES_ACT2[i],
-                    Act::Act3 => consts::NAMES_ACT3[i],
-                    Act::Act4 => consts::NAMES_ACT4[i],
-                    Act::Act5 => consts::NAMES_ACT5[i],
+                    Act::Act1 => String::from(consts::NAMES_ACT1[i]),
+                    Act::Act2 => String::from(consts::NAMES_ACT2[i]),
+                    Act::Act3 => String::from(consts::NAMES_ACT3[i]),
+                    Act::Act4 => String::from(consts::NAMES_ACT4[i]),
+                    Act::Act5 => String::from(consts::NAMES_ACT5[i]),
                 };
                 let absolute_id: usize = i + match act {
                     Act::Act1 => 0,
@@ -162,7 +163,7 @@ impl Default for DifficultyWaypoints {
                 let mut default_waypoints: [WaypointInfo; 3] = <[WaypointInfo; 3]>::default();
                 for i in 0..3 {
                     default_waypoints[i].act = Act::Act4;
-                    default_waypoints[i].name = consts::NAMES_ACT4[i];
+                    default_waypoints[i].name = String::from(consts::NAMES_ACT4[i]);
                     default_waypoints[i].id = match Waypoint::try_from(27 + i) {
                         Ok(res) => res,
                         Err(e) => panic!("Error getting default difficulty waypoint: {e}"),
@@ -176,7 +177,7 @@ impl Default for DifficultyWaypoints {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Default, Serialize, Deserialize)]
 pub enum Waypoint {
     #[default]
     RogueEncampment = 0,
@@ -302,7 +303,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act1 => {
                 waypoints.act1[id] = WaypointInfo {
                     id: waypoint,
-                    name: consts::NAMES_ACT1[id],
+                    name: String::from(consts::NAMES_ACT1[id]),
                     act: Act::Act1,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -310,7 +311,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act2 => {
                 waypoints.act2[id - 9] = WaypointInfo {
                     id: waypoint,
-                    name: consts::NAMES_ACT2[id - 9],
+                    name: String::from(consts::NAMES_ACT2[id - 9]),
                     act: Act::Act2,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -318,7 +319,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act3 => {
                 waypoints.act3[id - 18] = WaypointInfo {
                     id: waypoint,
-                    name: consts::NAMES_ACT3[id - 18],
+                    name: String::from(consts::NAMES_ACT3[id - 18]),
                     act: Act::Act3,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -326,7 +327,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act4 => {
                 waypoints.act4[id - 27] = WaypointInfo {
                     id: waypoint,
-                    name: consts::NAMES_ACT4[id - 27],
+                    name: String::from(consts::NAMES_ACT4[id - 27]),
                     act: Act::Act4,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -334,7 +335,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act5 => {
                 waypoints.act5[id - 30] = WaypointInfo {
                     id: waypoint,
-                    name: consts::NAMES_ACT5[id - 30],
+                    name: String::from(consts::NAMES_ACT5[id - 30]),
                     act: Act::Act5,
                     acquired: current_byte.bit(id % 8),
                 }
