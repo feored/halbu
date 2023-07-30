@@ -160,9 +160,7 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
     let items_offset = skills_offset + 32;
     // TODO make byte_vector not mut
     save.items = items::parse(
-        &mut byte_vector[items_offset..byte_vector.len()]
-            .try_into()
-            .unwrap(),
+         &byte_vector[items_offset..byte_vector.len()]
     );
     Ok(save)
 }
@@ -184,7 +182,7 @@ pub fn generate(save: &mut Save) -> Vec<u8> {
         .copy_from_slice(&npcs::generate(save.npcs));
     result.append(&mut attributes::generate(&save.attributes));
     result.append(&mut skills::generate(&save.skills));
-    result.append(&mut items::generate(&mut save.items));
+    result.append(&mut items::generate(&save.items));
 
     let length = result.len() as u32;
     result[Range::<usize>::from(FileSection::from(Section::FileSize))]
@@ -198,9 +196,7 @@ pub fn generate(save: &mut Save) -> Vec<u8> {
 
 
 pub fn new_character(class : Class) -> Save {
-    let mut new_character : Save = Save::default();
-    new_character.attributes = attributes::default_character(class);
-    new_character
+    Save { attributes: attributes::default_character(class), ..Default::default()}
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

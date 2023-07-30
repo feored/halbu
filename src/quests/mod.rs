@@ -14,6 +14,7 @@ use crate::utils::u8_from;
 use crate::utils::FileSection;
 
 pub mod consts;
+use consts::*;
 
 
 #[derive(PartialEq, Eq, Debug)]
@@ -217,7 +218,7 @@ impl From<Stage> for usize {
     }
 }
 
-fn write_flags(bytes: &mut Vec<u8>, flags: &QuestFlags) {
+fn write_flags(bytes: &mut [u8], flags: &QuestFlags) {
     bytes[Range::<usize>::from(FileSection::from(Section::Act1Introduction))]
         .copy_from_slice(&u16::to_le_bytes(flags.act_1_introduction as u16));
     bytes[Range::<usize>::from(FileSection::from(Section::Act2Travel))]
@@ -274,7 +275,7 @@ fn parse_flags(bytes: &[u8; 96]) -> Result<QuestFlags, ParseError> {
     Ok(flags)
 }
 
-fn write_quests(byte_vector: &mut Vec<u8>, quests: &QuestSet) {
+fn write_quests(byte_vector: &mut [u8], quests: &QuestSet) {
     for act in 0..4 {
         let mut act_quests: [u8; 12] = [0x00; 12];
         let quests_number = match act {
@@ -320,7 +321,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
         // println!("{0:X?}", &act_1_quests[(i*2)..((i*2)+ 2)]);
         quests[i] = Quest {
             id: i,
-            name: String::from(consts::ACT_1_QUESTS[i]),
+            name: String::from(ACT_1_QUESTS[i]),
             act: Act::Act1,
             difficulty,
             flags: u16_from(&act_1_quests[(i * 2)..((i * 2) + 2)]),
@@ -331,7 +332,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..6 {
         quests[i + 6] = Quest {
             id: i + 6,
-            name: String::from(consts::ACT_2_QUESTS[i]),
+            name: String::from(ACT_2_QUESTS[i]),
             act: Act::Act2,
             difficulty,
             flags: u16_from(&act_2_quests[(i * 2)..((i * 2) + 2)]),
@@ -342,7 +343,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..6 {
         quests[i + 12] = Quest {
             id: i + 12,
-            name: String::from(consts::ACT_3_QUESTS[i]),
+            name: String::from(ACT_3_QUESTS[i]),
             act: Act::Act3,
             difficulty,
             flags: u16_from(&act_3_quests[(i * 2)..((i * 2) + 2)]),
@@ -353,7 +354,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..3 {
         quests[i + 18] = Quest {
             id: i + 18,
-            name: String::from(consts::ACT_4_QUESTS[i]),
+            name: String::from(ACT_4_QUESTS[i]),
             act: Act::Act4,
             difficulty,
             flags: u16_from(&act_4_quests[(i * 2)..((i * 2) + 2)]),
@@ -364,7 +365,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
     for i in 0..6 {
         quests[i + 21] = Quest {
             id: i + 21,
-            name: String::from(consts::ACT_5_QUESTS[i]),
+            name: String::from(ACT_5_QUESTS[i]),
             act: Act::Act5,
             difficulty,
             flags: u16_from(&act_5_quests[(i * 2)..((i * 2) + 2)]),
@@ -375,7 +376,7 @@ fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, Pa
 }
 
 pub fn parse(bytes: &[u8; 298]) -> Result<Quests, ParseError> {
-    if bytes[0..10] != consts::SECTION_HEADER {
+    if bytes[0..10] != SECTION_HEADER {
         return Err(ParseError {
             message: format! {"Found wrong header for quests: {:02X?}", &bytes[0..10]},
         });
@@ -395,7 +396,7 @@ pub fn parse(bytes: &[u8; 298]) -> Result<Quests, ParseError> {
 }
 
 pub fn generate(all_quests: &Quests) -> Vec<u8> {
-    let mut byte_vector = consts::SECTION_HEADER.to_vec();
+    let mut byte_vector = SECTION_HEADER.to_vec();
     byte_vector.resize(298, 0x00);
 
     let mut normal = Vec::<u8>::new();

@@ -13,11 +13,11 @@ pub struct Placeholder {
     data: Vec<u8>,
 }
 
-pub fn parse(byte_vector: &Vec<u8>) -> Placeholder {
+pub fn parse(byte_vector: &[u8]) -> Placeholder {
     let mut placeholder: Placeholder = Placeholder {
         data: Vec::<u8>::new(),
     };
-    placeholder.data = byte_vector.clone();
+    placeholder.data.extend_from_slice(byte_vector);
 
     placeholder
 }

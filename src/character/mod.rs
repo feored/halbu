@@ -19,7 +19,9 @@ use mercenary::Mercenary;
 
 pub mod mercenary;
 pub mod consts;
-pub mod tests;
+mod tests;
+
+use consts::*;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 enum Section {
@@ -301,11 +303,11 @@ pub fn generate(character: &Character) -> [u8; 319] {
         .copy_from_slice(&u32::to_le_bytes(u32::from(character.weapon_set)));
     bytes[Range::<usize>::from(FileSection::from(Section::Status)).start] = u8::from(character.status);
     bytes[Range::<usize>::from(FileSection::from(Section::Progression)).start] =
-        u8::from(character.progression);
+        character.progression;
     bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] = u8::from(character.class);
-    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = u8::from(character.level);
+    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = character.level;
     bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]
-        .copy_from_slice(&u32::to_le_bytes(u32::from(character.last_played)));
+        .copy_from_slice(&u32::to_le_bytes(character.last_played));
 
     let mut assigned_skills: [u8; 64] = [0x00; 64];
     for i in 0..16 {
@@ -334,7 +336,7 @@ pub fn generate(character: &Character) -> [u8; 319] {
         .copy_from_slice(&character.resurrected_menu_appearance);
     let mut name: [u8; 16] = [0x00; 16];
     let name_as_bytes = character.name.as_bytes();
-    name[0..name_as_bytes.len()].clone_from_slice(&name_as_bytes);
+    name[0..name_as_bytes.len()].clone_from_slice(name_as_bytes);
     bytes[Range::<usize>::from(FileSection::from(Section::Name))].copy_from_slice(&name);
 
     // Add padding, unknown bytes, etc
@@ -406,7 +408,7 @@ impl From<Status> for u8 {
         result.set_bit(3, status.died);
         result.set_bit(5, status.expansion);
         result.set_bit(6, status.ladder);
-        println!("Converted status: {0:#010b}", result);
+        //println!("Converted status: {0:#010b}", result);
         result
     }
 }
@@ -418,12 +420,12 @@ impl TryFrom<u32> for WeaponSet {
             0u32 => Ok(WeaponSet::Main),
             1u32 => Ok(WeaponSet::Switch),
             _ => {
-                return Err(ParseError {
+                Err(ParseError {
                     message: format!(
                         "Found {0:?} instead of 0 or 1 in current active weapons.",
                         value
                     ),
-                });
+                })
             }
         }
     }
@@ -456,8 +458,8 @@ impl Character {
     // 16 bytes maximum, max one - or _
     pub fn set_name(&mut self, new_name: String) {
         if new_name.len() <= 16
-            && new_name.matches("-").count() <= 1
-            && new_name.matches("_").count() <= 1
+            && new_name.matches('-').count() <= 1
+            && new_name.matches('_').count() <= 1
         {
             self.name = new_name;
         }
@@ -499,10 +501,10 @@ impl Character {
             };
             
             match (self.status.hardcore, male) {
-                (false, false) => return String::from(consts::TITLES_CLASSIC_STANDARD_FEMALE[stage]),
-                (false, true) => return String::from(consts::TITLES_CLASSIC_STANDARD_MALE[stage]),
-                (true, false) => return String::from(consts::TITLES_CLASSIC_HARDCORE_FEMALE[stage]),
-                (true, true) => return String::from(consts::TITLES_CLASSIC_HARDCORE_MALE[stage]),
+                (false, false) => String::from(TITLES_CLASSIC_STANDARD_FEMALE[stage]),
+                (false, true) => String::from(TITLES_CLASSIC_STANDARD_MALE[stage]),
+                (true, false) => String::from(TITLES_CLASSIC_HARDCORE_FEMALE[stage]),
+                (true, true) => String::from(TITLES_CLASSIC_HARDCORE_MALE[stage]),
             }
         } else {
             let stage: usize = if self.progression < 5 {
@@ -515,10 +517,10 @@ impl Character {
                 3
             };
             match (self.status.hardcore, male) {
-                (false, false) => return String::from(consts::TITLES_LOD_STANDARD_FEMALE[stage]),
-                (false, true) => return String::from(consts::TITLES_LOD_STANDARD_MALE[stage]),
-                (true, false) => return String::from(consts::TITLES_LOD_HARDCORE_FEMALE[stage]),
-                (true, true) => return String::from(consts::TITLES_LOD_HARDCORE_MALE[stage]),
+                (false, false) => String::from(TITLES_LOD_STANDARD_FEMALE[stage]),
+                (false, true) => String::from(TITLES_LOD_STANDARD_MALE[stage]),
+                (true, false) => String::from(TITLES_LOD_HARDCORE_FEMALE[stage]),
+                (true, true) => String::from(TITLES_LOD_HARDCORE_MALE[stage]),
             }
         }
     }
