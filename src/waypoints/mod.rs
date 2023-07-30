@@ -9,7 +9,7 @@ use crate::Act;
 use crate::ParseError;
 
 pub mod consts;
-
+use consts::*;
 enum Section {
     Header,
     Normal,
@@ -131,11 +131,11 @@ impl Default for DifficultyWaypoints {
             for i in 0..9 {
                 default_waypoints[i].act = act;
                 default_waypoints[i].name = match act {
-                    Act::Act1 => String::from(consts::NAMES_ACT1[i]),
-                    Act::Act2 => String::from(consts::NAMES_ACT2[i]),
-                    Act::Act3 => String::from(consts::NAMES_ACT3[i]),
-                    Act::Act4 => String::from(consts::NAMES_ACT4[i]),
-                    Act::Act5 => String::from(consts::NAMES_ACT5[i]),
+                    Act::Act1 => String::from(NAMES_ACT1[i]),
+                    Act::Act2 => String::from(NAMES_ACT2[i]),
+                    Act::Act3 => String::from(NAMES_ACT3[i]),
+                    Act::Act4 => String::from(NAMES_ACT4[i]),
+                    Act::Act5 => String::from(NAMES_ACT5[i]),
                 };
                 let absolute_id: usize = i + match act {
                     Act::Act1 => 0,
@@ -163,7 +163,7 @@ impl Default for DifficultyWaypoints {
                 let mut default_waypoints: [WaypointInfo; 3] = <[WaypointInfo; 3]>::default();
                 for i in 0..3 {
                     default_waypoints[i].act = Act::Act4;
-                    default_waypoints[i].name = String::from(consts::NAMES_ACT4[i]);
+                    default_waypoints[i].name = String::from(NAMES_ACT4[i]);
                     default_waypoints[i].id = match Waypoint::try_from(27 + i) {
                         Ok(res) => res,
                         Err(e) => panic!("Error getting default difficulty waypoint: {e}"),
@@ -287,7 +287,7 @@ impl TryFrom<usize> for Waypoint {
 fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> {
     let mut waypoints: DifficultyWaypoints = DifficultyWaypoints::default();
     if bytes[Range::<usize>::from(FileSection::from(Section::DifficultyHeader))]
-        != consts::DIFFICULTY_HEADER
+        != DIFFICULTY_HEADER
     {
         return Err(ParseError {
             message: format!(
@@ -303,7 +303,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act1 => {
                 waypoints.act1[id] = WaypointInfo {
                     id: waypoint,
-                    name: String::from(consts::NAMES_ACT1[id]),
+                    name: String::from(NAMES_ACT1[id]),
                     act: Act::Act1,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -311,7 +311,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act2 => {
                 waypoints.act2[id - 9] = WaypointInfo {
                     id: waypoint,
-                    name: String::from(consts::NAMES_ACT2[id - 9]),
+                    name: String::from(NAMES_ACT2[id - 9]),
                     act: Act::Act2,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -319,7 +319,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act3 => {
                 waypoints.act3[id - 18] = WaypointInfo {
                     id: waypoint,
-                    name: String::from(consts::NAMES_ACT3[id - 18]),
+                    name: String::from(NAMES_ACT3[id - 18]),
                     act: Act::Act3,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -327,7 +327,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act4 => {
                 waypoints.act4[id - 27] = WaypointInfo {
                     id: waypoint,
-                    name: String::from(consts::NAMES_ACT4[id - 27]),
+                    name: String::from(NAMES_ACT4[id - 27]),
                     act: Act::Act4,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -335,7 +335,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
             Act::Act5 => {
                 waypoints.act5[id - 30] = WaypointInfo {
                     id: waypoint,
-                    name: String::from(consts::NAMES_ACT5[id - 30]),
+                    name: String::from(NAMES_ACT5[id - 30]),
                     act: Act::Act5,
                     acquired: current_byte.bit(id % 8),
                 }
@@ -347,7 +347,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
 
 pub fn parse(bytes: &[u8; 81]) -> Result<Waypoints, ParseError> {
     let mut waypoints = Waypoints::default();
-    if bytes[Range::<usize>::from(FileSection::from(Section::Header))] != consts::SECTION_HEADER {
+    if bytes[Range::<usize>::from(FileSection::from(Section::Header))] != SECTION_HEADER {
         return Err(ParseError {
             message: format!(
                 "Found wrong waypoints header: {0:X?}",
@@ -378,7 +378,7 @@ pub fn parse(bytes: &[u8; 81]) -> Result<Waypoints, ParseError> {
 
 fn generate_difficulty(waypoints: &DifficultyWaypoints) -> [u8; 24] {
     let mut bytes: [u8; 24] = [0x00; 24];
-    bytes[0..2].copy_from_slice(&consts::DIFFICULTY_HEADER);
+    bytes[0..2].copy_from_slice(&DIFFICULTY_HEADER);
     fn fill_flags(waypoints: &[WaypointInfo], length: usize) -> u64 {
         let mut flags: u64 = 0;
         for i in 0..length {
@@ -400,14 +400,14 @@ fn generate_difficulty(waypoints: &DifficultyWaypoints) -> [u8; 24] {
 pub fn generate(waypoints: &Waypoints) -> [u8; 81] {
     let mut bytes: [u8; 81] = [0x00; 81];
     bytes[Range::<usize>::from(FileSection::from(Section::Header))]
-        .copy_from_slice(&consts::SECTION_HEADER);
+        .copy_from_slice(&SECTION_HEADER);
     bytes[Range::<usize>::from(FileSection::from(Section::Normal))]
         .copy_from_slice(&generate_difficulty(&waypoints.normal));
     bytes[Range::<usize>::from(FileSection::from(Section::Nightmare))]
         .copy_from_slice(&generate_difficulty(&waypoints.nightmare));
     bytes[Range::<usize>::from(FileSection::from(Section::Hell))]
         .copy_from_slice(&generate_difficulty(&waypoints.hell));
-    bytes[Range::<usize>::from(FileSection::from(Section::Trailer)).start] = consts::SECTION_TRAILER;
+    bytes[Range::<usize>::from(FileSection::from(Section::Trailer)).start] = SECTION_TRAILER;
     bytes
 }
 

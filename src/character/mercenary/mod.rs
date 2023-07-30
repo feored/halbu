@@ -4,7 +4,9 @@ use crate::Difficulty;
 use crate::ParseError;
 
 pub mod consts;
-pub mod tests;
+mod tests;
+
+use consts::*;
 
 const VARIANTS: &[Variant; 39] = &[
     (Class::Rogue(Rogue::Fire), Difficulty::Normal),
@@ -149,7 +151,7 @@ impl Default for Mercenary {
             dead: false,
             id: 0,
             name_id: 0,
-            name: String::from(consts::ROGUE_NAMES[0]),
+            name: String::from(ROGUE_NAMES[0]),
             variant: VARIANTS[0],
             experience: 0,
         }
@@ -176,10 +178,10 @@ fn variant_id(variant: &Variant) -> u16 {
 
 fn names_list(class: Class) -> &'static [&'static str] {
     match class {
-        Class::Rogue(_) => &consts::ROGUE_NAMES,
-        Class::DesertMercenary(_) => &consts::DESERTMERCENARY_NAMES,
-        Class::IronWolf(_) => &consts::IRONWOLF_NAMES,
-        Class::Barbarian(_) => &consts::BARBARIAN_NAMES,
+        Class::Rogue(_) => &ROGUE_NAMES,
+        Class::DesertMercenary(_) => &DESERTMERCENARY_NAMES,
+        Class::IronWolf(_) => &IRONWOLF_NAMES,
+        Class::Barbarian(_) => &BARBARIAN_NAMES,
     }
 }
 
