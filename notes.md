@@ -15,6 +15,8 @@ A list of resources that have helped with reverse engineering the .d2s format.
 
 Loading a single player file with "Ladder" bit set to 1 in Character Status does nothing (duh).
 
+The character level shown in the menu preview is the from the attributes section, but in-game it gets overridden by the level in character section.
+
 
 ### Character Menu Appearance
 
