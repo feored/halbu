@@ -203,4 +203,11 @@ mod tests {
         // println!("{parsed_stats:?}");
         assert_eq!(parsed_stats, expected_stats);
     }
+
+    #[test]
+    fn test_level_from_xp() {
+        assert_eq!(get_level_from_experience(0), 1u32);
+        assert_eq!(get_level_from_experience(2749), 3u32);
+        assert_eq!(get_level_from_experience(3_520_485_254), 99u32);
+    }
 }

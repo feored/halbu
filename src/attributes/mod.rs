@@ -5,42 +5,15 @@ use std::fmt;
 use serde::{Serialize, Deserialize};
 
 
+use crate::GameLogicError;
 use crate::utils::BytePosition;
 use crate::Class;
 use crate::ParseError;
 
 mod tests;
+pub mod consts;
 
-const SECTION_TRAILER: u32 = 0x1FF;
-
-const SECTION_HEADER: [u8; 2] = [0x67, 0x66];
-
-const STAT_HEADER_LENGTH: usize = 9;
-const STAT_NUMBER: usize = 16;
-
-/// Array used to find the index of each stat
-const STAT_KEY: [Stat; STAT_NUMBER] = [
-    Stat::Strength,
-    Stat::Energy,
-    Stat::Dexterity,
-    Stat::Vitality,
-    Stat::StatPointsLeft,
-    Stat::SkillPointsLeft,
-    Stat::LifeCurrent,
-    Stat::LifeBase,
-    Stat::ManaCurrent,
-    Stat::ManaBase,
-    Stat::StaminaCurrent,
-    Stat::StaminaBase,
-    Stat::Level,
-    Stat::Experience,
-    Stat::GoldInventory,
-    Stat::GoldStash,
-];
-
-/// Length in bits of each stat
-const STAT_BITLENGTH: [usize; STAT_NUMBER] =
-    [10, 10, 10, 10, 10, 8, 21, 21, 21, 21, 21, 21, 7, 32, 25, 25];
+use consts::*;
 
 #[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum Stat {
@@ -60,6 +33,33 @@ pub enum Stat {
     Experience,
     GoldInventory,
     GoldStash,
+}
+
+impl TryFrom<String> for Stat{
+    type Error = ParseError;
+    fn try_from(value: String) -> Result<Self, ParseError> {
+        let stripped_string: String = value.trim().to_lowercase();
+        match stripped_string.as_str() {
+            "strength" => Ok(Stat::Strength),
+            "energy" => Ok(Stat::Energy),
+            "dexterity" => Ok(Stat::Dexterity),
+            "vitality" => Ok(Stat::Vitality),
+            "statpointsleft" => Ok(Stat::StatPointsLeft),
+            "skillpointsleft" => Ok(Stat::SkillPointsLeft),
+            "lifecurrent" => Ok(Stat::LifeCurrent),
+            "lifebase" => Ok(Stat::LifeBase),
+            "manacurrent" => Ok(Stat::ManaCurrent),
+            "manabase" => Ok(Stat::ManaBase),
+            "staminacurrent" => Ok(Stat::StaminaCurrent),
+            "staminabase" => Ok(Stat::StaminaBase),
+            "level" => Ok(Stat::Level),
+            "experience" => Ok(Stat::Experience),
+            "goldinventory" => Ok(Stat::GoldInventory),
+            "goldstash" => Ok(Stat::GoldStash),
+            _ => Err(ParseError { message: format!("Cannot find corresponding stat for: {0}", value)})
+            
+        }
+    }
 }
 
 /// Store integer and fraction parts of a fixed point number.
@@ -119,10 +119,83 @@ pub struct Attributes {
     pub mana_base: FixedPointStat,
     pub stamina_current: FixedPointStat,
     pub stamina_base: FixedPointStat,
-    pub level: u32,
-    pub experience: u32,
-    pub gold_inventory: u32,
-    pub gold_stash: u32,
+    level: u32,
+    experience: u32,
+    gold_inventory: u32,
+    gold_stash: u32,
+}
+
+impl Attributes {
+    pub fn level(&self) -> u32 {
+        self.level
+    }
+
+    pub fn set_level(&mut self, new_level : u32) -> Result<(), GameLogicError> {
+        match new_level {
+            1..=99 => {
+                self.level = new_level;
+                self.experience = EXPERIENCE_TABLE[self.level as usize - 1];
+                Ok(())
+            },
+            _ => Err(GameLogicError { message: format!("Cannot set level {0}: value must be between 1 and 99.", new_level) })
+        }
+    }
+
+    pub fn experience(&self) -> u32 {
+        self.experience
+    }
+
+    pub fn set_experience(&mut self, new_experience: u32) -> Result<(), GameLogicError> {
+        if new_experience <= MAX_XP {
+            self.experience = new_experience;
+            let new_level = get_level_from_experience(new_experience);
+            if new_level != self.level {
+                self.level = new_level
+            }
+            Ok(())
+        } else {
+            Err(GameLogicError { message: format!("Cannot set experience{0}: value must be between <= {1}.", new_experience, MAX_XP) })
+        }
+    }
+
+    pub fn gold_inventory(&self) -> u32 {
+        self.gold_inventory
+    }
+
+    pub fn set_gold_inventory(&mut self, new_gold_inventory : u32) -> Result<(), GameLogicError> {
+        if new_gold_inventory <= self.level * GOLD_INVENTORY_PER_LEVEL {
+            self.gold_inventory = new_gold_inventory;
+            Ok(())
+        } else {
+            Err(GameLogicError { message: format!("Cannot set {0} gold in inventory: value must be <= {1} for level {2} character.", new_gold_inventory, self.level * GOLD_INVENTORY_PER_LEVEL, self.level) })
+        }
+    }
+
+    pub fn gold_stash(&self) -> u32 {
+        self.gold_stash
+    }
+
+    pub fn set_gold_stash(&mut self, new_gold_stash : u32) -> Result<(), GameLogicError> {
+        if new_gold_stash <= MAX_GOLD_STASH {
+            self.gold_stash = new_gold_stash;
+            Ok(())
+        } else {
+            Err(GameLogicError { message: format!("Cannot set {0} gold in stash: value must be <= {1}.", new_gold_stash, MAX_GOLD_STASH) })
+        }
+    }
+
+
+}
+
+fn get_level_from_experience(experience: u32) -> u32 {
+    let mut level: u32 = 99;
+    for (i, element) in EXPERIENCE_TABLE.iter().enumerate() {
+        if *element > experience {
+            level = i as u32;
+            break;
+        }
+    }
+    level
 }
 
 pub fn default_character(class: Class) -> Attributes {
@@ -320,7 +393,7 @@ pub fn generate(attributes: &Attributes) -> Vec<u8> {
 ///
 /// The attributes are stored in a packed struct with non-aligned bytes.
 /// Headers for instance contain 9 bits, so they must be read over multiple bytes.
-fn parse_bits(byte_vector: &Vec<u8>, byte_position: &mut BytePosition, bits_to_read: usize) -> u32 {
+fn parse_bits(byte_vector: &[u8], byte_position: &mut BytePosition, bits_to_read: usize) -> u32 {
     let mut bits_left_to_read: usize = bits_to_read;
     let mut buffer: u32 = 0;
     let mut buffer_bit_position: usize = 0;
