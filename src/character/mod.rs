@@ -9,6 +9,7 @@ use crate::Act;
 use crate::Class;
 use crate::Difficulty;
 use crate::ParseError;
+use crate::GameLogicError;
 
 use crate::utils::get_sys_time_in_secs;
 use crate::utils::u32_from;
@@ -441,6 +442,10 @@ impl From<WeaponSet> for u32 {
 }
 
 impl Character {
+    pub fn default_class(class: Class) -> Self {
+        Character{class: class, ..Default::default()}
+    }
+
     // Getters and setters for fields that need validation
     pub fn weapon_set(&self) -> &WeaponSet {
         &self.weapon_set
@@ -468,9 +473,14 @@ impl Character {
     pub fn level(&self) -> &u8 {
         &self.level
     }
-    pub fn set_level(&mut self, new_level: u8) {
-        if new_level > 0 && new_level < 100 {
-            self.level = new_level
+
+    pub fn set_level(&mut self, new_level : u8) -> Result<(), GameLogicError> {
+        match new_level {
+            1..=99 => {
+                self.level = new_level;
+                Ok(())
+            },
+            _ => Err(GameLogicError { message: format!("Cannot set level {0}: value must be between 1 and 99.", new_level) })
         }
     }
 

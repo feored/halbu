@@ -119,18 +119,20 @@ pub struct Attributes {
     pub mana_base: FixedPointStat,
     pub stamina_current: FixedPointStat,
     pub stamina_base: FixedPointStat,
-    level: u32,
+    level: u8,
     experience: u32,
     gold_inventory: u32,
     gold_stash: u32,
 }
 
+
 impl Attributes {
-    pub fn level(&self) -> u32 {
+
+    pub fn level(&self) -> u8 {
         self.level
     }
 
-    pub fn set_level(&mut self, new_level : u32) -> Result<(), GameLogicError> {
+    pub fn set_level(&mut self, new_level : u8) -> Result<(), GameLogicError> {
         match new_level {
             1..=99 => {
                 self.level = new_level;
@@ -163,11 +165,11 @@ impl Attributes {
     }
 
     pub fn set_gold_inventory(&mut self, new_gold_inventory : u32) -> Result<(), GameLogicError> {
-        if new_gold_inventory <= self.level * GOLD_INVENTORY_PER_LEVEL {
+        if new_gold_inventory <= self.level as u32  * GOLD_INVENTORY_PER_LEVEL {
             self.gold_inventory = new_gold_inventory;
             Ok(())
         } else {
-            Err(GameLogicError { message: format!("Cannot set {0} gold in inventory: value must be <= {1} for level {2} character.", new_gold_inventory, self.level * GOLD_INVENTORY_PER_LEVEL, self.level) })
+            Err(GameLogicError { message: format!("Cannot set {0} gold in inventory: value must be <= {1} for level {2} character.", new_gold_inventory, self.level as u32 * GOLD_INVENTORY_PER_LEVEL, self.level) })
         }
     }
 
@@ -184,76 +186,77 @@ impl Attributes {
         }
     }
 
+    pub fn default_class(class: Class) -> Self  {
+        let amazon = (20, 25, 20, 15, 50, 84, 15);
+        let assassin = (20, 20, 20, 25, 50, 95, 25);
+        let barbarian = (30, 20, 25, 10, 55, 92, 10);
+        let paladin = (25, 20, 25, 15, 55, 89, 15);
+        let necromancer = (15, 25, 15, 25, 45, 79, 25);
+        let sorceress = (10, 25, 10, 35, 40, 74, 35);
+        let druid = (15, 20, 25, 20, 55, 84, 20);
+    
+        let stats = match class {
+            Class::Amazon => amazon,
+            Class::Assassin => assassin,
+            Class::Barbarian => barbarian,
+            Class::Paladin => paladin,
+            Class::Necromancer => necromancer,
+            Class::Sorceress => sorceress,
+            Class::Druid => druid,
+        };
+    
+        Attributes {
+            strength: stats.0,
+            dexterity: stats.1,
+            vitality: stats.2,
+            energy: stats.3,
+            stat_points_left: 0,
+            skill_points_left: 0,
+            life_current: FixedPointStat {
+                integer: stats.4,
+                fraction: 0,
+            },
+            life_base: FixedPointStat {
+                integer: stats.4,
+                fraction: 0,
+            },
+            mana_current: FixedPointStat {
+                integer: stats.6,
+                fraction: 0,
+            },
+            mana_base: FixedPointStat {
+                integer: stats.6,
+                fraction: 0,
+            },
+            stamina_current: FixedPointStat {
+                integer: stats.5,
+                fraction: 0,
+            },
+            stamina_base: FixedPointStat {
+                integer: stats.5,
+                fraction: 0,
+            },
+            level: 1,
+            experience: 0,
+            gold_inventory: 0,
+            gold_stash: 0,
+        }
+    }
 
 }
 
-fn get_level_from_experience(experience: u32) -> u32 {
-    let mut level: u32 = 99;
+fn get_level_from_experience(experience: u32) -> u8 {
+    let mut level: u8 = 99;
     for (i, element) in EXPERIENCE_TABLE.iter().enumerate() {
         if *element > experience {
-            level = i as u32;
+            level = i as u8;
             break;
         }
     }
     level
 }
 
-pub fn default_character(class: Class) -> Attributes {
-    let amazon = (20, 25, 20, 15, 50, 84, 15);
-    let assassin = (20, 20, 20, 25, 50, 95, 25);
-    let barbarian = (30, 20, 25, 10, 55, 92, 10);
-    let paladin = (25, 20, 25, 15, 55, 89, 15);
-    let necromancer = (15, 25, 15, 25, 45, 79, 25);
-    let sorceress = (10, 25, 10, 35, 40, 74, 35);
-    let druid = (15, 20, 25, 20, 55, 84, 20);
 
-    let stats = match class {
-        Class::Amazon => amazon,
-        Class::Assassin => assassin,
-        Class::Barbarian => barbarian,
-        Class::Paladin => paladin,
-        Class::Necromancer => necromancer,
-        Class::Sorceress => sorceress,
-        Class::Druid => druid,
-    };
-
-    Attributes {
-        strength: stats.0,
-        dexterity: stats.1,
-        vitality: stats.2,
-        energy: stats.3,
-        stat_points_left: 0,
-        skill_points_left: 0,
-        life_current: FixedPointStat {
-            integer: stats.4,
-            fraction: 0,
-        },
-        life_base: FixedPointStat {
-            integer: stats.4,
-            fraction: 0,
-        },
-        mana_current: FixedPointStat {
-            integer: stats.6,
-            fraction: 0,
-        },
-        mana_base: FixedPointStat {
-            integer: stats.6,
-            fraction: 0,
-        },
-        stamina_current: FixedPointStat {
-            integer: stats.5,
-            fraction: 0,
-        },
-        stamina_base: FixedPointStat {
-            integer: stats.5,
-            fraction: 0,
-        },
-        level: 1,
-        experience: 0,
-        gold_inventory: 0,
-        gold_stash: 0,
-    }
-}
 
 /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
 pub fn write_u8(
@@ -358,7 +361,7 @@ pub fn generate(attributes: &Attributes) -> Vec<u8> {
             Stat::ManaBase => u32::from(&attributes.mana_base),
             Stat::StaminaCurrent => u32::from(&attributes.stamina_current),
             Stat::StaminaBase => u32::from(&attributes.stamina_base),
-            Stat::Level => attributes.level,
+            Stat::Level => attributes.level as u32,
             Stat::Experience => attributes.experience,
             Stat::GoldInventory => attributes.gold_inventory,
             Stat::GoldStash => attributes.gold_stash,
@@ -478,7 +481,7 @@ pub fn parse_with_position(
             Stat::ManaBase => stats.mana_base = FixedPointStat::from(value),
             Stat::StaminaCurrent => stats.stamina_current = FixedPointStat::from(value),
             Stat::StaminaBase => stats.stamina_base = FixedPointStat::from(value),
-            Stat::Level => stats.level = value,
+            Stat::Level => stats.level = value as u8,
             Stat::Experience => stats.experience = value,
             Stat::GoldInventory => stats.gold_inventory = value,
             Stat::GoldStash => stats.gold_stash = value,

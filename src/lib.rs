@@ -194,9 +194,17 @@ pub fn generate(save: &mut Save) -> Vec<u8> {
     result
 }
 
+impl Save {
+    pub fn new_character(class: Class) -> Self {
+        Save { attributes: Attributes::default_class(class), character: Character::default_class(class) , ..Default::default()}
+    }
 
-pub fn new_character(class : Class) -> Save {
-    Save { attributes: attributes::default_character(class), ..Default::default()}
+    pub fn set_level(&mut self, new_level : u8) -> Result<(), GameLogicError>{
+        self.character.set_level(new_level)?;
+        self.attributes.set_level(new_level)?;
+        Ok(())
+    }
+
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,6 +221,12 @@ pub struct GameLogicError {
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Parsing error: {}", self.message)
+    }
+}
+
+impl fmt::Display for GameLogicError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Game logic error: {}", self.message)
     }
 }
 
@@ -414,7 +428,7 @@ mod tests {
 
         let mut save: Save = Save::default();
         save.character.set_name(String::from("test"));
-        save.attributes = attributes::default_character(Class::Amazon);
+        save.attributes = Attributes::default_class(Class::Amazon);
 
         let generated_save = generate(&mut save);
 
