@@ -196,7 +196,7 @@ impl Attributes {
     }
 
     pub fn set_level(&mut self, new_level : Level) {
-        self.experience = get_experience_range_for_level(new_level).start;
+        self.experience = get_experience_range_from_level(new_level).start;
     }
 
     pub fn experience(&self) -> Experience {
@@ -306,7 +306,10 @@ pub fn get_level_from_experience(experience: Experience) -> Level {
     Level(level)
 }
 
-pub fn get_experience_range_for_level(level: Level) -> Range<Experience> {
+pub fn get_experience_range_from_level(level: Level) -> Range<Experience> {
+    if level == Level(99){
+        return Experience(MAX_XP)..Experience(MAX_XP)
+    }
     Experience(EXPERIENCE_TABLE[level.0 as usize - 1])..Experience(EXPERIENCE_TABLE[level.0 as usize])
 }
 
