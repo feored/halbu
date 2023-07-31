@@ -124,18 +124,18 @@ impl From<Section> for FileSection {
 #[serde_as]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Character {
-    weapon_set: WeaponSet,
+    pub weapon_set: WeaponSet,
     pub status: Status,
     pub progression: u8,
-    title: String,
+    pub title: String,
     pub class: Class,
     pub level: Level,
     pub last_played: u32,
-    assigned_skills: [u32; 16],
-    left_mouse_skill: u32,
-    right_mouse_skill: u32,
-    left_mouse_switch_skill: u32,
-    right_mouse_switch_skill: u32,
+    pub assigned_skills: [u32; 16],
+    pub left_mouse_skill: u32,
+    pub right_mouse_skill: u32,
+    pub left_mouse_switch_skill: u32,
+    pub right_mouse_switch_skill: u32,
     pub menu_appearance: [u8; 32],
     pub difficulty: Difficulty,
     pub act: Act,
@@ -143,7 +143,7 @@ pub struct Character {
     pub mercenary: Mercenary,
     #[serde_as(as = "Bytes")]
     pub resurrected_menu_appearance: [u8; 48],
-    name: String,
+    pub name: Name,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
@@ -181,7 +181,7 @@ impl Default for Character {
             map_seed: 0,
             mercenary: Mercenary::default(),
             resurrected_menu_appearance: [0x00; 48],
-            name: String::from("default"),
+            name: Name::default(),
         }
     }
 }
@@ -291,7 +291,7 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
                 });
             }
         };
-    character.name = String::from(utf8name);
+    character.name = Name::from(&String::from(utf8name))?;
 
     character.title = character.title();
 
@@ -337,7 +337,7 @@ pub fn generate(character: &Character) -> [u8; 319] {
     bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))]
         .copy_from_slice(&character.resurrected_menu_appearance);
     let mut name: [u8; 16] = [0x00; 16];
-    let name_as_bytes = character.name.as_bytes();
+    let name_as_bytes = character.name.0.as_bytes();
     name[0..name_as_bytes.len()].clone_from_slice(name_as_bytes);
     bytes[Range::<usize>::from(FileSection::from(Section::Name))].copy_from_slice(&name);
 
@@ -442,6 +442,65 @@ impl From<WeaponSet> for u32 {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
+pub struct Name(String);
+
+impl Name {
+    pub fn default() -> Name{
+        Name(String::from("default"))
+    }
+
+    pub fn from(name: &String) -> Result<Name, ParseError>{
+        fn count_occurences(character: char, string: String) -> usize{
+            let mut chars = string.chars();
+            let mut count: usize = 0;
+            loop {
+                match chars.next(){
+                    None => break,
+                    Some(ch) => {
+                        if ch == character {
+                            count += 1
+                        }
+                    }
+                }
+            }
+            count
+        }
+
+        if name.len() < 2 {
+            return Err(ParseError { message: format!("Name {0} is invalid, names cannot have less than 2 characters.", name) })
+        }
+
+        if name.len() > 15 {
+            return Err(ParseError { message: format!("Name {0} is invalid, names cannot have more than 15 characters.", name) })
+        }
+
+        if name.starts_with(|c: char| !c.is_alphabetic()){
+            return Err(ParseError { message: format!("Name {0} is invalid, names must start with a letter", name) })
+        }
+
+        if count_occurences('_', name.clone()) > 1 || count_occurences('-', name.clone()) > 1 {
+            return Err(ParseError { message: format!("Name {0} is invalid, names cannot have more than 15 characters.", name) })
+        }
+
+        let mut chars = name.chars();
+        loop {
+            match chars.next(){
+                None => break,
+                Some(res) => {
+                    if !res.is_alphabetic() && res != '_' && res != '-' {
+                        return Err(ParseError { message: format!("Name {0} is invalid, names can only contain letters and one underscore and dash.", name) })
+                    }
+                }
+            }
+        }
+
+        Ok(Name(String::from(name)))
+
+
+    }
+}
+
 impl Character {
     pub fn default_class(class: Class) -> Self {
         Character{class: class, ..Default::default()}
@@ -455,19 +514,6 @@ impl Character {
     pub fn set_weapon_set(&mut self, new_weapon_set: WeaponSet) {
         if new_weapon_set == WeaponSet::Main || self.status.expansion {
             self.weapon_set = new_weapon_set;
-        }
-    }
-
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-    // 16 bytes maximum, max one - or _
-    pub fn set_name(&mut self, new_name: String) {
-        if new_name.len() <= 16
-            && new_name.matches('-').count() <= 1
-            && new_name.matches('_').count() <= 1
-        {
-            self.name = new_name;
         }
     }
     // pub fn difficulty(&self) -> &(Difficulty, Act) {

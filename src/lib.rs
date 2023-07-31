@@ -166,7 +166,7 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
     Ok(save)
 }
 
-pub fn generate(save: &mut Save) -> Vec<u8> {
+pub fn generate(save: &Save) -> Vec<u8> {
     let mut result: Vec<u8> = Vec::<u8>::new();
     result.resize(765, 0x00);
 
@@ -405,6 +405,7 @@ mod tests {
     use std::fs;
     use std::io::Write;
     use std::path::Path;
+    use crate::character::Name;
 
     #[test]
     fn test_parse_save() {
@@ -427,7 +428,7 @@ mod tests {
         let path: &Path = Path::new("assets/Test.d2s");
 
         let mut save: Save = Save::default();
-        save.character.set_name(String::from("test"));
+        save.character.name = Name::from(&String::from("test")).unwrap();
         save.attributes = Attributes::default_class(Class::Amazon);
 
         let generated_save = generate(&mut save);

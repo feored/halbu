@@ -75,7 +75,7 @@ mod tests {
                 0, 0, 120, 112, 108, 32, 255, 7, 217, 0, 0, 0, 0, 0, 117, 97, 112, 32, 77, 7, 248,
                 0, 0, 0, 0, 0,
             ],
-            name: String::from("Nyahallo"),
+            name: Name(String::from("Nyahallo")),
         };
         let parsed_result = match parse(&bytes) {
             Ok(result) => result,
@@ -161,10 +161,22 @@ mod tests {
                 0, 0, 120, 112, 108, 32, 255, 7, 217, 0, 0, 0, 0, 0, 117, 97, 112, 32, 77, 7, 248,
                 0, 0, 0, 0, 0,
             ],
-            name: String::from("Nyahallo"),
+            name: Name(String::from("Nyahallo")),
         };
         let generated_result = generate(&character);
 
         assert_eq!(expected_result, generated_result);
+    }
+
+    
+    #[test]
+    fn test_names() {
+        assert!(Name::from(&String::from("A")).is_err());
+        assert!(Name::from(&String::from("Joe_-_")).is_err());
+        assert!(Name::from(&String::from("-joe")).is_err());
+        assert!(Name::from(&String::from("123joe")).is_err());
+        assert!(Name::from(&String::from("BlueRedGreyGreenViolet")).is_err());
+        assert_eq!(Name::from(&String::from("Test")).unwrap(), Name(String::from("Test")));
+        assert_eq!(Name::from(&String::from("榮華富貴")).unwrap(), Name(String::from("榮華富貴")));
     }
 }
