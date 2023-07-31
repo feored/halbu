@@ -1,6 +1,7 @@
 use bit::BitIndex;
 use std::cmp;
 use std::fmt;
+use std::ops::Range;
 
 use serde::{Serialize, Deserialize};
 
@@ -70,13 +71,23 @@ impl TryFrom<String> for Stat{
 #[derive(Default, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct FixedPointStat {
     integer: u32,
-    fraction: u32,
+    fraction: u8,
+}
+
+impl FixedPointStat {
+    pub fn from_parts(integer: u32, fraction: u8) -> Result<FixedPointStat, ParseError> {
+        if integer <= 8191 {
+            Ok(Self {integer:  integer, fraction: fraction})
+        } else {
+            Err(ParseError { message: format!("Integer part of a fixed point stat must be <= 8191.")})
+        }
+    }
 }
 
 impl From<u32> for FixedPointStat {
     fn from(fixed_point_number: u32) -> FixedPointStat {
         let integer: u32 = fixed_point_number.bit_range(8..21);
-        let fraction: u32 = fixed_point_number.bit_range(0..8);
+        let fraction: u8 = fixed_point_number.bit_range(0..8) as u8;
         FixedPointStat {
             integer,
             fraction,
@@ -87,7 +98,7 @@ impl From<u32> for FixedPointStat {
 impl From<&FixedPointStat> for u32 {
     fn from(fixed_point_number: &FixedPointStat) -> u32 {
         let mut result = 0u32;
-        result.set_bit_range(0..8, fixed_point_number.fraction.bit_range(0..8));
+        result.set_bit_range(0..8, (fixed_point_number.fraction as u32).bit_range(0..8));
         result.set_bit_range(8..21, fixed_point_number.integer.bit_range(0..13));
         result
     }
@@ -107,56 +118,95 @@ impl fmt::Debug for FixedPointStat {
 /// fraction separately for precision and easier comparison.
 #[derive(Default, PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Attributes {
-    pub strength: u32,
-    pub energy: u32,
-    pub dexterity: u32,
-    pub vitality: u32,
-    pub stat_points_left: u32,
-    pub skill_points_left: u32,
+    pub strength: Attribute,
+    pub energy: Attribute,
+    pub dexterity: Attribute,
+    pub vitality: Attribute,
+    pub stat_points_left: u16,
+    pub skill_points_left: u8,
     pub life_current: FixedPointStat,
     pub life_base: FixedPointStat,
     pub mana_current: FixedPointStat,
     pub mana_base: FixedPointStat,
     pub stamina_current: FixedPointStat,
     pub stamina_base: FixedPointStat,
-    level: u8,
-    experience: u32,
+    level: Level,
+    experience: Experience,
     gold_inventory: u32,
     gold_stash: u32,
 }
 
+#[derive(Default, PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct Attribute(u32);
+
+impl Attribute {
+    pub fn default() -> Attribute {
+        Attribute(0)
+    }
+    pub fn from(number: u32) -> Result<Attribute, ParseError> {
+        match number{
+            0..=1023 => Ok(Attribute(number)),
+            _ => Err(ParseError { message: format!("Attribute must be between 0 and 999.") })
+        }
+    }
+    pub fn value(self) -> u32 {
+        self.0
+    }
+}
+
+#[derive(Default, PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct Level(u8);
+
+impl Level {
+    pub fn default() -> Level {
+        Level(1)
+    }
+    pub fn from(number: u8) -> Result<Level, ParseError> {
+        match number{
+            1..=99 => Ok(Level(number)),
+            _ => Err(ParseError { message: format!("Level must be between 1 and 99.") })
+        }
+    }
+    pub fn value(self) -> u8 {
+        self.0
+    }
+}
+
+#[derive(Default, PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct Experience(u32);
+impl Experience {
+    pub fn default() -> Experience {
+        Experience(0)
+    }
+    pub fn from(number: u32) -> Result<Experience, ParseError> {
+        match number{
+            0..=MAX_XP => Ok(Experience(number)),
+            _ => Err(ParseError { message: format!("Experience must be between 0 and {0}.", MAX_XP) })
+        }
+    }
+    pub fn value(self) -> u32 {
+        self.0
+    }
+}
 
 impl Attributes {
 
-    pub fn level(&self) -> u8 {
+    pub fn level(&self) -> Level {
         self.level
     }
 
-    pub fn set_level(&mut self, new_level : u8) -> Result<(), GameLogicError> {
-        match new_level {
-            1..=99 => {
-                self.level = new_level;
-                self.experience = EXPERIENCE_TABLE[self.level as usize - 1];
-                Ok(())
-            },
-            _ => Err(GameLogicError { message: format!("Cannot set level {0}: value must be between 1 and 99.", new_level) })
-        }
+    pub fn set_level(&mut self, new_level : Level) {
+        self.experience = get_experience_range_for_level(new_level).start;
     }
 
-    pub fn experience(&self) -> u32 {
+    pub fn experience(&self) -> Experience {
         self.experience
     }
 
-    pub fn set_experience(&mut self, new_experience: u32) -> Result<(), GameLogicError> {
-        if new_experience <= MAX_XP {
-            self.experience = new_experience;
-            let new_level = get_level_from_experience(new_experience);
-            if new_level != self.level {
-                self.level = new_level
-            }
-            Ok(())
-        } else {
-            Err(GameLogicError { message: format!("Cannot set experience{0}: value must be between <= {1}.", new_experience, MAX_XP) })
+    pub fn set_experience(&mut self, new_experience: Experience) {
+        let new_level = get_level_from_experience(new_experience);
+        if new_level != self.level {
+            self.level = new_level
         }
     }
 
@@ -165,11 +215,11 @@ impl Attributes {
     }
 
     pub fn set_gold_inventory(&mut self, new_gold_inventory : u32) -> Result<(), GameLogicError> {
-        if new_gold_inventory <= self.level as u32  * GOLD_INVENTORY_PER_LEVEL {
+        if new_gold_inventory <= self.level.0 as u32  * GOLD_INVENTORY_PER_LEVEL {
             self.gold_inventory = new_gold_inventory;
             Ok(())
         } else {
-            Err(GameLogicError { message: format!("Cannot set {0} gold in inventory: value must be <= {1} for level {2} character.", new_gold_inventory, self.level as u32 * GOLD_INVENTORY_PER_LEVEL, self.level) })
+            Err(GameLogicError { message: format!("Cannot set {0} gold in inventory: value must be <= {1} for level {2} character.", new_gold_inventory, self.level.value() as u32 * GOLD_INVENTORY_PER_LEVEL, self.level.value()) })
         }
     }
 
@@ -206,10 +256,10 @@ impl Attributes {
         };
     
         Attributes {
-            strength: stats.0,
-            dexterity: stats.1,
-            vitality: stats.2,
-            energy: stats.3,
+            strength: Attribute(stats.0),
+            dexterity: Attribute(stats.1),
+            vitality: Attribute(stats.2),
+            energy: Attribute(stats.3),
             stat_points_left: 0,
             skill_points_left: 0,
             life_current: FixedPointStat {
@@ -236,8 +286,8 @@ impl Attributes {
                 integer: stats.5,
                 fraction: 0,
             },
-            level: 1,
-            experience: 0,
+            level: Level::default(),
+            experience: Experience::default(),
             gold_inventory: 0,
             gold_stash: 0,
         }
@@ -245,15 +295,19 @@ impl Attributes {
 
 }
 
-fn get_level_from_experience(experience: u32) -> u8 {
+pub fn get_level_from_experience(experience: Experience) -> Level {
     let mut level: u8 = 99;
     for (i, element) in EXPERIENCE_TABLE.iter().enumerate() {
-        if *element > experience {
+        if *element > experience.0 {
             level = i as u8;
             break;
         }
     }
-    level
+    Level(level)
+}
+
+pub fn get_experience_range_for_level(level: Level) -> Range<Experience> {
+    Experience(EXPERIENCE_TABLE[level.0 as usize - 1])..Experience(EXPERIENCE_TABLE[level.0 as usize])
 }
 
 
@@ -349,20 +403,20 @@ pub fn generate(attributes: &Attributes) -> Vec<u8> {
         );
 
         let value: u32 = match stat {
-            Stat::Strength => attributes.strength,
-            Stat::Energy => attributes.energy,
-            Stat::Dexterity => attributes.dexterity,
-            Stat::Vitality => attributes.vitality,
-            Stat::StatPointsLeft => attributes.stat_points_left,
-            Stat::SkillPointsLeft => attributes.skill_points_left,
+            Stat::Strength => attributes.strength.value(),
+            Stat::Energy => attributes.energy.value(),
+            Stat::Dexterity => attributes.dexterity.value(),
+            Stat::Vitality => attributes.vitality.value(),
+            Stat::StatPointsLeft => attributes.stat_points_left as u32,
+            Stat::SkillPointsLeft => attributes.skill_points_left as u32,
             Stat::LifeCurrent => u32::from(&attributes.life_current),
             Stat::LifeBase => u32::from(&attributes.life_base),
             Stat::ManaCurrent => u32::from(&attributes.mana_current),
             Stat::ManaBase => u32::from(&attributes.mana_base),
             Stat::StaminaCurrent => u32::from(&attributes.stamina_current),
             Stat::StaminaBase => u32::from(&attributes.stamina_base),
-            Stat::Level => attributes.level as u32,
-            Stat::Experience => attributes.experience,
+            Stat::Level => attributes.level.value() as u32,
+            Stat::Experience => attributes.experience.value(),
             Stat::GoldInventory => attributes.gold_inventory,
             Stat::GoldStash => attributes.gold_stash,
         };
@@ -469,20 +523,20 @@ pub fn parse_with_position(
         //     STAT_KEY[header as usize]
         // );
         match STAT_KEY[header as usize] {
-            Stat::Strength => stats.strength = value,
-            Stat::Energy => stats.energy = value,
-            Stat::Dexterity => stats.dexterity = value,
-            Stat::Vitality => stats.vitality = value,
-            Stat::StatPointsLeft => stats.stat_points_left = value,
-            Stat::SkillPointsLeft => stats.skill_points_left = value,
+            Stat::Strength => stats.strength = Attribute::from(value)?,
+            Stat::Energy => stats.energy = Attribute::from(value)?,
+            Stat::Dexterity => stats.dexterity = Attribute::from(value)?,
+            Stat::Vitality => stats.vitality = Attribute::from(value)?,
+            Stat::StatPointsLeft => stats.stat_points_left = value as u16,
+            Stat::SkillPointsLeft => stats.skill_points_left = value as u8,
             Stat::LifeCurrent => stats.life_current = FixedPointStat::from(value),
             Stat::LifeBase => stats.life_base = FixedPointStat::from(value),
             Stat::ManaCurrent => stats.mana_current = FixedPointStat::from(value),
             Stat::ManaBase => stats.mana_base = FixedPointStat::from(value),
             Stat::StaminaCurrent => stats.stamina_current = FixedPointStat::from(value),
             Stat::StaminaBase => stats.stamina_base = FixedPointStat::from(value),
-            Stat::Level => stats.level = value as u8,
-            Stat::Experience => stats.experience = value,
+            Stat::Level => stats.level = Level::from(value as u8)?,
+            Stat::Experience => stats.experience = Experience::from(value)?,
             Stat::GoldInventory => stats.gold_inventory = value,
             Stat::GoldStash => stats.gold_stash = value,
         }

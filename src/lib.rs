@@ -18,6 +18,7 @@ use utils::FileSection;
 use serde::{Serialize, Deserialize};
 
 use attributes::Attributes;
+use attributes::Level;
 use character::Character;
 use quests::Quests;
 use skills::SkillSet;
@@ -199,10 +200,9 @@ impl Save {
         Save { attributes: Attributes::default_class(class), character: Character::default_class(class) , ..Default::default()}
     }
 
-    pub fn set_level(&mut self, new_level : u8) -> Result<(), GameLogicError>{
-        self.character.set_level(new_level)?;
-        self.attributes.set_level(new_level)?;
-        Ok(())
+    pub fn set_level(&mut self, new_level : Level){
+        self.character.level = new_level;
+        self.attributes.set_level(new_level);
     }
 
 }

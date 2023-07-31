@@ -9,7 +9,8 @@ use crate::Act;
 use crate::Class;
 use crate::Difficulty;
 use crate::ParseError;
-use crate::GameLogicError;
+
+use crate::attributes::Level;
 
 use crate::utils::get_sys_time_in_secs;
 use crate::utils::u32_from;
@@ -128,7 +129,7 @@ pub struct Character {
     pub progression: u8,
     title: String,
     pub class: Class,
-    level: u8,
+    pub level: Level,
     pub last_played: u32,
     assigned_skills: [u32; 16],
     left_mouse_skill: u32,
@@ -167,7 +168,7 @@ impl Default for Character {
             progression: 0,
             title: String::default(),
             class: Class::Amazon,
-            level: 1,
+            level: Level::default(),
             last_played: get_sys_time_in_secs(),
             assigned_skills: [0x00; 16],
             left_mouse_skill: 0,
@@ -219,17 +220,17 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         _ => class,
     };
 
-    let level = u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Level))]);
-    character.level = match level {
-        0u8 | 100u8..=255u8 => {
+    let level_u8: u8 = u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Level))]);
+    character.level = match Level::from(level_u8) {
+        Err(_e) =>  {
             return Err(ParseError {
                 message: format!(
                     "Found character level outside of 1-99 range : {0:?}.",
-                    level
+                    level_u8
                 ),
             })
-        }
-        _ => level,
+        },
+        Ok(res) => res,
     };
 
     character.last_played =
@@ -306,7 +307,7 @@ pub fn generate(character: &Character) -> [u8; 319] {
     bytes[Range::<usize>::from(FileSection::from(Section::Progression)).start] =
         character.progression;
     bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] = u8::from(character.class);
-    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = character.level;
+    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = character.level.value();
     bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]
         .copy_from_slice(&u32::to_le_bytes(character.last_played));
 
@@ -469,21 +470,6 @@ impl Character {
             self.name = new_name;
         }
     }
-
-    pub fn level(&self) -> &u8 {
-        &self.level
-    }
-
-    pub fn set_level(&mut self, new_level : u8) -> Result<(), GameLogicError> {
-        match new_level {
-            1..=99 => {
-                self.level = new_level;
-                Ok(())
-            },
-            _ => Err(GameLogicError { message: format!("Cannot set level {0}: value must be between 1 and 99.", new_level) })
-        }
-    }
-
     // pub fn difficulty(&self) -> &(Difficulty, Act) {
     //     &self.difficulty
     // }
