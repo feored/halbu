@@ -5,10 +5,10 @@ mod tests {
     #[test]
     fn test_write_and_read_attributes() {
         let expected_attributes = Attributes {
-            strength: 156,
-            energy: 35,
-            dexterity: 35,
-            vitality: 324,
+            strength: Attribute(156),
+            energy: Attribute(35),
+            dexterity: Attribute(35),
+            vitality: Attribute(324),
             stat_points_left: 0,
             skill_points_left: 0,
             life_current: FixedPointStat {
@@ -35,8 +35,8 @@ mod tests {
                 integer: 479,
                 fraction: 0,
             },
-            level: 92,
-            experience: 2036912623,
+            level: Level(92),
+            experience: Experience(2036912623),
             gold_inventory: 0,
             gold_stash: 45964,
         };
@@ -98,10 +98,10 @@ mod tests {
         ];
 
         let expected_stats = Attributes {
-            strength: 30,
-            energy: 10,
-            dexterity: 20,
-            vitality: 25,
+            strength: Attribute(30),
+            energy: Attribute(10),
+            dexterity: Attribute(20),
+            vitality: Attribute(25),
             stat_points_left: 0,
             skill_points_left: 0,
             life_current: FixedPointStat {
@@ -128,8 +128,8 @@ mod tests {
                 integer: 92,
                 fraction: 0,
             },
-            level: 1,
-            experience: 0,
+            level: Level(1),
+            experience: Experience(0),
             gold_inventory: 0,
             gold_stash: 0,
         };
@@ -156,10 +156,10 @@ mod tests {
         ];
 
         let expected_stats = Attributes {
-            strength: 156,
-            energy: 35,
-            dexterity: 35,
-            vitality: 324,
+            strength: Attribute(156),
+            energy: Attribute(35),
+            dexterity: Attribute(35),
+            vitality: Attribute(324),
             stat_points_left: 0,
             skill_points_left: 0,
             life_current: FixedPointStat {
@@ -186,8 +186,8 @@ mod tests {
                 integer: 479,
                 fraction: 0,
             },
-            level: 92,
-            experience: 2036912623,
+            level: Level(92),
+            experience: Experience(2036912623),
             gold_inventory: 0,
             gold_stash: 45964,
         };
@@ -206,8 +206,8 @@ mod tests {
 
     #[test]
     fn test_level_from_xp() {
-        assert_eq!(get_level_from_experience(0), 1u8);
-        assert_eq!(get_level_from_experience(2749), 3u8);
-        assert_eq!(get_level_from_experience(3_520_485_254), 99u8);
+        assert_eq!(get_level_from_experience(Experience(0)), Level(1u8));
+        assert_eq!(get_level_from_experience(Experience(2749)), Level(3u8));
+        assert_eq!(get_level_from_experience(Experience(3_520_485_254)), Level(99u8));
     }
 }
