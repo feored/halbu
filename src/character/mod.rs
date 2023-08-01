@@ -1,9 +1,10 @@
 use std::ops::Range;
 use std::str;
 
-use serde_with::{serde_as, Bytes};
-use serde::{Serialize, Deserialize};
 use bit::BitIndex;
+use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, Bytes};
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::Act;
 use crate::Class;
@@ -19,8 +20,8 @@ use crate::utils::FileSection;
 
 use mercenary::Mercenary;
 
-pub mod mercenary;
 pub mod consts;
+pub mod mercenary;
 mod tests;
 
 use consts::*;
@@ -49,74 +50,23 @@ enum Section {
 impl From<Section> for FileSection {
     fn from(section: Section) -> FileSection {
         match section {
-            Section::WeaponSet => FileSection {
-                offset: 0,
-                bytes: 4,
-            },
-            Section::Status => FileSection {
-                offset: 20,
-                bytes: 1,
-            },
-            Section::Progression => FileSection {
-                offset: 21,
-                bytes: 1,
-            },
-            Section::Class => FileSection {
-                offset: 24,
-                bytes: 1,
-            },
-            Section::Level => FileSection {
-                offset: 27,
-                bytes: 1,
-            },
-            Section::LastPlayed => FileSection {
-                offset: 32,
-                bytes: 4,
-            },
-            Section::AssignedSkills => FileSection {
-                offset: 40,
-                bytes: 64,
-            },
-            Section::LeftMouseSkill => FileSection {
-                offset: 104,
-                bytes: 4,
-            },
-            Section::RightMouseSkill => FileSection {
-                offset: 108,
-                bytes: 4,
-            },
-            Section::LeftMouseSwitchSkill => FileSection {
-                offset: 112,
-                bytes: 4,
-            },
-            Section::RightMouseSwitchSkill => FileSection {
-                offset: 116,
-                bytes: 4,
-            },
-            Section::MenuAppearance => FileSection {
-                offset: 120,
-                bytes: 32,
-            },
-            Section::Difficulty => FileSection {
-                offset: 152,
-                bytes: 3,
-            },
-            Section::MapSeed => FileSection {
-                offset: 155,
-                bytes: 4,
-            },
-            Section::Mercenary => FileSection {
-                offset: 161,
-                bytes: 14,
-            },
-            Section::ResurrectedMenuAppearance => FileSection {
-                offset: 203,
-                bytes: 48,
-            },
-            Section::Name => FileSection {
-                offset: 251,
-                bytes: 16,
-            },
+            Section::WeaponSet => FileSection { offset: 0, bytes: 4 },
+            Section::Status => FileSection { offset: 20, bytes: 1 },
+            Section::Progression => FileSection { offset: 21, bytes: 1 },
+            Section::Class => FileSection { offset: 24, bytes: 1 },
+            Section::Level => FileSection { offset: 27, bytes: 1 },
+            Section::LastPlayed => FileSection { offset: 32, bytes: 4 },
+            Section::AssignedSkills => FileSection { offset: 40, bytes: 64 },
+            Section::LeftMouseSkill => FileSection { offset: 104, bytes: 4 },
+            Section::RightMouseSkill => FileSection { offset: 108, bytes: 4 },
+            Section::LeftMouseSwitchSkill => FileSection { offset: 112, bytes: 4 },
+            Section::RightMouseSwitchSkill => FileSection { offset: 116, bytes: 4 },
+            Section::MenuAppearance => FileSection { offset: 120, bytes: 32 },
+            Section::Difficulty => FileSection { offset: 152, bytes: 3 },
+            Section::MapSeed => FileSection { offset: 155, bytes: 4 },
+            Section::Mercenary => FileSection { offset: 161, bytes: 14 },
+            Section::ResurrectedMenuAppearance => FileSection { offset: 203, bytes: 48 },
+            Section::Name => FileSection { offset: 251, bytes: 48 },
         }
     }
 }
@@ -193,16 +143,14 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::WeaponSet))]);
     character.weapon_set = WeaponSet::try_from(active_weapon)?;
 
-    character.status = Status::from(u8_from(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Status))],
-    ));
+    character.status =
+        Status::from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Status))]));
 
     character.progression =
         u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Progression))]);
 
-    let class = Class::try_from(u8_from(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Class))],
-    ))?;
+    let class =
+        Class::try_from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Class))]))?;
 
     character.class = match class {
         Class::Druid | Class::Assassin => {
@@ -222,14 +170,11 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
 
     let level_u8: u8 = u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Level))]);
     character.level = match Level::from(level_u8) {
-        Err(_e) =>  {
+        Err(_e) => {
             return Err(ParseError {
-                message: format!(
-                    "Found character level outside of 1-99 range : {0:?}.",
-                    level_u8
-                ),
+                message: format!("Found character level outside of 1-99 range : {0:?}.", level_u8),
             })
-        },
+        }
         Ok(res) => res,
     };
 
@@ -253,9 +198,7 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::RightMouseSwitchSkill))]);
 
     let last_act = parse_last_act(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Difficulty))]
-            .try_into()
-            .unwrap(),
+        &bytes[Range::<usize>::from(FileSection::from(Section::Difficulty))].try_into().unwrap(),
     );
 
     character
@@ -273,9 +216,7 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
     character.map_seed =
         u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::MapSeed))]);
     character.mercenary = mercenary::parse(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Mercenary))]
-            .try_into()
-            .unwrap(),
+        &bytes[Range::<usize>::from(FileSection::from(Section::Mercenary))].try_into().unwrap(),
     )?;
 
     character.resurrected_menu_appearance.clone_from_slice(
@@ -303,10 +244,12 @@ pub fn generate(character: &Character) -> [u8; 319] {
 
     bytes[Range::<usize>::from(FileSection::from(Section::WeaponSet))]
         .copy_from_slice(&u32::to_le_bytes(u32::from(character.weapon_set)));
-    bytes[Range::<usize>::from(FileSection::from(Section::Status)).start] = u8::from(character.status);
+    bytes[Range::<usize>::from(FileSection::from(Section::Status)).start] =
+        u8::from(character.status);
     bytes[Range::<usize>::from(FileSection::from(Section::Progression)).start] =
         character.progression;
-    bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] = u8::from(character.class);
+    bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] =
+        u8::from(character.class);
     bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = character.level.value();
     bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]
         .copy_from_slice(&u32::to_le_bytes(character.last_played));
@@ -336,7 +279,7 @@ pub fn generate(character: &Character) -> [u8; 319] {
         .copy_from_slice(&mercenary::generate(&character.mercenary));
     bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))]
         .copy_from_slice(&character.resurrected_menu_appearance);
-    let mut name: [u8; 16] = [0x00; 16];
+    let mut name: [u8; 48] = [0x00; 48];
     let name_as_bytes = character.name.0.as_bytes();
     name[0..name_as_bytes.len()].clone_from_slice(name_as_bytes);
     bytes[Range::<usize>::from(FileSection::from(Section::Name))].copy_from_slice(&name);
@@ -383,12 +326,7 @@ fn generate_last_act(difficulty: Difficulty, act: Act) -> [u8; 3] {
 
 impl Default for Status {
     fn default() -> Self {
-        Self {
-            expansion: true,
-            hardcore: false,
-            ladder: false,
-            died: false,
-        }
+        Self { expansion: true, hardcore: false, ladder: false, died: false }
     }
 }
 
@@ -421,14 +359,9 @@ impl TryFrom<u32> for WeaponSet {
         match value {
             0u32 => Ok(WeaponSet::Main),
             1u32 => Ok(WeaponSet::Switch),
-            _ => {
-                Err(ParseError {
-                    message: format!(
-                        "Found {0:?} instead of 0 or 1 in current active weapons.",
-                        value
-                    ),
-                })
-            }
+            _ => Err(ParseError {
+                message: format!("Found {0:?} instead of 0 or 1 in current active weapons.", value),
+            }),
         }
     }
 }
@@ -446,16 +379,16 @@ impl From<WeaponSet> for u32 {
 pub struct Name(String);
 
 impl Name {
-    pub fn default() -> Name{
+    pub fn default() -> Name {
         Name(String::from("default"))
     }
 
-    pub fn from(name: &String) -> Result<Name, ParseError>{
-        fn count_occurences(character: char, string: String) -> usize{
+    pub fn from(name: &String) -> Result<Name, ParseError> {
+        fn count_occurences(character: char, string: String) -> usize {
             let mut chars = string.chars();
             let mut count: usize = 0;
             loop {
-                match chars.next(){
+                match chars.next() {
                     None => break,
                     Some(ch) => {
                         if ch == character {
@@ -467,43 +400,60 @@ impl Name {
             count
         }
 
-        if name.len() < 2 {
-            return Err(ParseError { message: format!("Name {0} is invalid, names cannot have less than 2 characters.", name) })
+        let len = name.graphemes(true).collect::<Vec<&str>>().len();
+
+        if len < 2 {
+            return Err(ParseError {
+                message: format!(
+                    "Name {0} is invalid, names cannot have less than 2 characters.",
+                    name
+                ),
+            });
         }
 
-        if name.len() > 15 {
-            return Err(ParseError { message: format!("Name {0} is invalid, names cannot have more than 15 characters.", name) })
+        if len > 15 {
+            return Err(ParseError {
+                message: format!(
+                    "Name {0} is invalid, names cannot have more than 15 characters.",
+                    name
+                ),
+            });
         }
 
-        if name.starts_with(|c: char| !c.is_alphabetic()){
-            return Err(ParseError { message: format!("Name {0} is invalid, names must start with a letter", name) })
+        if name.starts_with(|c: char| !c.is_alphabetic()) {
+            return Err(ParseError {
+                message: format!("Name {0} is invalid, names must start with a letter", name),
+            });
         }
 
         if count_occurences('_', name.clone()) > 1 || count_occurences('-', name.clone()) > 1 {
-            return Err(ParseError { message: format!("Name {0} is invalid, names cannot have more than 15 characters.", name) })
+            return Err(ParseError {
+                message: format!(
+                    "Name {0} is invalid, names cannot have more than 15 characters.",
+                    name
+                ),
+            });
         }
 
         let mut chars = name.chars();
         loop {
-            match chars.next(){
+            match chars.next() {
                 None => break,
                 Some(res) => {
                     if !res.is_alphabetic() && res != '_' && res != '-' {
-                        return Err(ParseError { message: format!("Name {0} is invalid, names can only contain letters and one underscore and dash.", name) })
+                        return Err(ParseError { message: format!("Name {0} is invalid, names can only contain letters and one underscore and dash.", name) });
                     }
                 }
             }
         }
 
         Ok(Name(String::from(name)))
-
-
     }
 }
 
 impl Character {
     pub fn default_class(class: Class) -> Self {
-        Character{class: class, ..Default::default()}
+        Character { class: class, ..Default::default() }
     }
 
     // Getters and setters for fields that need validation
@@ -534,14 +484,14 @@ impl Character {
         let male: bool = [Class::Barbarian, Class::Paladin, Class::Necromancer, Class::Druid]
             .contains(&self.class);
         if !self.status.expansion {
-            let stage: usize = match self.progression{
+            let stage: usize = match self.progression {
                 0..=3 => 0,
                 4..=7 => 1,
                 8..=11 => 2,
                 12..=15 => 3,
-                _  => 3 // should panic here
+                _ => 3, // should panic here
             };
-            
+
             match (self.status.hardcore, male) {
                 (false, false) => String::from(TITLES_CLASSIC_STANDARD_FEMALE[stage]),
                 (false, true) => String::from(TITLES_CLASSIC_STANDARD_MALE[stage]),

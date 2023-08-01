@@ -2,8 +2,8 @@ use std::fmt;
 use std::ops::Range;
 use std::str;
 
-use serde::{Serialize, Deserialize};
 use bit::BitIndex;
+use serde::{Deserialize, Serialize};
 
 use crate::Act;
 use crate::Difficulty;
@@ -15,7 +15,6 @@ use crate::utils::FileSection;
 
 pub mod consts;
 use consts::*;
-
 
 #[derive(PartialEq, Eq, Debug)]
 enum Section {
@@ -40,70 +39,22 @@ enum Section {
 impl From<Section> for FileSection {
     fn from(section: Section) -> FileSection {
         match section {
-            Section::Act1Introduction => FileSection {
-                offset: 0,
-                bytes: 2,
-            },
-            Section::Act1Quests => FileSection {
-                offset: 2,
-                bytes: 12,
-            },
-            Section::Act2Travel => FileSection {
-                offset: 14,
-                bytes: 2,
-            },
-            Section::Act2Introduction => FileSection {
-                offset: 16,
-                bytes: 2,
-            },
-            Section::Act2Quests => FileSection {
-                offset: 18,
-                bytes: 12,
-            },
-            Section::Act3Travel => FileSection {
-                offset: 30,
-                bytes: 2,
-            },
-            Section::Act3Introduction => FileSection {
-                offset: 32,
-                bytes: 2,
-            },
-            Section::Act3Quests => FileSection {
-                offset: 34,
-                bytes: 12,
-            },
-            Section::Act4Travel => FileSection {
-                offset: 46,
-                bytes: 2,
-            },
-            Section::Act4Introduction => FileSection {
-                offset: 48,
-                bytes: 2,
-            },
-            Section::Act4Quests => FileSection {
-                offset: 50,
-                bytes: 12,
-            },
-            Section::Act5Travel => FileSection {
-                offset: 62,
-                bytes: 2,
-            },
-            Section::BaseGameComplete => FileSection {
-                offset: 64,
-                bytes: 2,
-            },
-            Section::Act5Quests => FileSection {
-                offset: 70,
-                bytes: 12,
-            },
-            Section::ResetStats => FileSection {
-                offset: 82,
-                bytes: 1,
-            },
-            Section::DifficultyComplete => FileSection {
-                offset: 83,
-                bytes: 1,
-            },
+            Section::Act1Introduction => FileSection { offset: 0, bytes: 2 },
+            Section::Act1Quests => FileSection { offset: 2, bytes: 12 },
+            Section::Act2Travel => FileSection { offset: 14, bytes: 2 },
+            Section::Act2Introduction => FileSection { offset: 16, bytes: 2 },
+            Section::Act2Quests => FileSection { offset: 18, bytes: 12 },
+            Section::Act3Travel => FileSection { offset: 30, bytes: 2 },
+            Section::Act3Introduction => FileSection { offset: 32, bytes: 2 },
+            Section::Act3Quests => FileSection { offset: 34, bytes: 12 },
+            Section::Act4Travel => FileSection { offset: 46, bytes: 2 },
+            Section::Act4Introduction => FileSection { offset: 48, bytes: 2 },
+            Section::Act4Quests => FileSection { offset: 50, bytes: 12 },
+            Section::Act5Travel => FileSection { offset: 62, bytes: 2 },
+            Section::BaseGameComplete => FileSection { offset: 64, bytes: 2 },
+            Section::Act5Quests => FileSection { offset: 70, bytes: 12 },
+            Section::ResetStats => FileSection { offset: 82, bytes: 1 },
+            Section::DifficultyComplete => FileSection { offset: 83, bytes: 1 },
         }
     }
 }
@@ -145,11 +96,7 @@ pub struct Quests {
 
 impl fmt::Display for Quests {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Normal: {0}\nNightmare: {1}\nHell: {2}",
-            self.normal, self.nightmare, self.hell
-        )
+        write!(f, "Normal: {0}\nNightmare: {1}\nHell: {2}", self.normal, self.nightmare, self.hell)
     }
 }
 
@@ -422,7 +369,6 @@ pub fn generate(all_quests: &Quests) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    
 
     // #[test]
     // fn test_generate_and_parse() {

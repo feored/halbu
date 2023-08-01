@@ -3,16 +3,15 @@ use std::cmp;
 use std::fmt;
 use std::ops::Range;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-
-use crate::GameLogicError;
 use crate::utils::BytePosition;
 use crate::Class;
+use crate::GameLogicError;
 use crate::ParseError;
 
-mod tests;
 pub mod consts;
+mod tests;
 
 use consts::*;
 
@@ -36,7 +35,7 @@ pub enum Stat {
     GoldStash,
 }
 
-impl TryFrom<String> for Stat{
+impl TryFrom<String> for Stat {
     type Error = ParseError;
     fn try_from(value: String) -> Result<Self, ParseError> {
         let stripped_string: String = value.trim().to_lowercase();
@@ -57,8 +56,9 @@ impl TryFrom<String> for Stat{
             "experience" => Ok(Stat::Experience),
             "goldinventory" => Ok(Stat::GoldInventory),
             "goldstash" => Ok(Stat::GoldStash),
-            _ => Err(ParseError { message: format!("Cannot find corresponding stat for: {0}", value)})
-            
+            _ => Err(ParseError {
+                message: format!("Cannot find corresponding stat for: {0}", value),
+            }),
         }
     }
 }
@@ -77,9 +77,11 @@ pub struct FixedPointStat {
 impl FixedPointStat {
     pub fn from_parts(integer: u32, fraction: u8) -> Result<FixedPointStat, ParseError> {
         if integer <= 8191 {
-            Ok(Self {integer:  integer, fraction: fraction})
+            Ok(Self { integer: integer, fraction: fraction })
         } else {
-            Err(ParseError { message: format!("Integer part of a fixed point stat must be <= 8191.")})
+            Err(ParseError {
+                message: format!("Integer part of a fixed point stat must be <= 8191."),
+            })
         }
     }
 }
@@ -88,10 +90,7 @@ impl From<u32> for FixedPointStat {
     fn from(fixed_point_number: u32) -> FixedPointStat {
         let integer: u32 = fixed_point_number.bit_range(8..21);
         let fraction: u8 = fixed_point_number.bit_range(0..8) as u8;
-        FixedPointStat {
-            integer,
-            fraction,
-        }
+        FixedPointStat { integer, fraction }
     }
 }
 
@@ -144,9 +143,9 @@ impl Attribute {
         Attribute(0)
     }
     pub fn from(number: u32) -> Result<Attribute, ParseError> {
-        match number{
+        match number {
             0..=1023 => Ok(Attribute(number)),
-            _ => Err(ParseError { message: format!("Attribute must be between 0 and 999.") })
+            _ => Err(ParseError { message: format!("Attribute must be between 0 and 999.") }),
         }
     }
     pub fn value(self) -> u32 {
@@ -162,9 +161,9 @@ impl Level {
         Level(1)
     }
     pub fn from(number: u8) -> Result<Level, ParseError> {
-        match number{
+        match number {
             1..=99 => Ok(Level(number)),
-            _ => Err(ParseError { message: format!("Level must be between 1 and 99.") })
+            _ => Err(ParseError { message: format!("Level must be between 1 and 99.") }),
         }
     }
     pub fn value(self) -> u8 {
@@ -179,9 +178,11 @@ impl Experience {
         Experience(0)
     }
     pub fn from(number: u32) -> Result<Experience, ParseError> {
-        match number{
+        match number {
             0..=MAX_XP => Ok(Experience(number)),
-            _ => Err(ParseError { message: format!("Experience must be between 0 and {0}.", MAX_XP) })
+            _ => Err(ParseError {
+                message: format!("Experience must be between 0 and {0}.", MAX_XP),
+            }),
         }
     }
     pub fn value(self) -> u32 {
@@ -190,12 +191,11 @@ impl Experience {
 }
 
 impl Attributes {
-
     pub fn level(&self) -> Level {
         self.level
     }
 
-    pub fn set_level(&mut self, new_level : Level) {
+    pub fn set_level(&mut self, new_level: Level) {
         self.experience = get_experience_range_from_level(new_level).start;
     }
 
@@ -214,12 +214,19 @@ impl Attributes {
         self.gold_inventory
     }
 
-    pub fn set_gold_inventory(&mut self, new_gold_inventory : u32) -> Result<(), GameLogicError> {
-        if new_gold_inventory <= self.level.0 as u32  * GOLD_INVENTORY_PER_LEVEL {
+    pub fn set_gold_inventory(&mut self, new_gold_inventory: u32) -> Result<(), GameLogicError> {
+        if new_gold_inventory <= self.level.0 as u32 * GOLD_INVENTORY_PER_LEVEL {
             self.gold_inventory = new_gold_inventory;
             Ok(())
         } else {
-            Err(GameLogicError { message: format!("Cannot set {0} gold in inventory: value must be <= {1} for level {2} character.", new_gold_inventory, self.level.value() as u32 * GOLD_INVENTORY_PER_LEVEL, self.level.value()) })
+            Err(GameLogicError {
+                message: format!(
+                    "Cannot set {0} gold in inventory: value must be <= {1} for level {2} character.",
+                    new_gold_inventory,
+                    self.level.value() as u32 * GOLD_INVENTORY_PER_LEVEL,
+                    self.level.value()
+                ),
+            })
         }
     }
 
@@ -227,16 +234,21 @@ impl Attributes {
         self.gold_stash
     }
 
-    pub fn set_gold_stash(&mut self, new_gold_stash : u32) -> Result<(), GameLogicError> {
+    pub fn set_gold_stash(&mut self, new_gold_stash: u32) -> Result<(), GameLogicError> {
         if new_gold_stash <= MAX_GOLD_STASH {
             self.gold_stash = new_gold_stash;
             Ok(())
         } else {
-            Err(GameLogicError { message: format!("Cannot set {0} gold in stash: value must be <= {1}.", new_gold_stash, MAX_GOLD_STASH) })
+            Err(GameLogicError {
+                message: format!(
+                    "Cannot set {0} gold in stash: value must be <= {1}.",
+                    new_gold_stash, MAX_GOLD_STASH
+                ),
+            })
         }
     }
 
-    pub fn default_class(class: Class) -> Self  {
+    pub fn default_class(class: Class) -> Self {
         let amazon = (20, 25, 20, 15, 50, 84, 15);
         let assassin = (20, 20, 20, 25, 50, 95, 25);
         let barbarian = (30, 20, 25, 10, 55, 92, 10);
@@ -244,7 +256,7 @@ impl Attributes {
         let necromancer = (15, 25, 15, 25, 45, 79, 25);
         let sorceress = (10, 25, 10, 35, 40, 74, 35);
         let druid = (15, 20, 25, 20, 55, 84, 20);
-    
+
         let stats = match class {
             Class::Amazon => amazon,
             Class::Assassin => assassin,
@@ -254,7 +266,7 @@ impl Attributes {
             Class::Sorceress => sorceress,
             Class::Druid => druid,
         };
-    
+
         Attributes {
             strength: Attribute(stats.0),
             dexterity: Attribute(stats.1),
@@ -262,37 +274,18 @@ impl Attributes {
             energy: Attribute(stats.3),
             stat_points_left: 0,
             skill_points_left: 0,
-            life_current: FixedPointStat {
-                integer: stats.4,
-                fraction: 0,
-            },
-            life_base: FixedPointStat {
-                integer: stats.4,
-                fraction: 0,
-            },
-            mana_current: FixedPointStat {
-                integer: stats.6,
-                fraction: 0,
-            },
-            mana_base: FixedPointStat {
-                integer: stats.6,
-                fraction: 0,
-            },
-            stamina_current: FixedPointStat {
-                integer: stats.5,
-                fraction: 0,
-            },
-            stamina_base: FixedPointStat {
-                integer: stats.5,
-                fraction: 0,
-            },
+            life_current: FixedPointStat { integer: stats.4, fraction: 0 },
+            life_base: FixedPointStat { integer: stats.4, fraction: 0 },
+            mana_current: FixedPointStat { integer: stats.6, fraction: 0 },
+            mana_base: FixedPointStat { integer: stats.6, fraction: 0 },
+            stamina_current: FixedPointStat { integer: stats.5, fraction: 0 },
+            stamina_base: FixedPointStat { integer: stats.5, fraction: 0 },
             level: Level::default(),
             experience: Experience::default(),
             gold_inventory: 0,
             gold_stash: 0,
         }
     }
-
 }
 
 pub fn get_level_from_experience(experience: Experience) -> Level {
@@ -307,13 +300,12 @@ pub fn get_level_from_experience(experience: Experience) -> Level {
 }
 
 pub fn get_experience_range_from_level(level: Level) -> Range<Experience> {
-    if level == Level(99){
-        return Experience(MAX_XP)..Experience(MAX_XP)
+    if level == Level(99) {
+        return Experience(MAX_XP)..Experience(MAX_XP);
     }
-    Experience(EXPERIENCE_TABLE[level.0 as usize - 1])..Experience(EXPERIENCE_TABLE[level.0 as usize])
+    Experience(EXPERIENCE_TABLE[level.0 as usize - 1])
+        ..Experience(EXPERIENCE_TABLE[level.0 as usize])
 }
-
-
 
 /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
 pub fn write_u8(
@@ -377,12 +369,7 @@ pub fn write_u32(
             return;
         }
         let bits_can_write = cmp::min(bits_left_to_write, 8);
-        write_u8(
-            byte_vector,
-            byte_position,
-            byte_source[byte_source_current],
-            bits_can_write,
-        );
+        write_u8(byte_vector, byte_position, byte_source[byte_source_current], bits_can_write);
         bits_left_to_write -= bits_can_write;
         byte_source_current += 1;
     }
@@ -398,12 +385,7 @@ pub fn generate(attributes: &Attributes) -> Vec<u8> {
         let stat = &STAT_KEY[header];
         let header_as_u32 = header as u32;
 
-        write_u32(
-            &mut result,
-            &mut byte_position,
-            header_as_u32,
-            STAT_HEADER_LENGTH,
-        );
+        write_u32(&mut result, &mut byte_position, header_as_u32, STAT_HEADER_LENGTH);
 
         let value: u32 = match stat {
             Stat::Strength => attributes.strength.value(),
@@ -424,12 +406,7 @@ pub fn generate(attributes: &Attributes) -> Vec<u8> {
             Stat::GoldStash => attributes.gold_stash,
         };
 
-        write_u32(
-            &mut result,
-            &mut byte_position,
-            value,
-            STAT_BITLENGTH[header],
-        );
+        write_u32(&mut result, &mut byte_position, value, STAT_BITLENGTH[header]);
     }
     // add trailing 0x1FF to signal end of attributes section
     write_u32(&mut result, &mut byte_position, 0x1FF, STAT_HEADER_LENGTH);
@@ -554,4 +531,3 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Attributes, ParseError> {
     let mut byte_position = BytePosition::default();
     parse_with_position(byte_vector, &mut byte_position)
 }
-

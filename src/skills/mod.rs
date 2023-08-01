@@ -1,7 +1,7 @@
 use crate::Class;
 use crate::ParseError;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub mod consts;
 mod tests;
@@ -63,4 +63,3 @@ pub fn generate(skills: &SkillSet) -> Vec<u8> {
     }
     byte_vector
 }
-

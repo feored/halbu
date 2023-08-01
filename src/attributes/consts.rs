@@ -9,7 +9,7 @@ pub const STAT_NUMBER: usize = 16;
 
 pub const MAX_XP: u32 = 3_520_485_254;
 pub const GOLD_INVENTORY_PER_LEVEL: u32 = 10_000;
-pub const MAX_GOLD_STASH : u32 = 2_500_000;
+pub const MAX_GOLD_STASH: u32 = 2_500_000;
 
 /// Array used to find the index of each stat
 pub const STAT_KEY: [Stat; STAT_NUMBER] = [

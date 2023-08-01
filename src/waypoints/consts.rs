@@ -1,4 +1,3 @@
-
 pub const SECTION_HEADER: [u8; 8] = [0x57, 0x53, 0x01, 0x00, 0x00, 0x00, 0x50, 0x00];
 pub const DIFFICULTY_HEADER: [u8; 2] = [0x02, 0x01];
 pub const SECTION_TRAILER: u8 = 0x01;
@@ -39,8 +38,7 @@ pub const NAMES_ACT3: [&str; 9] = [
     "Durance of Hate",
 ];
 
-pub const NAMES_ACT4: [&str; 3] =
-    ["Pandemonium Fortress", "City of the Damned", "River of Flames"];
+pub const NAMES_ACT4: [&str; 3] = ["Pandemonium Fortress", "City of the Damned", "River of Flames"];
 
 pub const NAMES_ACT5: [&str; 9] = [
     "Harrogath",

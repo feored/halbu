@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::Difficulty;
 use crate::ParseError;
@@ -8,92 +8,6 @@ mod tests;
 
 use consts::*;
 
-const VARIANTS: &[Variant; 39] = &[
-    (Class::Rogue(Rogue::Fire), Difficulty::Normal),
-    (Class::Rogue(Rogue::Cold), Difficulty::Normal),
-    (Class::Rogue(Rogue::Fire), Difficulty::Nightmare),
-    (Class::Rogue(Rogue::Cold), Difficulty::Nightmare),
-    (Class::Rogue(Rogue::Fire), Difficulty::Hell),
-    (Class::Rogue(Rogue::Cold), Difficulty::Hell),
-    (
-        Class::DesertMercenary(DesertMercenary::Prayer),
-        Difficulty::Normal,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::Defiance),
-        Difficulty::Normal,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::BlessedAim),
-        Difficulty::Normal,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::Thorns),
-        Difficulty::Nightmare,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::HolyFreeze),
-        Difficulty::Nightmare,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::Might),
-        Difficulty::Nightmare,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::Prayer),
-        Difficulty::Hell,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::Defiance),
-        Difficulty::Hell,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::BlessedAim),
-        Difficulty::Hell,
-    ),
-    (Class::IronWolf(IronWolf::Fire), Difficulty::Normal),
-    (Class::IronWolf(IronWolf::Cold), Difficulty::Normal),
-    (Class::IronWolf(IronWolf::Lightning), Difficulty::Normal),
-    (Class::IronWolf(IronWolf::Fire), Difficulty::Nightmare),
-    (Class::IronWolf(IronWolf::Cold), Difficulty::Nightmare),
-    (Class::IronWolf(IronWolf::Lightning), Difficulty::Nightmare),
-    (Class::IronWolf(IronWolf::Fire), Difficulty::Hell),
-    (Class::IronWolf(IronWolf::Cold), Difficulty::Hell),
-    (Class::IronWolf(IronWolf::Lightning), Difficulty::Hell),
-    (Class::Barbarian(Barbarian::Bash), Difficulty::Normal),
-    (Class::Barbarian(Barbarian::Bash), Difficulty::Normal),
-    (Class::Barbarian(Barbarian::Bash), Difficulty::Nightmare),
-    (Class::Barbarian(Barbarian::Bash), Difficulty::Nightmare),
-    (Class::Barbarian(Barbarian::Bash), Difficulty::Hell),
-    (Class::Barbarian(Barbarian::Bash), Difficulty::Hell),
-    (
-        Class::DesertMercenary(DesertMercenary::Prayer),
-        Difficulty::Nightmare,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::Defiance),
-        Difficulty::Nightmare,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::BlessedAim),
-        Difficulty::Nightmare,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::Thorns),
-        Difficulty::Hell,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::HolyFreeze),
-        Difficulty::Hell,
-    ),
-    (
-        Class::DesertMercenary(DesertMercenary::Might),
-        Difficulty::Hell,
-    ),
-    (Class::Barbarian(Barbarian::Frenzy), Difficulty::Normal),
-    (Class::Barbarian(Barbarian::Frenzy), Difficulty::Nightmare),
-    (Class::Barbarian(Barbarian::Frenzy), Difficulty::Hell),
-];
 
 pub type Variant = (Class, Difficulty);
 
@@ -168,15 +82,12 @@ fn variant_id(variant: &Variant) -> u16 {
         }
     }
     if (variant_id as usize) > VARIANTS.len() {
-        panic!(
-            "There is no mercenary ID for type {0:?} recruited in {1:?}",
-            variant.0, variant.1
-        );
+        panic!("There is no mercenary ID for type {0:?} recruited in {1:?}", variant.0, variant.1);
     }
     variant_id
 }
 
-fn names_list(class: Class) -> &'static [&'static str] {
+pub fn names_list(class: Class) -> &'static [&'static str] {
     match class {
         Class::Rogue(_) => &ROGUE_NAMES,
         Class::DesertMercenary(_) => &DESERTMERCENARY_NAMES,

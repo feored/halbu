@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 mod tests {
     use crate::character::*;
@@ -33,12 +32,7 @@ mod tests {
 
         let expected_result = Character {
             weapon_set: WeaponSet::Main,
-            status: Status {
-                expansion: true,
-                hardcore: false,
-                ladder: false,
-                died: true,
-            },
+            status: Status { expansion: true, hardcore: false, ladder: false, died: true },
             progression: 15,
             title: String::from("Matriarch"),
             class: Class::Sorceress,
@@ -119,12 +113,7 @@ mod tests {
 
         let character = Character {
             weapon_set: WeaponSet::Main,
-            status: Status {
-                expansion: true,
-                hardcore: false,
-                ladder: false,
-                died: true,
-            },
+            status: Status { expansion: true, hardcore: false, ladder: false, died: true },
             progression: 15,
             title: String::from("Matriarch"),
             class: Class::Sorceress,
@@ -168,7 +157,6 @@ mod tests {
         assert_eq!(expected_result, generated_result);
     }
 
-    
     #[test]
     fn test_names() {
         assert!(Name::from(&String::from("A")).is_err());
