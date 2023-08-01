@@ -11,11 +11,11 @@
 )]
 
 use bit::BitIndex;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Range;
 use utils::BytePosition;
 use utils::FileSection;
-use serde::{Serialize, Deserialize};
 
 use attributes::Attributes;
 use attributes::Level;
@@ -52,38 +52,14 @@ enum Section {
 impl From<Section> for FileSection {
     fn from(section: Section) -> FileSection {
         match section {
-            Section::Signature => FileSection {
-                offset: 0,
-                bytes: 4,
-            },
-            Section::Version => FileSection {
-                offset: 4,
-                bytes: 4,
-            },
-            Section::FileSize => FileSection {
-                offset: 8,
-                bytes: 4,
-            },
-            Section::Checksum => FileSection {
-                offset: 12,
-                bytes: 4,
-            },
-            Section::Character => FileSection {
-                offset: 16,
-                bytes: 319,
-            },
-            Section::Quests => FileSection {
-                offset: 335,
-                bytes: 298,
-            },
-            Section::Waypoints => FileSection {
-                offset: 633,
-                bytes: 81,
-            },
-            Section::Npcs => FileSection {
-                offset: 713,
-                bytes: 52,
-            },
+            Section::Signature => FileSection { offset: 0, bytes: 4 },
+            Section::Version => FileSection { offset: 4, bytes: 4 },
+            Section::FileSize => FileSection { offset: 8, bytes: 4 },
+            Section::Checksum => FileSection { offset: 12, bytes: 4 },
+            Section::Character => FileSection { offset: 16, bytes: 319 },
+            Section::Quests => FileSection { offset: 335, bytes: 298 },
+            Section::Waypoints => FileSection { offset: 633, bytes: 81 },
+            Section::Npcs => FileSection { offset: 713, bytes: 52 },
         }
     }
 }
@@ -129,9 +105,7 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
             .unwrap(),
     )?;
     save.quests = quests::parse(
-        &byte_vector[Range::<usize>::from(FileSection::from(Section::Quests))]
-            .try_into()
-            .unwrap(),
+        &byte_vector[Range::<usize>::from(FileSection::from(Section::Quests))].try_into().unwrap(),
     )?;
     save.waypoints = waypoints::parse(
         &byte_vector[Range::<usize>::from(FileSection::from(Section::Waypoints))]
@@ -139,30 +113,22 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
             .unwrap(),
     )?;
     save.npcs = npcs::parse(
-        &byte_vector[Range::<usize>::from(FileSection::from(Section::Npcs))]
-            .try_into()
-            .unwrap(),
+        &byte_vector[Range::<usize>::from(FileSection::from(Section::Npcs))].try_into().unwrap(),
     )?;
 
     let mut byte_position: BytePosition = BytePosition::default();
     save.attributes = attributes::parse_with_position(
-        &byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()]
-            .try_into()
-            .unwrap(),
+        &byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()].try_into().unwrap(),
         &mut byte_position,
     )?;
     let skills_offset = ATTRIBUTES_OFFSET + byte_position.current_byte + 1;
     save.skills = skills::parse(
-        &byte_vector[skills_offset..(skills_offset + 32)]
-            .try_into()
-            .unwrap(),
+        &byte_vector[skills_offset..(skills_offset + 32)].try_into().unwrap(),
         save.character.class,
     )?;
     let items_offset = skills_offset + 32;
     // TODO make byte_vector not mut
-    save.items = items::parse(
-         &byte_vector[items_offset..byte_vector.len()]
-    );
+    save.items = items::parse(&byte_vector[items_offset..byte_vector.len()]);
     Ok(save)
 }
 
@@ -197,14 +163,17 @@ pub fn generate(save: &Save) -> Vec<u8> {
 
 impl Save {
     pub fn new_character(class: Class) -> Self {
-        Save { attributes: Attributes::default_class(class), character: Character::default_class(class) , ..Default::default()}
+        Save {
+            attributes: Attributes::default_class(class),
+            character: Character::default_class(class),
+            ..Default::default()
+        }
     }
 
-    pub fn set_level(&mut self, new_level : Level){
+    pub fn set_level(&mut self, new_level: Level) {
         self.character.level = new_level;
         self.attributes.set_level(new_level);
     }
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,7 +182,7 @@ pub struct ParseError {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize,)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameLogicError {
     message: String,
 }
@@ -305,9 +274,7 @@ impl TryFrom<u8> for Act {
             0x02 => Ok(Act::Act3),
             0x03 => Ok(Act::Act4),
             0x04 => Ok(Act::Act5),
-            _ => Err(ParseError {
-                message: format!("Found invalid act: {0:?}.", byte),
-            }),
+            _ => Err(ParseError { message: format!("Found invalid act: {0:?}.", byte) }),
         }
     }
 }
@@ -346,9 +313,7 @@ impl TryFrom<u8> for Class {
             0x04 => Ok(Class::Barbarian),
             0x05 => Ok(Class::Druid),
             0x06 => Ok(Class::Assassin),
-            _ => Err(ParseError {
-                message: format!("Found invalid class: {0:?}.", byte),
-            }),
+            _ => Err(ParseError { message: format!("Found invalid class: {0:?}.", byte) }),
         }
     }
 }
@@ -402,10 +367,10 @@ pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::character::Name;
     use std::fs;
     use std::io::Write;
     use std::path::Path;
-    use crate::character::Name;
 
     #[test]
     fn test_parse_save() {
@@ -433,11 +398,7 @@ mod tests {
 
         let generated_save = generate(&mut save);
 
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(path)
-            .unwrap();
+        let mut file = fs::OpenOptions::new().write(true).create(true).open(path).unwrap();
 
         file.write_all(&generated_save).unwrap();
     }

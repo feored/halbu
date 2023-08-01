@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
 
 use crate::ParseError;
@@ -21,8 +21,14 @@ impl Default for Placeholder {
 }
 
 pub fn parse(bytes: &[u8; 52]) -> Result<Placeholder, ParseError> {
-    if bytes[0..4] != SECTION_HEADER{
-        return Err(ParseError{message: format!("Found wrong header for NPC section, expected {0:X?} but found {1:X?}", SECTION_HEADER, &bytes[0..4])})
+    if bytes[0..4] != SECTION_HEADER {
+        return Err(ParseError {
+            message: format!(
+                "Found wrong header for NPC section, expected {0:X?} but found {1:X?}",
+                SECTION_HEADER,
+                &bytes[0..4]
+            ),
+        });
     }
     let mut placeholder: Placeholder = Placeholder { data: [0x00; 52] };
     placeholder.data.copy_from_slice(bytes);

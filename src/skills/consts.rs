@@ -1,4 +1,3 @@
-
 pub const SECTION_HEADER: [u8; 2] = [0x69, 0x66];
 pub const SECTION_BYTES: usize = 32;
 

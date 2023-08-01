@@ -8,10 +8,15 @@ A list of resources that have helped with reverse engineering the .d2s format.
 * https://github.com/krisives/d2s-format
 * https://github.com/nokka/d2s/blob/master/README.md
 
+All the following observations are tested on patch 2.7/version code 99.
 
-### Class
+### Character
 
-### Character Status
+The name now appears to fill 48 bytes. The names are still limited to 15 graphemes, but not 15 bytes. E.g using japanese kana that each take up 3 bytes, you may fill up 45 bytes of the name section.
+You can't mix and match languages, てすと　is valid but てすto is not.
+
+Setting the act/difficulty bytes in the Character section to e.g Hell on a fresh level 1 character won't allow them to enter Hell if they haven't unlocked it. However, setting the act will allow you to access an act you haven't unlocked yet within the same difficulty.
+
 
 Loading a single player file with "Ladder" bit set to 1 in Character Status does nothing (duh).
 

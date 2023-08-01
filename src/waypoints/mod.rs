@@ -1,8 +1,8 @@
 use std::fmt;
 use std::ops::Range;
 
-use serde::{Serialize, Deserialize};
 use bit::BitIndex;
+use serde::{Deserialize, Serialize};
 
 use crate::utils::FileSection;
 use crate::Act;
@@ -23,34 +23,13 @@ enum Section {
 impl From<Section> for FileSection {
     fn from(section: Section) -> FileSection {
         match section {
-            Section::Header => FileSection {
-                offset: 0,
-                bytes: 8,
-            },
-            Section::Normal => FileSection {
-                offset: 8,
-                bytes: 24,
-            },
-            Section::Nightmare => FileSection {
-                offset: 32,
-                bytes: 24,
-            },
-            Section::Hell => FileSection {
-                offset: 56,
-                bytes: 24,
-            },
-            Section::Trailer => FileSection {
-                offset: 80,
-                bytes: 1,
-            },
-            Section::DifficultyHeader => FileSection {
-                offset: 0,
-                bytes: 2,
-            },
-            Section::DifficultyWaypointsValue => FileSection {
-                offset: 2,
-                bytes: 8,
-            },
+            Section::Header => FileSection { offset: 0, bytes: 8 },
+            Section::Normal => FileSection { offset: 8, bytes: 24 },
+            Section::Nightmare => FileSection { offset: 32, bytes: 24 },
+            Section::Hell => FileSection { offset: 56, bytes: 24 },
+            Section::Trailer => FileSection { offset: 80, bytes: 1 },
+            Section::DifficultyHeader => FileSection { offset: 0, bytes: 2 },
+            Section::DifficultyWaypointsValue => FileSection { offset: 2, bytes: 8 },
         }
     }
 }
@@ -277,9 +256,7 @@ impl TryFrom<usize> for Waypoint {
             36 => Ok(Waypoint::FrozenTundra),
             37 => Ok(Waypoint::TheAncientsWay),
             38 => Ok(Waypoint::WorldstoneKeep),
-            _ => Err(ParseError {
-                message: format!("Cannot convert ID > 8 to waypoint: {id:?}"),
-            }),
+            _ => Err(ParseError { message: format!("Cannot convert ID > 8 to waypoint: {id:?}") }),
         }
     }
 }
@@ -290,10 +267,7 @@ fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> 
         != DIFFICULTY_HEADER
     {
         return Err(ParseError {
-            message: format!(
-                "Found wrong waypoint difficulty header: {0:X?}",
-                &bytes[0..2]
-            ),
+            message: format!("Found wrong waypoint difficulty header: {0:X?}", &bytes[0..2]),
         });
     }
     for id in 0..39 {
@@ -356,22 +330,16 @@ pub fn parse(bytes: &[u8; 81]) -> Result<Waypoints, ParseError> {
         });
     }
     waypoints.normal = match parse_waypoints(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Normal))]
-            .try_into()
-            .unwrap(),
+        &bytes[Range::<usize>::from(FileSection::from(Section::Normal))].try_into().unwrap(),
     ) {
         Ok(res) => res,
         Err(e) => return Err(e),
     };
     waypoints.nightmare = parse_waypoints(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Nightmare))]
-            .try_into()
-            .unwrap(),
+        &bytes[Range::<usize>::from(FileSection::from(Section::Nightmare))].try_into().unwrap(),
     )?;
     waypoints.hell = parse_waypoints(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Hell))]
-            .try_into()
-            .unwrap(),
+        &bytes[Range::<usize>::from(FileSection::from(Section::Hell))].try_into().unwrap(),
     )?;
     Ok(waypoints)
 }
@@ -410,4 +378,3 @@ pub fn generate(waypoints: &Waypoints) -> [u8; 81] {
     bytes[Range::<usize>::from(FileSection::from(Section::Trailer)).start] = SECTION_TRAILER;
     bytes
 }
-
