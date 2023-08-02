@@ -7,6 +7,7 @@ pub mod consts;
 mod tests;
 
 use consts::*;
+use std::cmp;
 
 
 pub type Variant = (Class, Difficulty);
@@ -69,6 +70,48 @@ impl Default for Mercenary {
             variant: VARIANTS[0],
             experience: 0,
         }
+    }
+}
+
+impl Mercenary {
+    pub fn level_from_xp(&self) -> u8 {
+        let xp_constant: f64 = self.experience as f64 / xp_rate(&self.variant) as f64;
+        let s: f64 = xp_constant.powf(1f64/3f64).floor();
+        let mut result = if xp_constant < ( s.powf(3.0) + s.powf(2.0)) {
+            (s as u8) - 1
+        } else {
+            s as u8
+        };
+        if result == 0 {
+            result = 1;
+        } else if result > 98 {
+            result = 98;
+        }
+        result
+    }
+
+    pub fn xp_from_level(&self, level: u8) -> u32 {
+        let level = level as usize;
+        let max_xp = (xp_rate(&self.variant) * (98 + 1) * (98 * 98)) as u32;
+        let result = (xp_rate(&self.variant) * (level + 1) * (level * level)) as u32;
+        cmp::min(result, max_xp)
+    }
+}
+
+pub fn xp_rate(variant: &Variant) -> usize{
+    let add =  match variant.1 {
+        Difficulty::Normal => 0,
+        Difficulty::Nightmare => 10,
+        Difficulty::Hell => 20
+    };
+    add + match variant.0 {
+        Class::Rogue(Rogue::Fire) => 100,
+        Class::Rogue(Rogue::Cold) => 105,
+        Class::DesertMercenary(_) => 110,
+        Class::IronWolf(IronWolf::Fire) => 110,
+        Class::IronWolf(IronWolf::Lightning) => 110,
+        Class::IronWolf(IronWolf::Cold) => 120,
+        Class::Barbarian(_) => 120
     }
 }
 
