@@ -122,6 +122,21 @@ Instead, the new codes (Nightmare A2 mercs with Prayer/Defiance/Blessed Aim, Hel
 
 This also explains why Qual-Kehk usually has more Bash barbs than Frenzy: the two old codes per difficulty still mean bash, whereas there is only one of the new frenzy code per difficulty.
 
+Mercenaries used to have require more XP to level up if they were recruited in Hell vs Nightmare, or in Nightmare vs Normal. This was changed at some point post patch 1.10 so that all mercenaries only use the value that was formerly used for mercenaries recruited in Hell. However, mercenaries still require different amounts of XP per level depending on their type.
+
+| Mercenary Type | Variant       | XP Rate |
+| -------------- | ------------- | ------- |
+| A1             | Fire          | 120     |
+| A1             | Cold          | 125     |
+| A2             | All           | 130     |
+| A3             | Fire          | 130     |
+| A3             | Lightning     | 130     |
+| A3             | Cold          | 140     |
+| A5             | All           | 140     |
+
+The formula to calculate experience based on level and XP Rate is as follows: ```XP Rate * (level + 1) * (level^2)```
+
+Inversely, to get the mercenary level based on xp and and type: ```
 
 ## Statistics
 
@@ -165,6 +180,8 @@ Cleared Den of Evil (Return to Akara for reward): 0x1C 0x00 =>  0000 0000   0001
 Talked to Akara (Completed quest): 0x01 0x30 =>                 0011 0000   0000 0001
 Used skill point: 0x01 0x10 =>                                  0001 0000   0000 0001
 
+
+Akara reset (offset 82) seems to be set to 2 if unlocked but not used, and to 1 if used.
 
 ## Waypoints
 
