@@ -76,7 +76,7 @@ impl From<Section> for FileSection {
 pub struct Character {
     pub weapon_set: WeaponSet,
     pub status: Status,
-    pub progression: u8,
+    pub progression: Progression,
     pub title: String,
     pub class: Class,
     pub level: Level,
@@ -110,12 +110,31 @@ pub enum WeaponSet {
     Switch,
 }
 
+#[derive(Default, PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct Progression(u8);
+
+impl Progression {
+    pub fn default() -> Progression {
+        Progression(0)
+    }
+    pub fn from(number: u8) -> Result<Progression, ParseError> {
+        match number {
+            0..=15 => Ok(Progression(number)),
+            _ => Err(ParseError { message: format!("Progression must be between 0 and 15.") }),
+        }
+    }
+    pub fn value(self) -> u8 {
+        self.0
+    }
+}
+
+
 impl Default for Character {
     fn default() -> Self {
         Self {
             weapon_set: WeaponSet::Main,
             status: Status::default(),
-            progression: 0,
+            progression: Progression::default(),
             title: String::default(),
             class: Class::Amazon,
             level: Level::default(),
@@ -136,6 +155,8 @@ impl Default for Character {
     }
 }
 
+
+
 pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
     let mut character: Character = Character::default();
 
@@ -147,7 +168,7 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         Status::from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Status))]));
 
     character.progression =
-        u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Progression))]);
+        Progression::from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Progression))]))?;
 
     let class =
         Class::try_from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Class))]))?;
@@ -247,7 +268,7 @@ pub fn generate(character: &Character) -> [u8; 319] {
     bytes[Range::<usize>::from(FileSection::from(Section::Status)).start] =
         u8::from(character.status);
     bytes[Range::<usize>::from(FileSection::from(Section::Progression)).start] =
-        character.progression;
+        character.progression.value();
     bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] =
         u8::from(character.class);
     bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = character.level.value();
@@ -483,37 +504,18 @@ impl Character {
     pub fn title(&self) -> String {
         let male: bool = [Class::Barbarian, Class::Paladin, Class::Necromancer, Class::Druid]
             .contains(&self.class);
-        if !self.status.expansion {
-            let stage: usize = match self.progression {
-                0..=3 => 0,
-                4..=7 => 1,
-                8..=11 => 2,
-                12..=15 => 3,
-                _ => 3, // should panic here
-            };
-
-            match (self.status.hardcore, male) {
-                (false, false) => String::from(TITLES_CLASSIC_STANDARD_FEMALE[stage]),
-                (false, true) => String::from(TITLES_CLASSIC_STANDARD_MALE[stage]),
-                (true, false) => String::from(TITLES_CLASSIC_HARDCORE_FEMALE[stage]),
-                (true, true) => String::from(TITLES_CLASSIC_HARDCORE_MALE[stage]),
-            }
-        } else {
-            let stage: usize = if self.progression < 5 {
-                0
-            } else if self.progression < 9 {
-                1
-            } else if self.progression < 14 {
-                2
-            } else {
-                3
-            };
-            match (self.status.hardcore, male) {
-                (false, false) => String::from(TITLES_LOD_STANDARD_FEMALE[stage]),
-                (false, true) => String::from(TITLES_LOD_STANDARD_MALE[stage]),
-                (true, false) => String::from(TITLES_LOD_HARDCORE_FEMALE[stage]),
-                (true, true) => String::from(TITLES_LOD_HARDCORE_MALE[stage]),
-            }
+        let acts_per_difficulty: usize = 4 + self.status.expansion as usize;
+        // Progression always within 0..=15
+        let difficulty_beaten: usize = (self.progression.value() as usize) / acts_per_difficulty;
+        match (self.status.expansion, self.status.hardcore, male) {
+            (false, false, false) => String::from(TITLES_CLASSIC_STANDARD_FEMALE[difficulty_beaten]),
+            (false, false, true) => String::from(TITLES_CLASSIC_STANDARD_MALE[difficulty_beaten]),
+            (false, true, false) => String::from(TITLES_CLASSIC_HARDCORE_FEMALE[difficulty_beaten]),
+            (false, true, true) => String::from(TITLES_CLASSIC_HARDCORE_MALE[difficulty_beaten]),
+            (true, false, false) => String::from(TITLES_LOD_STANDARD_FEMALE[difficulty_beaten]),
+            (true, false, true) => String::from(TITLES_LOD_STANDARD_MALE[difficulty_beaten]),
+            (true, true, false) => String::from(TITLES_LOD_HARDCORE_FEMALE[difficulty_beaten]),
+            (true, true, true) => String::from(TITLES_LOD_HARDCORE_MALE[difficulty_beaten]),
         }
     }
 }
