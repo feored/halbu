@@ -13,7 +13,7 @@ All the following observations are tested on patch 2.7/version code 99.
 ### Character
 
 The name now appears to fill 48 bytes. The names are still limited to 15 graphemes, but not 15 bytes. E.g using japanese kana that each take up 3 bytes, you may fill up 45 bytes of the name section.
-You can't mix and match languages, てすと　is valid but てすto is not.
+You can't mix and match languages, てすと　is valid but てtoす is not.
 
 Setting the act/difficulty bytes in the Character section to e.g Hell on a fresh level 1 character won't allow them to enter Hell if they haven't unlocked it. However, setting the act will allow you to access an act you haven't unlocked yet within the same difficulty.
 
@@ -43,7 +43,7 @@ Some codes gleaned from testing:
 
 **Bytes 137..141 and 144..146: Armor**
 
-As far as I can tell, bytes 137..141  the visuals of the body armor, and 144..145 decide the shoulderpads.
+As far as I can tell, bytes 137..141 encode the visuals of the body armor, and 144..145 decide the shoulderpads.
 
 Good resource: http://paul.siramy.free.fr/_divers2/Extracting%20Diablo%20II%20Animations.pdf (Page 11)
 
@@ -116,13 +116,13 @@ Appears unchanged from the list at http://user.xmission.com/~trevin/DiabloIIv1.0
 | 37    | 25 00     | Nightmare    | A5     | Frenzy        |
 | 38    | 26 00     | Hell         | A5     | Frenzy        |
 
-It appears that the codes have not been changed since: http://user.xmission.com/~trevin/DiabloIIv1.09_Mercenaries.html#code
+The codes have not been changed since 1.09: http://user.xmission.com/~trevin/DiabloIIv1.09_Mercenaries.html#code
 
-Instead, the new codes (Nightmare A2 mercs with Prayer/Defiance/Blessed Aim, Hell A2 mercs with Thorns/Holy Freeze/ Might, and Frenzy Barbarians) have been appended to the table.
+Instead, the new codes added with patch 2.4 of D2R (Nightmare A2 mercs with Prayer/Defiance/Blessed Aim, Hell A2 mercs with Thorns/Holy Freeze/ Might, and Frenzy Barbarians) have been appended to the table.
 
 This also explains why Qual-Kehk usually has more Bash barbs than Frenzy: the two old codes per difficulty still mean bash, whereas there is only one of the new frenzy code per difficulty.
 
-Mercenaries require different amounts of XP to get to a certain level, depending on both their type and the last difficulty beaten by the character they were recruited on.
+Mercenaries require different amounts of XP to get to a certain level, depending on both their type and the last difficulty beaten by the character they were recruited by.
 
 | Mercenary Type | Variant       | XP Rate (Normal) | XP Rate (Nightmare) | XP Rate (Hell) |
 | -------------- | ------------- | ---------------- | ------------------- | -------------- |
@@ -134,14 +134,41 @@ Mercenaries require different amounts of XP to get to a certain level, depending
 | A3             | Cold          |  120             | 130                 |        140     |
 | A5             | All           |  120             | 130                 |        140     |
 
-The formula to calculate experience based on level and XP Rate is as follows: ```XP Rate * (level + 1) * (level^2)```
+The formula to calculate experience based on level and XP Rate is as follows: $XP Rate * (Level + 1) * (Level^2)$
 
-Inversely, getting the mercenary level based on XP/rate requires solving the cubic polynomial ```x³ + x² - (Experience/XP Rate) = 0.```
-## Statistics
+Inversely, getting the mercenary level based on current experience and XP Rate requires solving the following cubic polynomial:
 
-https://d2mods.info/forum/kb/viewarticle?a=448
+$(level + 1)(level^2) = \dfrac{Experience}{XP Rate}$, or using $x$ for $level$: $x³ + x² = \dfrac{Experience}{XP Rate}$
 
-Open as tab-separated csv.
+Since x > 0 (the possible values for levels are 1-98), we know that $x^3 < x^3 + x^2 < (x+1)^3$ .
+
+Therefore, $\sqrt[3]{x^3} < \sqrt[3]{x^3 + x^2} < \sqrt[3]{(x + 1)^3}$ or more simply $x < \sqrt[3]{x^3 + x^2} < x + 1$.
+
+Since we know $x^3 + x^2 = \dfrac{Experience}{XP Rate}$, we get the final expression:
+$Level < \sqrt[3]{ \dfrac{Experience}{XP Rate}} < Level + 1$
+
+A possible candidate for $x$ is the floor of the cubic root of our experience/xp rate, $s =  \lfloor\sqrt[3]{\dfrac{Experience}{XP Rate}}\rfloor$ . However, it is possible that $s^2 + s^3 > \dfrac{Experience}{XP Rate}$. In that case, we need to take $s - 1$.
+
+The final algorithm is as follows:
+
+```
+Let s = floor((experience/xp_rate)**1/3)
+if experience/xp_rate < s^3 + s^2:
+    return s - 1
+else:
+    return s
+```
+#### Example:
+
+A2 Hell mercenary with 99040759 XP. 
+
+```
+experience/xp_rate = 99040759/130 = 761851.992308
+s = floor(761851.992308^(1/3)) = 91
+91^3 + 91^2 = 761852
+experience/xp_rate < 761852, therefore level = s - 1 = 90
+```
+## Attributes
 
 Incompatible with 1.09 and before.
 
@@ -173,10 +200,15 @@ CSvBits# is col 9
 ## Quests
 
 Ex: Den of Evil
+
 Quest not started: 0x00 0x00 =>                                 0000 0000   0000 0000
+
 Quest started (Talked to Akara): 0x04 0x00 =>                   0000 0000   0000 0100
+
 Cleared Den of Evil (Return to Akara for reward): 0x1C 0x00 =>  0000 0000   0001 1100
+
 Talked to Akara (Completed quest): 0x01 0x30 =>                 0011 0000   0000 0001
+
 Used skill point: 0x01 0x10 =>                                  0001 0000   0000 0001
 
 

@@ -33,7 +33,7 @@ mod tests {
         let expected_result = Character {
             weapon_set: WeaponSet::Main,
             status: Status { expansion: true, hardcore: false, ladder: false, died: true },
-            progression: 15,
+            progression: Progression(15),
             title: String::from("Matriarch"),
             class: Class::Sorceress,
             level: Level::from(92).unwrap(),
@@ -114,7 +114,7 @@ mod tests {
         let character = Character {
             weapon_set: WeaponSet::Main,
             status: Status { expansion: true, hardcore: false, ladder: false, died: true },
-            progression: 15,
+            progression: Progression(15),
             title: String::from("Matriarch"),
             class: Class::Sorceress,
             level: Level::from(92).unwrap(),
