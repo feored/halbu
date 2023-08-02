@@ -223,7 +223,7 @@ fn parse_flags(bytes: &[u8; 96]) -> Result<QuestFlags, ParseError> {
 }
 
 fn write_quests(byte_vector: &mut [u8], quests: &QuestSet) {
-    for act in 0..4 {
+    for act in 0..=4 {
         let mut act_quests: [u8; 12] = [0x00; 12];
         let quests_number = match act {
             0..=2 | 4 => 6,
