@@ -9,7 +9,7 @@ mod tests {
             id: 3461679u32,
             name_id: 3,
             name: String::from("Abhaya"),
-            variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal),
+            variant: Variant(Class::Rogue(Rogue::Cold), Difficulty::Normal),
             experience: 63722u32,
         };
         let bytes =
@@ -33,7 +33,7 @@ mod tests {
             id: 3461679u32,
             name_id: 3,
             name: String::from("Abhaya"),
-            variant: (Class::Rogue(Rogue::Cold), Difficulty::Normal),
+            variant: Variant(Class::Rogue(Rogue::Cold), Difficulty::Normal),
             experience: 63722u32,
         };
         let parsed_result: [u8; 14] = generate(&merc);

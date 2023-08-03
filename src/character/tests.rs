@@ -58,7 +58,7 @@ mod tests {
                 id: 1547718681,
                 name_id: 7,
                 name: String::from("Emilio"),
-                variant: (
+                variant: mercenary::Variant(
                     mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
                     Difficulty::Hell,
                 ),
@@ -139,7 +139,7 @@ mod tests {
                 id: 1547718681,
                 name_id: 7,
                 name: String::from("Emilio"),
-                variant: (
+                variant: mercenary::Variant(
                     mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
                     Difficulty::Hell,
                 ),

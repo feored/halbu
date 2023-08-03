@@ -9,8 +9,8 @@ mod tests;
 use consts::*;
 use std::cmp;
 
-
-pub type Variant = (Class, Difficulty);
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct Variant(pub Class, pub Difficulty);
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Class {

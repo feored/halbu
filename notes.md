@@ -1,6 +1,6 @@
 ### Resources
 
-A list of resources that have helped with reverse engineering the .d2s format.
+A list of incredibly useful resources that have helped me understand the .d2s format:
 
 * http://user.xmission.com/~trevin/DiabloIIv1.09_File_Format.shtm
 * https://github.com/oaken-source/pyd2s/blob/master/docs/d2s_save_file_format_1.13d.txt
@@ -8,7 +8,7 @@ A list of resources that have helped with reverse engineering the .d2s format.
 * https://github.com/krisives/d2s-format
 * https://github.com/nokka/d2s/blob/master/README.md
 
-All the following observations are tested on patch 2.7/version code 99.
+The following is a list of of observations of my own as I test the editor on D2R patch 2.7, either completing some information here and there or adding things that have been changed since D2R. 
 
 ### Character
 
