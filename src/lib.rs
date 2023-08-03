@@ -149,7 +149,7 @@ pub fn generate(save: &Save) -> Vec<u8> {
         .copy_from_slice(&npcs::generate(save.npcs));
     result.append(&mut attributes::generate(&save.attributes));
     result.append(&mut skills::generate(&save.skills));
-    result.append(&mut items::generate(&save.items));
+    result.append(&mut items::generate(&save.items, save.character.mercenary.is_hired()));
 
     let length = result.len() as u32;
     result[Range::<usize>::from(FileSection::from(Section::FileSize))]

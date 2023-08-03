@@ -7,6 +7,9 @@ const SECTION_HEADER: [u8; 2] = [0x4A, 0x4D];
 const NO_ITEMS: [u8; 13] =
     [0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x6B, 0x66, 0x00];
 
+const NO_ITEMS_MERC: [u8; 17] =
+    [0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x4A, 0x4D, 0x00, 0x00, 0x6B, 0x66, 0x00];
+
 #[serde_as]
 #[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Placeholder {
@@ -21,9 +24,10 @@ pub fn parse(byte_vector: &[u8]) -> Placeholder {
     placeholder
 }
 
-pub fn generate(placeholder: &Placeholder) -> Vec<u8> {
-    match placeholder.data.len() {
-        0 => NO_ITEMS.to_vec(),
+pub fn generate(placeholder: &Placeholder, mercenary_hired: bool) -> Vec<u8> {
+    match (mercenary_hired, placeholder.data.len()) {
+        (false, 0) => NO_ITEMS.to_vec(),
+        (true, 0) => NO_ITEMS_MERC.to_vec(),
         _ => placeholder.data.clone()
     }
 }

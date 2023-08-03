@@ -74,6 +74,9 @@ impl Default for Mercenary {
 }
 
 impl Mercenary {
+    pub fn is_hired(&self) -> bool {
+        self.id != 0
+    }
     pub fn level_from_xp(&self) -> u8 {
         let xp_constant: f64 = self.experience as f64 / xp_rate(&self.variant) as f64;
         let s: f64 = xp_constant.powf(1f64/3f64).floor();
@@ -177,6 +180,5 @@ pub fn generate(mercenary: &Mercenary) -> [u8; 14] {
 
     bytes[8..10].copy_from_slice(&variant_id.to_le_bytes());
     bytes[10..14].copy_from_slice(&mercenary.experience.to_le_bytes());
-
     bytes
 }
