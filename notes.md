@@ -22,10 +22,13 @@ Loading a single player file with "Ladder" bit set to 1 in Character Status does
 
 The character level shown in the menu preview is the from the attributes section, but in-game it gets overridden by the level in character section.
 
+Assigned skills have a default value of 0xFF 0xFF 0x00 0x00 before they are set (65535 in lower endian).
 
-### Character Menu Appearance
+### Legacy Character Menu Appearance
 
 32 bytes starting at offset 136.
+
+Default value is 0xFF.
 
 **Byte 141:  Weapon**
 

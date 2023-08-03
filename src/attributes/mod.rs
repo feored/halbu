@@ -330,9 +330,7 @@ pub fn write_u8(
             byte_position.current_bit = 0;
         }
 
-        // println!("Length of byte vector: {0:?} current byte: {1:?}", byte_vector.len(), byte_position.current_byte);
         let bits_can_write_in_byte = cmp::min(bits_left_to_write, 8 - byte_position.current_bit);
-        // println!("Writing {bits_can_write_in_byte:?} bits from position {0:?} of {1:#010b} into {2:#010b}", byte_position.current_bit, bits_source, byte_vector[byte_position.current_byte]);
 
         if bits_can_write_in_byte == 8 {
             // Special case because the bit library seems to fail when trying to set an entire byte using set_bit_range
@@ -358,10 +356,6 @@ pub fn write_u32(
     bits_count: usize,
 ) {
     let mut bits_left_to_write: usize = bits_count;
-    // println!(
-    //     "Writing {bits_left_to_write:?} bits of binary: {0:#034b}",
-    //     bits_source
-    // );
     let byte_source = bits_source.to_le_bytes();
     let mut byte_source_current = 0;
     loop {
@@ -435,7 +429,6 @@ fn parse_bits(byte_vector: &[u8], byte_position: &mut BytePosition, bits_to_read
     let mut buffer: u32 = 0;
     let mut buffer_bit_position: usize = 0;
     loop {
-        // println!("Bits left to read: {bits_left_to_read:?}");
         if bits_left_to_read == 0 {
             break;
         }
@@ -454,12 +447,6 @@ fn parse_bits(byte_vector: &[u8], byte_position: &mut BytePosition, bits_to_read
         buffer_bit_position += bits_parsing_count;
         bits_left_to_read -= bits_parsing_count;
         byte_position.current_bit += bits_parsing_count;
-
-        // println!("Bits left to read: {bits_left_to_read:?},
-        // Current byte index: {0:?},
-        // Current bit index: {1:?},
-        // {bits_parsing_count:?} bits parsed: {bits_parsed:#b}
-        // ", byte_position.current_byte, byte_position.current_bit);
     }
     buffer
 }
@@ -488,20 +475,15 @@ pub fn parse_with_position(
     }
     byte_position.current_byte = 2;
     let mut stats = Attributes::default();
-    // println!("Parsed\n{0:?}", byte_vector);
-    for _i in 0..STAT_NUMBER {
+    // In case all stats are written down, parse one more to make sure we parse 0x1FF trailer
+    for _i in 0..(STAT_NUMBER+1) {
         let header = parse_bits(byte_vector, byte_position, STAT_HEADER_LENGTH);
         if header == SECTION_TRAILER {
             break;
         }
 
         let bits_to_parse = STAT_BITLENGTH[header as usize];
-        // println!("Now parsing length: {bits_to_parse:?}, header : {header:?}");
         let value = parse_bits(byte_vector, byte_position, bits_to_parse);
-        // println!(
-        //     "Now parsed: {0:?}, length: {bits_to_parse:?}, value: {value:?}",
-        //     STAT_KEY[header as usize]
-        // );
         match STAT_KEY[header as usize] {
             Stat::Strength => stats.strength = Attribute::from(value)?,
             Stat::Energy => stats.energy = Attribute::from(value)?,
