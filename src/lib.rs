@@ -12,6 +12,10 @@
 
 use bit::BitIndex;
 use serde::{Deserialize, Serialize};
+use std::string::ToString;
+use strum_macros::Display;
+
+
 use std::fmt;
 use std::ops::Range;
 use utils::BytePosition;
@@ -74,6 +78,20 @@ pub struct Save {
     pub attributes: Attributes,
     pub skills: SkillSet,
     pub items: items::Placeholder,
+}
+
+impl fmt::Display for Save {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut final_string = format!("Save:\nVersion: {0}\n", self.version);
+        final_string.push_str(&format!("Character:\n {0}\n", self.character));
+        final_string.push_str(&format!("Quests:\n {0}\n", self.quests));
+        final_string.push_str(&format!("Waypoints:\n {0}\n", self.waypoints));
+        //final_string.push_str(&format!("NPCs:\n {0:?}\n", self.npcs));
+        final_string.push_str(&format!("Attributes:\n {0}\n", self.attributes));
+        final_string.push_str(&format!("Skills:\n {0:#?}\n", self.skills));
+        //final_string.push_str(&format!("Items:\n {0:?}\n", self.items));
+        write!(f, "{0}", final_string)
+    }
 }
 
 pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
@@ -212,6 +230,21 @@ pub enum Version {
     V250R,
 }
 
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Version::V100 => write!(f, "D2:LoD Patch 1.00"),
+            Version::V107 => write!(f, "D2:LoD Patch 1.07"),
+            Version::V108 => write!(f, "D2:LoD Patch 1.08"),
+            Version::V109 => write!(f, "D2:LoD Patch 1.09"),
+            Version::V110 => write!(f, "D2:LoD Patch 1.10"),
+            Version::V200R => write!(f, "D2:Resurrected Patch 2.0"),
+            Version::V240R => write!(f, "D2:Resurrected Patch 2.4"),
+            Version::V250R => write!(f, "D2:Resurrected Patch 2.5"),
+        }
+    }
+}
+
 impl From<Version> for u32 {
     fn from(version: Version) -> u32 {
         match version {
@@ -227,18 +260,12 @@ impl From<Version> for u32 {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Display, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Difficulty {
     #[default]
     Normal,
     Nightmare,
     Hell,
-}
-
-impl fmt::Display for Difficulty {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
@@ -291,7 +318,7 @@ impl From<Act> for u8 {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Display, Serialize, Deserialize)]
 pub enum Class {
     Amazon,
     Sorceress,
@@ -384,6 +411,8 @@ mod tests {
             Ok(res) => res,
             Err(e) => panic!("test_parse_save failed: {e}"),
         };
+
+        println!("{0}", _save);
 
         //println!("TEST SUCCESSFUL: {0:?}", save);
     }

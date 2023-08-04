@@ -1,9 +1,11 @@
+use std::fmt;
 use std::ops::Range;
 use std::str;
 
 use bit::BitIndex;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
+use strum_macros::Display;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::Act;
@@ -26,7 +28,7 @@ mod tests;
 
 use consts::*;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Display, Clone, Copy)]
 enum Section {
     WeaponSet,
     Status,
@@ -96,6 +98,23 @@ pub struct Character {
     pub name: Name,
 }
 
+impl fmt::Display for Character {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut final_string = format!("Name: {0}\n", self.name.0);
+        final_string.push_str(&format!("Weapon Set: {0}\n", self.weapon_set));
+        final_string.push_str(&format!("Status:\n {0}\n", self.status));
+        final_string.push_str(&format!("Progression:\n {0:?}\n", self.progression));
+        final_string.push_str(&format!("Title:\n {0}\n", self.title));
+        final_string.push_str(&format!("Class:\n {0}\n", self.class));
+        final_string.push_str(&format!("Level:\n {0}\n", self.level.value()));
+        final_string.push_str(&format!("Difficulty:\n {0}\n", self.difficulty));
+        final_string.push_str(&format!("Act:\n {0}\n", self.act));
+        final_string.push_str(&format!("Map seed:\n {0}\n", self.map_seed));
+        final_string.push_str(&format!("Mercenary:\n {0}\n", self.mercenary));
+        write!(f, "{0}", final_string)
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Status {
     ladder: bool,
@@ -104,7 +123,17 @@ pub struct Status {
     died: bool,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Ladder: {0}, Expansion: {1}, Hardcore: {2}, Has died: {3}",
+            self.ladder, self.expansion, self.hardcore, self.died
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Display, Serialize, Deserialize)]
 pub enum WeaponSet {
     Main,
     Switch,
@@ -127,7 +156,6 @@ impl Progression {
         self.0
     }
 }
-
 
 impl Default for Character {
     fn default() -> Self {
@@ -155,8 +183,6 @@ impl Default for Character {
     }
 }
 
-
-
 pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
     let mut character: Character = Character::default();
 
@@ -167,8 +193,9 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
     character.status =
         Status::from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Status))]));
 
-    character.progression =
-        Progression::from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Progression))]))?;
+    character.progression = Progression::from(u8_from(
+        &bytes[Range::<usize>::from(FileSection::from(Section::Progression))],
+    ))?;
 
     let class =
         Class::try_from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Class))]))?;
@@ -487,16 +514,6 @@ impl Character {
             self.weapon_set = new_weapon_set;
         }
     }
-    // pub fn difficulty(&self) -> &(Difficulty, Act) {
-    //     &self.difficulty
-    // }
-    // pub fn set_difficulty(&mut self, new_difficulty: (Difficulty, Act)) {
-    //     if new_difficulty.1 == Act::Act5 && !self.status.expansion {
-    //         return;
-    //     }
-    //     //TODO: set progression accordingly
-    //     self.difficulty = new_difficulty
-    // }
 }
 
 impl Character {
@@ -508,7 +525,9 @@ impl Character {
         // Progression always within 0..=15
         let difficulty_beaten: usize = (self.progression.value() as usize) / acts_per_difficulty;
         match (self.status.expansion, self.status.hardcore, male) {
-            (false, false, false) => String::from(TITLES_CLASSIC_STANDARD_FEMALE[difficulty_beaten]),
+            (false, false, false) => {
+                String::from(TITLES_CLASSIC_STANDARD_FEMALE[difficulty_beaten])
+            }
             (false, false, true) => String::from(TITLES_CLASSIC_STANDARD_MALE[difficulty_beaten]),
             (false, true, false) => String::from(TITLES_CLASSIC_HARDCORE_FEMALE[difficulty_beaten]),
             (false, true, true) => String::from(TITLES_CLASSIC_HARDCORE_MALE[difficulty_beaten]),
