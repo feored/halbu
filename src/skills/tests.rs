@@ -12,8 +12,8 @@ mod tests {
 
         let skills = parse(&byte_vector, Class::Sorceress).unwrap();
         for i in 0..30 {
-            if skills[i].name == "Teleport" {
-                assert!(skills[i].id == 54 && skills[i].level == 1);
+            if skills.0[i].name == "Teleport" {
+                assert!(skills.0[i].id == 54 && skills.0[i].level == 1);
             }
         }
 
@@ -32,7 +32,7 @@ mod tests {
 
         let skills = parse(&byte_vector, Class::Sorceress).unwrap();
         // println!("{0:?}", skills);
-        for skill in skills {
+        for skill in skills.0 {
             if skill.name == "Ice Blast" {
                 assert!(skill.id == 45 && skill.level == 17);
             }

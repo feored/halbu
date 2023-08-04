@@ -4,6 +4,8 @@ use std::fmt;
 use std::ops::Range;
 
 use serde::{Deserialize, Serialize};
+use std::string::ToString;
+use strum_macros::Display;
 
 use crate::utils::BytePosition;
 use crate::Class;
@@ -15,7 +17,7 @@ mod tests;
 
 use consts::*;
 
-#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Display, Serialize, Deserialize, Clone, Copy)]
 pub enum Stat {
     Strength,
     Energy,
@@ -109,6 +111,12 @@ impl fmt::Debug for FixedPointStat {
     }
 }
 
+impl fmt::Display for FixedPointStat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.integer, self.fraction)
+    }
+}
+
 /// Representation of a character's attributes.
 ///
 /// Can be serialized into a vector of u8 using  `Vec<u8>::from()`.
@@ -133,6 +141,19 @@ pub struct Attributes {
     experience: Experience,
     gold_inventory: u32,
     gold_stash: u32,
+}
+
+impl fmt::Display for Attributes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut final_string = format!("Strength: {0:?}\n Energy: {1:?}\n Dexterity: {2:?}\n Vitality: {3:?}", self.strength, self.energy, self.dexterity, self.vitality);
+        final_string.push_str(&format!("Stat Points Left: {0}\nSkill Points Left: {1}\n", self.stat_points_left, self.skill_points_left));
+        final_string.push_str(&format!("Life: {0}/{1}\n", self.life_current, self.life_base));
+        final_string.push_str(&format!("Mana: {0}/{1}\n", self.mana_current, self.mana_base));
+        final_string.push_str(&format!("Stamina: {0}/{1}\n", self.stamina_current, self.stamina_base));
+        final_string.push_str(&format!("Level: {0}\nExperience: {1}\n", self.level.0, self.experience.0));
+        final_string.push_str(&format!("Gold in Inventory: {0}\nGold in Stash: {1}\n", self.gold_inventory, self.gold_stash));
+        write!(f, "{0}", final_string)
+    }
 }
 
 #[derive(Default, PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]

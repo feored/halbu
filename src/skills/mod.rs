@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::Class;
 use crate::ParseError;
 
@@ -11,16 +13,36 @@ use consts::*;
 /// Represents a single skill. The id values match the ones found in Skills.txt in the game's files.
 #[derive(Default, PartialEq, Eq, Debug, Ord, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct Skill {
-    id: u8,
-    name: String,
-    level: u8,
+    pub id: u8,
+    pub name: String,
+    pub description: String,
+    pub level: u8,
 }
 
 /// Holds entire skill tree of a character.
-pub type SkillSet = [Skill; 30];
+#[derive(Default, PartialEq, Eq, Debug, Ord, PartialOrd, Clone, Serialize, Deserialize)]
+pub struct SkillSet([Skill; 30]);
+
+
+impl SkillSet{
+    pub fn default(class: Class) -> Self {
+        let class_offset: usize = class_offset(class);
+        let mut skills: [Skill; 30] = std::array::from_fn(|_i| Skill::default());
+        for i in 0usize..30usize{
+            skills[i] = Skill{
+                id: (i + class_offset) as u8,
+                level: 0,
+                name: String::from(SKILLS_REFERENCE[i + class_offset]),
+                description: String::default()
+            }
+        }
+
+        SkillSet(skills)
+    }
+}
 
 /// Converts the value from 0-30 to the one found in the game's file by adding an offset specific to each class.
-fn get_offset(class: Class) -> usize {
+fn class_offset(class: Class) -> usize {
     match class {
         Class::Amazon => SKILL_OFFSET_AMAZON,
         Class::Assassin => SKILL_OFFSET_ASSASSIN,
@@ -34,7 +56,7 @@ fn get_offset(class: Class) -> usize {
 
 /// Parse a vector of bytes containg a character's skill tree (starting with header 0x69 0x66) and returns a SkillSet on success.
 pub fn parse(byte_vector: &[u8; 32], class: Class) -> Result<SkillSet, ParseError> {
-    let mut skills: SkillSet = SkillSet::default();
+    let mut skills: SkillSet = SkillSet::default(class);
     if byte_vector[0..2] != SECTION_HEADER {
         return Err(ParseError {
             message: format!(
@@ -44,12 +66,13 @@ pub fn parse(byte_vector: &[u8; 32], class: Class) -> Result<SkillSet, ParseErro
             ),
         });
     }
-    let offset = get_offset(class);
+    let offset = class_offset(class);
     for i in 0..30 {
-        skills[i] = Skill {
+        skills.0[i] = Skill {
             id: (i + offset) as u8,
             name: String::from(SKILLS_REFERENCE[i + offset]),
             level: byte_vector[i + 2],
+            description: String::default()
         };
     }
     Ok(skills)
@@ -59,7 +82,7 @@ pub fn parse(byte_vector: &[u8; 32], class: Class) -> Result<SkillSet, ParseErro
 pub fn generate(skills: &SkillSet) -> Vec<u8> {
     let mut byte_vector: Vec<u8> = SECTION_HEADER.to_vec();
     for i in 0..30 {
-        byte_vector.push(skills[i].level);
+        byte_vector.push(skills.0[i].level);
     }
     byte_vector
 }

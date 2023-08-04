@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use std::string::ToString;
+use strum_macros::Display;
 
 use crate::Difficulty;
 use crate::ParseError;
@@ -8,11 +10,18 @@ mod tests;
 
 use consts::*;
 use std::cmp;
+use std::fmt;
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Variant(pub Class, pub Difficulty);
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+impl fmt::Display for Variant {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{0:?} - {1}", self.0, self.1)
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Display, Copy, Clone, Serialize, Deserialize)]
 pub enum Class {
     Rogue(Rogue),
     DesertMercenary(DesertMercenary),
@@ -20,13 +29,13 @@ pub enum Class {
     Barbarian(Barbarian),
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Display, Copy, Clone, Serialize, Deserialize)]
 pub enum Rogue {
     Fire,
     Cold,
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Display, Copy, Clone, Serialize, Deserialize)]
 pub enum DesertMercenary {
     Prayer,
     Defiance,
@@ -36,20 +45,19 @@ pub enum DesertMercenary {
     Might,
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Display, Copy, Clone, Serialize, Deserialize)]
 pub enum IronWolf {
     Fire,
     Cold,
     Lightning,
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Display, Copy, Clone, Serialize, Deserialize)]
 pub enum Barbarian {
     Bash,
     Frenzy,
 }
 
-/// TODO: Make private, add getters and setters that throw GameLogicError
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Mercenary {
     pub dead: bool,
@@ -59,6 +67,18 @@ pub struct Mercenary {
     pub variant: Variant,
     pub experience: u32,
 }
+
+impl fmt::Display for Mercenary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut final_string = format!("Name: {0} (Name ID {1})\n", self.name, self.name_id);
+        final_string.push_str(&format!("ID: {0}\n", self.id));
+        final_string.push_str(&format!("Dead:\n {0}\n", self.dead));
+        final_string.push_str(&format!("Variant:\n {0}\n", self.variant));
+        final_string.push_str(&format!("Experience:\n {0}\n", self.experience));
+        write!(f, "{0}", final_string)
+    }
+}
+
 
 impl Default for Mercenary {
     fn default() -> Self {
