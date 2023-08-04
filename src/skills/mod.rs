@@ -17,11 +17,29 @@ pub struct Skill {
     pub name: String,
     pub description: String,
     pub level: u8,
+    pub level_req: u8,
+    pub prerequisites: Vec<u8>
+}
+
+impl fmt::Display for Skill{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{0} ({1}), {2} points invested (req. level {3})", self.name, self.id, self.level, self.level_req)
+    }
 }
 
 /// Holds entire skill tree of a character.
 #[derive(Default, PartialEq, Eq, Debug, Ord, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct SkillSet([Skill; 30]);
+
+impl fmt::Display for SkillSet{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut final_string = String::default();
+        for i in 0usize..30usize{
+            final_string.push_str(&format!("{0}\n", self.0[i]));
+        }
+        write!(f, "{0}", final_string)
+    }
+}
 
 
 impl SkillSet{
@@ -33,7 +51,9 @@ impl SkillSet{
                 id: (i + class_offset) as u8,
                 level: 0,
                 name: String::from(SKILLS_REFERENCE[i + class_offset]),
-                description: String::default()
+                description: String::default(),
+                prerequisites:  Vec::<u8>::new(),
+                level_req: 1
             }
         }
 
@@ -72,7 +92,9 @@ pub fn parse(byte_vector: &[u8; 32], class: Class) -> Result<SkillSet, ParseErro
             id: (i + offset) as u8,
             name: String::from(SKILLS_REFERENCE[i + offset]),
             level: byte_vector[i + 2],
-            description: String::default()
+            description: String::default(),
+            level_req: 1,
+            prerequisites: Vec::<u8>::new()
         };
     }
     Ok(skills)
