@@ -12,7 +12,6 @@
 
 use bit::BitIndex;
 use serde::{Deserialize, Serialize};
-use std::string::ToString;
 use strum_macros::Display;
 
 
@@ -88,7 +87,7 @@ impl fmt::Display for Save {
         final_string.push_str(&format!("Waypoints:\n {0}\n", self.waypoints));
         //final_string.push_str(&format!("NPCs:\n {0:?}\n", self.npcs));
         final_string.push_str(&format!("Attributes:\n {0}\n", self.attributes));
-        final_string.push_str(&format!("Skills:\n {0:#?}\n", self.skills));
+        final_string.push_str(&format!("Skills:\n {0}\n", self.skills));
         //final_string.push_str(&format!("Items:\n {0:?}\n", self.items));
         write!(f, "{0}", final_string)
     }
