@@ -12,7 +12,6 @@
 
 use bit::BitIndex;
 use serde::{Deserialize, Serialize};
-use strum_macros::Display;
 
 
 use std::fmt;
@@ -34,7 +33,6 @@ pub mod quests;
 pub mod skills;
 pub mod utils;
 pub mod waypoints;
-pub mod data;
 
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 
@@ -157,7 +155,7 @@ pub fn generate(save: &Save) -> Vec<u8> {
     result[Range::<usize>::from(FileSection::from(Section::Version))]
         .copy_from_slice(&u32::to_le_bytes(u32::from(save.version)));
     result[Range::<usize>::from(FileSection::from(Section::Character))]
-        .copy_from_slice(&character::generate(&save.character));
+        .copy_from_slice(&save.character.write());
     result[Range::<usize>::from(FileSection::from(Section::Quests))]
         .copy_from_slice(&quests::generate(&save.quests));
     result[Range::<usize>::from(FileSection::from(Section::Waypoints))]
@@ -259,13 +257,24 @@ impl From<Version> for u32 {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Display, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Difficulty {
     #[default]
     Normal,
     Nightmare,
     Hell,
 }
+
+impl fmt::Display for Difficulty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Difficulty::Normal => write!(f, "Normal"),
+            Difficulty::Nightmare => write!(f, "Nightmare"),
+            Difficulty::Hell => write!(f, "Hell")
+        }
+    }
+}
+
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Act {
@@ -317,7 +326,7 @@ impl From<Act> for u8 {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Display, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Class {
     Amazon,
     Sorceress,
@@ -326,6 +335,21 @@ pub enum Class {
     Barbarian,
     Druid,
     Assassin,
+}
+
+impl fmt::Display for Class{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let class: &'static str = match self {
+            Class::Amazon => "Amazon",
+            Class::Sorceress => "Sorceress",
+            Class::Necromancer => "Necromancer",
+            Class::Paladin => "Paladin",
+            Class::Barbarian => "Barbarian",
+            Class::Druid => "Druid",
+            Class::Assassin => "Assassin"
+        };
+        write!(f, "{0}", class)
+    }
 }
 
 impl TryFrom<u8> for Class {
@@ -344,24 +368,6 @@ impl TryFrom<u8> for Class {
     }
 }
 
-impl TryFrom<String> for Class {
-    type Error = ParseError;
-    fn try_from(string: String) -> Result<Class, ParseError> {
-        let stripped_string: String = string.trim().to_lowercase();
-        match stripped_string.as_str() {
-            "amazon" => Ok(Class::Amazon),
-            "sorceress" => Ok(Class::Sorceress),
-            "necromancer" => Ok(Class::Necromancer),
-            "paladin" => Ok(Class::Paladin),
-            "barbarian" => Ok(Class::Barbarian),
-            "druid" => Ok(Class::Druid),
-            "assassin" => Ok(Class::Assassin),
-            _ => Err(ParseError {
-                message: format!("Not a valid character class: {0}.", stripped_string),
-            }),
-        }
-    }
-}
 
 impl From<Class> for u8 {
     fn from(class: Class) -> u8 {
