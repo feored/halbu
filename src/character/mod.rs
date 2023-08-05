@@ -253,7 +253,7 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
 
     character.map_seed =
         u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::MapSeed))]);
-    character.mercenary = mercenary::parse(
+    character.mercenary = mercenary::read(
         &bytes[Range::<usize>::from(FileSection::from(Section::Mercenary))].try_into().unwrap(),
     )?;
 
@@ -314,7 +314,7 @@ pub fn generate(character: &Character) -> [u8; 319] {
     bytes[Range::<usize>::from(FileSection::from(Section::MapSeed))]
         .copy_from_slice(&u32::to_le_bytes(character.map_seed));
     bytes[Range::<usize>::from(FileSection::from(Section::Mercenary))]
-        .copy_from_slice(&mercenary::generate(&character.mercenary));
+        .copy_from_slice(&character.mercenary.write());
     bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))]
         .copy_from_slice(&character.resurrected_menu_appearance);
     let mut name: [u8; 48] = [0x00; 48];
