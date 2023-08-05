@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::utils::BytePosition;
 use crate::utils::write_bits;
 use crate::utils::read_bits;
-use crate::data::read_csv;
+use crate::utils::read_csv;
 use crate::ParseError;
 
 mod tests;

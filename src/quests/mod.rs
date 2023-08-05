@@ -4,7 +4,6 @@ use std::str;
 
 use bit::BitIndex;
 use serde::{Deserialize, Serialize};
-use strum_macros::Display;
 
 use crate::Act;
 use crate::Difficulty;
@@ -60,7 +59,7 @@ impl From<Section> for FileSection {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Display, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Stage {
     Completed,
     RequirementsMet,

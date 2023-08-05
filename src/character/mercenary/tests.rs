@@ -3,7 +3,7 @@
 mod tests {
     use crate::character::mercenary::*;
     #[test]
-    fn mercenary_read_test() {
+    fn mercenary_parse_test() {
         let expected_result = Mercenary {
             is_dead: false,
             id: 3461679u32,
@@ -14,7 +14,7 @@ mod tests {
         let bytes: [u8; 14] =
             [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
         let mut parsed_result: Mercenary = Mercenary::default();
-        match read(&bytes) {
+        match parse(&bytes) {
             Ok(res) => parsed_result = res,
             Err(e) => {
                 println! {"Test failed: {e:?}"}

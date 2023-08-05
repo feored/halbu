@@ -29,7 +29,7 @@ impl fmt::Display for Mercenary {
 }
 
 
-pub fn read(data: &[u8; 14]) -> Result<Mercenary, ParseError> {
+pub fn parse(data: &[u8; 14]) -> Result<Mercenary, ParseError> {
     let mut mercenary: Mercenary = Mercenary::default();
     if  u16::from_le_bytes(<[u8; 2]>::try_from(&data[RANGE_IS_DEAD]).unwrap()) != 0 {
         mercenary.is_dead = true;
