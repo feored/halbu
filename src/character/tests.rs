@@ -36,7 +36,7 @@ mod tests {
             progression: Progression(15),
             title: String::from("Matriarch"),
             class: Class::Sorceress,
-            level: Level::from(92).unwrap(),
+            level: 92,
             last_played: 1690118587,
             assigned_skills: [
                 40, 59, 54, 42, 43, 65535, 65535, 155, 149, 52, 220, 65535, 65535, 65535, 65535,
@@ -117,7 +117,7 @@ mod tests {
             progression: Progression(15),
             title: String::from("Matriarch"),
             class: Class::Sorceress,
-            level: Level::from(92).unwrap(),
+            level: 92,
             last_played: 1690118587,
             assigned_skills: [
                 40, 59, 54, 42, 43, 65535, 65535, 155, 149, 52, 220, 65535, 65535, 65535, 65535,
