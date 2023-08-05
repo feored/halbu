@@ -10,12 +10,14 @@ use crate::ParseError;
 
 mod tests;
 
-const SECTION_TRAILER: u32 = 0x1FF;
 const SECTION_HEADER: [u8; 2] = [0x67, 0x66];
+const SECTION_TRAILER: u32 = 0x1FF;
 const STAT_HEADER_LENGTH: usize = 9;
 const STAT_NUMBER : usize = 16;
 const DATA_PATH : &'static str = "assets/data/itemstatcost.txt";
 
+
+/// Representation of a single stat, with data taken from itemstatcosts.txt
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Stat{
     pub id: u32,
@@ -26,13 +28,13 @@ pub struct Stat{
 
 impl Stat {
     pub fn max(&self) -> u32 {
-        2u32.pow(self.bit_length as u32) - 1
+        (2u64.pow(self.bit_length as u32) - 1) as u32
     }
 }
 
 impl fmt::Display for Stat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{0} - {1}: {2} [0-{3}])", self.id, self.name, self.bit_length, self.max())
+        write!(f, "{0} - {1}: {2} -- {3}bits [0-{4}])", self.id, self.name, self.value, self.bit_length, self.max())
     }
 }
 
@@ -43,7 +45,7 @@ impl fmt::Display for Stat {
 /// fraction separately for precision and easier comparison.
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Attributes {
-    stats: Vec<Stat>
+    pub stats: Vec<Stat>
 }
 
 impl fmt::Display for Attributes {
@@ -100,16 +102,25 @@ impl Attributes {
             Ok(res) => res,
             Err(e) => return Err(ParseError{message: e.to_string()})
         };
+
+        // initialize all so that we always return all 16 stats
+        for i in 0..STAT_NUMBER {
+            let id = u32::from_str_radix(&csv_data[i]["*ID"], 10).unwrap();
+            let stat_bit_length = usize::from_str_radix(&csv_data[i]["CSvBits"], 10).unwrap();
+            attributes.stats.push(Stat { id: id, name: csv_data[i]["Stat"].clone(), bit_length: stat_bit_length, value: 0 });
+        }
         // In case all stats are written down, parse one more to make sure we parse 0x1FF trailer
         for _i in 0..(STAT_NUMBER+1) {
             let header: u32 = read_bits(byte_vector, byte_position, STAT_HEADER_LENGTH);
             if header == SECTION_TRAILER {
                 break;
             }
-    
-            let stat_bit_length = usize::from_str_radix(&csv_data[header as usize]["CSvBits"], 10).unwrap();
-            let value = read_bits(byte_vector, byte_position, stat_bit_length);
-            attributes.stats.push(Stat { id: header, name: csv_data[header as usize]["Stat"].clone(), bit_length: stat_bit_length, value: value })
+            for j in 0..STAT_NUMBER {
+                if attributes.stats[j].id == header{
+                    let value = read_bits(byte_vector, byte_position, attributes.stats[j].bit_length);
+                    attributes.stats[j].value = value;
+                }
+            }
         }
         Ok(attributes)
     }

@@ -393,9 +393,6 @@ pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::character::Name;
-    use std::fs;
-    use std::io::Write;
     use std::path::Path;
 
     #[test]
@@ -411,23 +408,8 @@ mod tests {
             Err(e) => panic!("test_parse_save failed: {e}"),
         };
 
-        println!("{0}", _save);
+        //println!("{0}", _save);
 
-        //println!("TEST SUCCESSFUL: {0:?}", save);
     }
 
-    // #[test]
-    // fn test_generate_save() {
-    //     let path: &Path = Path::new("assets/test/Test.d2s");
-
-    //     let mut save: Save = Save::default();
-    //     save.character.name = Name::from(&String::from("test")).unwrap();
-    //     save.attributes = Attributes::default_class(Class::Amazon);
-
-    //     let generated_save = generate(&mut save);
-
-    //     let mut file = fs::OpenOptions::new().write(true).create(true).open(path).unwrap();
-
-    //     file.write_all(&generated_save).unwrap();
-    // }
 }

@@ -54,14 +54,10 @@ mod tests {
             act: Act::Act1,
             map_seed: 1402285379,
             mercenary: Mercenary {
-                dead: false,
+                is_dead: false,
                 id: 1547718681,
                 name_id: 7,
-                name: String::from("Emilio"),
-                variant: mercenary::Variant(
-                    mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
-                    Difficulty::Hell,
-                ),
+                variant_id: 35,
                 experience: 102341590,
             },
             resurrected_menu_appearance: [
@@ -135,14 +131,10 @@ mod tests {
             act: Act::Act1,
             map_seed: 1402285379,
             mercenary: Mercenary {
-                dead: false,
+                is_dead: false,
                 id: 1547718681,
                 name_id: 7,
-                name: String::from("Emilio"),
-                variant: mercenary::Variant(
-                    mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
-                    Difficulty::Hell,
-                ),
+                variant_id: 35,
                 experience: 102341590,
             },
             resurrected_menu_appearance: [
