@@ -6,6 +6,7 @@ use crate::utils::BytePosition;
 use crate::utils::write_bits;
 use crate::utils::read_bits;
 use crate::utils::read_csv;
+use crate::utils::CSV_ITEMSTATCOST;
 use crate::ParseError;
 
 mod tests;
@@ -14,7 +15,7 @@ const SECTION_HEADER: [u8; 2] = [0x67, 0x66];
 const SECTION_TRAILER: u32 = 0x1FF;
 const STAT_HEADER_LENGTH: usize = 9;
 const STAT_NUMBER : usize = 16;
-const DATA_PATH : &'static str = "assets/data/itemstatcost.txt";
+
 
 
 /// Representation of a single stat, with data taken from itemstatcosts.txt
@@ -98,7 +99,7 @@ impl Attributes {
         }
         byte_position.current_byte = 2;
         let mut attributes = Attributes::default();
-        let csv_data: Vec<std::collections::HashMap<String, String>> = match read_csv(String::from(DATA_PATH)){
+        let csv_data: Vec<std::collections::HashMap<String, String>> = match read_csv(CSV_ITEMSTATCOST){
             Ok(res) => res,
             Err(e) => return Err(ParseError{message: e.to_string()})
         };
