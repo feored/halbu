@@ -3,16 +3,15 @@
 mod tests {
     use crate::character::mercenary::*;
     #[test]
-    fn parse_test() {
+    fn mercenary_parse_test() {
         let expected_result = Mercenary {
-            dead: false,
+            is_dead: false,
             id: 3461679u32,
             name_id: 3,
-            name: String::from("Abhaya"),
-            variant: Variant(Class::Rogue(Rogue::Cold), Difficulty::Normal),
+            variant_id: 1u16,
             experience: 63722u32,
         };
-        let bytes =
+        let bytes: [u8; 14] =
             [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
         let mut parsed_result: Mercenary = Mercenary::default();
         match parse(&bytes) {
@@ -25,18 +24,17 @@ mod tests {
     }
 
     #[test]
-    fn generate_mercenary_test() {
-        let expected_result =
+    fn mercenary_write_test() {
+        let expected_result: [u8; 14] =
             [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
-        let merc = Mercenary {
-            dead: false,
+        let merc: Mercenary = Mercenary {
+            is_dead: false,
             id: 3461679u32,
             name_id: 3,
-            name: String::from("Abhaya"),
-            variant: Variant(Class::Rogue(Rogue::Cold), Difficulty::Normal),
+            variant_id: 1u16,
             experience: 63722u32,
         };
-        let parsed_result: [u8; 14] = generate(&merc);
+        let parsed_result: [u8; 14] = merc.write();
         assert_eq!(parsed_result, expected_result);
     }
 }

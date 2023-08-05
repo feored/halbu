@@ -12,7 +12,6 @@
 
 use bit::BitIndex;
 use serde::{Deserialize, Serialize};
-use strum_macros::Display;
 
 
 use std::fmt;
@@ -21,7 +20,6 @@ use utils::BytePosition;
 use utils::FileSection;
 
 use attributes::Attributes;
-use attributes::Level;
 use character::Character;
 use quests::Quests;
 use skills::SkillSet;
@@ -134,7 +132,7 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
     )?;
 
     let mut byte_position: BytePosition = BytePosition::default();
-    save.attributes = attributes::parse_with_position(
+    save.attributes = attributes::parse(
         &byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()].try_into().unwrap(),
         &mut byte_position,
     )?;
@@ -157,14 +155,14 @@ pub fn generate(save: &Save) -> Vec<u8> {
     result[Range::<usize>::from(FileSection::from(Section::Version))]
         .copy_from_slice(&u32::to_le_bytes(u32::from(save.version)));
     result[Range::<usize>::from(FileSection::from(Section::Character))]
-        .copy_from_slice(&character::generate(&save.character));
+        .copy_from_slice(&save.character.write());
     result[Range::<usize>::from(FileSection::from(Section::Quests))]
         .copy_from_slice(&quests::generate(&save.quests));
     result[Range::<usize>::from(FileSection::from(Section::Waypoints))]
         .copy_from_slice(&waypoints::generate(&save.waypoints));
     result[Range::<usize>::from(FileSection::from(Section::Npcs))]
         .copy_from_slice(&npcs::generate(save.npcs));
-    result.append(&mut attributes::generate(&save.attributes));
+    result.append(&mut save.attributes.write());
     result.append(&mut skills::generate(&save.skills));
     result.append(&mut items::generate(&save.items, save.character.mercenary.is_hired()));
 
@@ -179,18 +177,18 @@ pub fn generate(save: &Save) -> Vec<u8> {
 }
 
 impl Save {
-    pub fn new_character(class: Class) -> Self {
-        Save {
-            attributes: Attributes::default_class(class),
-            character: Character::default_class(class),
-            ..Default::default()
-        }
-    }
+    // pub fn new_character(class: Class) -> Self {
+    //     Save {
+    //         attributes: Attributes::default_class(class),
+    //         character: Character::default_class(class),
+    //         ..Default::default()
+    //     }
+    // }
 
-    pub fn set_level(&mut self, new_level: Level) {
-        self.character.level = new_level;
-        self.attributes.set_level(new_level);
-    }
+    // pub fn set_level(&mut self, new_level: Level) {
+    //     self.character.level = new_level;
+    //     self.attributes.set_level(new_level);
+    // }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -259,13 +257,24 @@ impl From<Version> for u32 {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Display, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Difficulty {
     #[default]
     Normal,
     Nightmare,
     Hell,
 }
+
+impl fmt::Display for Difficulty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Difficulty::Normal => write!(f, "Normal"),
+            Difficulty::Nightmare => write!(f, "Nightmare"),
+            Difficulty::Hell => write!(f, "Hell")
+        }
+    }
+}
+
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Act {
@@ -317,7 +326,7 @@ impl From<Act> for u8 {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Display, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Class {
     Amazon,
     Sorceress,
@@ -326,6 +335,21 @@ pub enum Class {
     Barbarian,
     Druid,
     Assassin,
+}
+
+impl fmt::Display for Class{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let class: &'static str = match self {
+            Class::Amazon => "Amazon",
+            Class::Sorceress => "Sorceress",
+            Class::Necromancer => "Necromancer",
+            Class::Paladin => "Paladin",
+            Class::Barbarian => "Barbarian",
+            Class::Druid => "Druid",
+            Class::Assassin => "Assassin"
+        };
+        write!(f, "{0}", class)
+    }
 }
 
 impl TryFrom<u8> for Class {
@@ -344,24 +368,6 @@ impl TryFrom<u8> for Class {
     }
 }
 
-impl TryFrom<String> for Class {
-    type Error = ParseError;
-    fn try_from(string: String) -> Result<Class, ParseError> {
-        let stripped_string: String = string.trim().to_lowercase();
-        match stripped_string.as_str() {
-            "amazon" => Ok(Class::Amazon),
-            "sorceress" => Ok(Class::Sorceress),
-            "necromancer" => Ok(Class::Necromancer),
-            "paladin" => Ok(Class::Paladin),
-            "barbarian" => Ok(Class::Barbarian),
-            "druid" => Ok(Class::Druid),
-            "assassin" => Ok(Class::Assassin),
-            _ => Err(ParseError {
-                message: format!("Not a valid character class: {0}.", stripped_string),
-            }),
-        }
-    }
-}
 
 impl From<Class> for u8 {
     fn from(class: Class) -> u8 {
@@ -393,14 +399,11 @@ pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::character::Name;
-    use std::fs;
-    use std::io::Write;
     use std::path::Path;
 
     #[test]
     fn test_parse_save() {
-        let path: &Path = Path::new("assets/Joe.d2s");
+        let path: &Path = Path::new("assets/test/Joe.d2s");
         let save_file: Vec<u8> = match std::fs::read(path) {
             Ok(bytes) => bytes,
             Err(e) => panic!("File invalid: {e:?}"),
@@ -411,23 +414,8 @@ mod tests {
             Err(e) => panic!("test_parse_save failed: {e}"),
         };
 
-        println!("{0}", _save);
+        //println!("{0}", _save);
 
-        //println!("TEST SUCCESSFUL: {0:?}", save);
     }
 
-    #[test]
-    fn test_generate_save() {
-        let path: &Path = Path::new("assets/Test.d2s");
-
-        let mut save: Save = Save::default();
-        save.character.name = Name::from(&String::from("test")).unwrap();
-        save.attributes = Attributes::default_class(Class::Amazon);
-
-        let generated_save = generate(&mut save);
-
-        let mut file = fs::OpenOptions::new().write(true).create(true).open(path).unwrap();
-
-        file.write_all(&generated_save).unwrap();
-    }
 }
