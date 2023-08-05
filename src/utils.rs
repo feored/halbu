@@ -7,13 +7,16 @@ use std::error::Error;
 use csv;
 use bit::BitIndex;
 
+pub static CSV_ITEMSTATCOST : &'static [u8] = include_bytes!("../assets/data/itemstatcost.txt");
+
+
 pub type Record = HashMap<String, String>;
 
-pub fn read_csv(file_path : String) -> Result<Vec<Record>, Box<dyn Error>>{
+pub fn read_csv(csv_file: &[u8]) -> Result<Vec<Record>, Box<dyn Error>>{
     let mut records : Vec<Record> = Vec::<Record>::new();
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b'\t')
-        .from_path(file_path)?;
+        .from_reader(csv_file);
     for result in rdr.deserialize() {
         let record: Record = result?;
         records.push(record)
