@@ -6,106 +6,105 @@ mod tests {
     #[test]
     fn test_write_and_read_attributes() {
         let expected_attributes = Attributes {
-            stats: vec![
-                    Stat{
-                        id: 0,
-                        name:String::from("strength"),
-                        value: 156,
-                        bit_length: 10
-                    },
-                    Stat{
-                        id: 1,
-                        name:String::from("energy"),
-                        value: 35,
-                        bit_length: 10
-                    },
-                    Stat{
-                        id: 2,
-                        name:String::from("dexterity"),
-                        value: 35,
-                        bit_length: 10
-                    },
-                    Stat{
-                        id: 3,
-                        name:String::from("vitality"),
-                        value: 324,
-                        bit_length: 10
-                    },
-                    Stat{
-                        id: 4,
-                        name:String::from("statpts"),
-                        value: 0,
-                        bit_length: 10
-                    },
-                    Stat{
-                        id: 5,
-                        name:String::from("newskills"),
-                        value: 0,
-                        bit_length: 8
-                    },
-                    Stat{
-                        id: 6,
-                        name:String::from("hitpoints"),
-                        value: 322560,
-                        bit_length: 21
-                    },
-                    Stat{
+            strength: Stat{
+                id: 0,
+                name:String::from("strength"),
+                value: 156,
+                bit_length: 10
+            },
+            energy: Stat{
+                id: 1,
+                name:String::from("energy"),
+                value: 35,
+                bit_length: 10
+            },
+            dexterity: Stat{
+                id: 2,
+                name:String::from("dexterity"),
+                value: 35,
+                bit_length: 10
+            },
+            vitality: Stat{
+                id: 3,
+                name:String::from("vitality"),
+                value: 324,
+                bit_length: 10
+            },
+            statpts:Stat{
+                id: 4,
+                name:String::from("statpts"),
+                value: 0,
+                bit_length: 10
+            },
+            newskills: Stat{
+                id: 5,
+                name:String::from("newskills"),
+                value: 0,
+                bit_length: 8
+            },
+            hitpoints: Stat{
+                id: 6,
+                name:String::from("hitpoints"),
+                value: 322560,
+                bit_length: 21
+            },
+            maxhp: Stat{
                         id: 7,
                         name:String::from("maxhp"),
                         value: 209664,
                         bit_length: 21
-                    },
-                    Stat{
+            },
+            mana: Stat{
                         id: 8,
                         name:String::from("mana"),
                         value: 156,
                         bit_length: 21
-                    },
-                    Stat{
+            },
+            maxmana: Stat{
                         id: 9,
                         name:String::from("maxmana"),
                         value: 55552,
                         bit_length: 21
-                    },
-                    Stat{
+            },
+            stamina: Stat{
                         id: 10,
                         name:String::from("stamina"),
                         value: 140544,
                         bit_length: 21
-                    },
-                    Stat{
+            },
+            maxstamina: Stat{
                         id: 11,
                         name: String::from("maxstamina"),
                         value: 122624,
                         bit_length: 21
-                    },
-                    Stat{
+            },
+            level: Stat{
                         id: 12,
                         name: String::from("level"),
                         value: 92,
                         bit_length: 7
-                    },
-                    Stat{
+            },
+            experience: Stat{
                         id: 13,
                         name: String::from("experience"),
                         value: 2036912623,
                         bit_length: 32
-                    },
-                    Stat{
+            },
+            gold: Stat{
                         id: 14,
                         name: String::from("gold"),
                         value: 0,
                         bit_length: 25
-                    },
-                    Stat{
+            },
+            goldbank: Stat{
                         id: 15,
                         name: String::from("goldbank"),
                         value: 45964,
                         bit_length: 25
                     }
-            ]
         };
         let result: Vec<u8> = expected_attributes.write();
+
         let mut byte_position : BytePosition = BytePosition::default();
         let parsed_attributes = match parse(&result, &mut byte_position) {
             Ok(res) => res,
