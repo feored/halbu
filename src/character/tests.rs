@@ -3,7 +3,7 @@ mod tests {
     use crate::character::*;
 
     #[test]
-    fn test_parse() {
+    fn character_parse_test() {
         let bytes: [u8; 319] = [
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x0F, 0x00, 0x00, 0x01, 0x10, 0x1E, 0x5C,
@@ -31,13 +31,12 @@ mod tests {
         ];
 
         let expected_result = Character {
-            weapon_set: WeaponSet::Main,
+            weapon_switch: false,
             status: Status { expansion: true, hardcore: false, ladder: false, died: true },
-            progression: Progression(15),
-            title: String::from("Matriarch"),
             class: Class::Sorceress,
-            level: Level::from(92).unwrap(),
+            level: 92,
             last_played: 1690118587,
+            progression:15,
             assigned_skills: [
                 40, 59, 54, 42, 43, 65535, 65535, 155, 149, 52, 220, 65535, 65535, 65535, 65535,
                 65535,
@@ -54,14 +53,10 @@ mod tests {
             act: Act::Act1,
             map_seed: 1402285379,
             mercenary: Mercenary {
-                dead: false,
+                is_dead: false,
                 id: 1547718681,
                 name_id: 7,
-                name: String::from("Emilio"),
-                variant: mercenary::Variant(
-                    mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
-                    Difficulty::Hell,
-                ),
+                variant_id: 35,
                 experience: 102341590,
             },
             resurrected_menu_appearance: [
@@ -69,7 +64,7 @@ mod tests {
                 0, 0, 120, 112, 108, 32, 255, 7, 217, 0, 0, 0, 0, 0, 117, 97, 112, 32, 77, 7, 248,
                 0, 0, 0, 0, 0,
             ],
-            name: Name(String::from("Nyahallo")),
+            name: String::from("Nyahallo"),
         };
         let parsed_result = match parse(&bytes) {
             Ok(result) => result,
@@ -79,12 +74,11 @@ mod tests {
                 return;
             }
         };
-        //println!("{0:?}", parsed_result);
         assert_eq!(parsed_result, expected_result);
     }
 
     #[test]
-    fn test_generate() {
+    fn character_write_test() {
         let expected_result: [u8; 319] = [
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x0F, 0x00, 0x00, 0x01, 0x10, 0x1E, 0x5C,
@@ -112,12 +106,11 @@ mod tests {
         ];
 
         let character = Character {
-            weapon_set: WeaponSet::Main,
+            weapon_switch: false,
             status: Status { expansion: true, hardcore: false, ladder: false, died: true },
-            progression: Progression(15),
-            title: String::from("Matriarch"),
+            progression: 15,
             class: Class::Sorceress,
-            level: Level::from(92).unwrap(),
+            level: 92,
             last_played: 1690118587,
             assigned_skills: [
                 40, 59, 54, 42, 43, 65535, 65535, 155, 149, 52, 220, 65535, 65535, 65535, 65535,
@@ -135,14 +128,10 @@ mod tests {
             act: Act::Act1,
             map_seed: 1402285379,
             mercenary: Mercenary {
-                dead: false,
+                is_dead: false,
                 id: 1547718681,
                 name_id: 7,
-                name: String::from("Emilio"),
-                variant: mercenary::Variant(
-                    mercenary::Class::DesertMercenary(mercenary::DesertMercenary::Might),
-                    Difficulty::Hell,
-                ),
+                variant_id: 35,
                 experience: 102341590,
             },
             resurrected_menu_appearance: [
@@ -150,21 +139,11 @@ mod tests {
                 0, 0, 120, 112, 108, 32, 255, 7, 217, 0, 0, 0, 0, 0, 117, 97, 112, 32, 77, 7, 248,
                 0, 0, 0, 0, 0,
             ],
-            name: Name(String::from("Nyahallo")),
+            name: String::from("Nyahallo"),
         };
-        let generated_result = generate(&character);
+        let generated_result = character.write();
 
         assert_eq!(expected_result, generated_result);
     }
 
-    #[test]
-    fn test_names() {
-        assert!(Name::from(&String::from("A")).is_err());
-        assert!(Name::from(&String::from("Joe_-_")).is_err());
-        assert!(Name::from(&String::from("-joe")).is_err());
-        assert!(Name::from(&String::from("123joe")).is_err());
-        assert!(Name::from(&String::from("BlueRedGreyGreenViolet")).is_err());
-        assert_eq!(Name::from(&String::from("Test")).unwrap(), Name(String::from("Test")));
-        assert_eq!(Name::from(&String::from("榮華富貴")).unwrap(), Name(String::from("榮華富貴")));
-    }
 }
