@@ -13,8 +13,6 @@ use crate::Class;
 use crate::Difficulty;
 use crate::ParseError;
 
-use crate::attributes::Level;
-
 use crate::utils::get_sys_time_in_secs;
 use crate::utils::u32_from;
 use crate::utils::u8_from;
@@ -81,7 +79,7 @@ pub struct Character {
     pub progression: Progression,
     pub title: String,
     pub class: Class,
-    pub level: Level,
+    pub level: u8,
     pub last_played: u32,
     pub assigned_skills: [u32; 16],
     pub left_mouse_skill: u32,
@@ -106,7 +104,7 @@ impl fmt::Display for Character {
         final_string.push_str(&format!("Progression:\n {0:?}\n", self.progression));
         final_string.push_str(&format!("Title:\n {0}\n", self.title));
         final_string.push_str(&format!("Class:\n {0}\n", self.class));
-        final_string.push_str(&format!("Level:\n {0}\n", self.level.value()));
+        final_string.push_str(&format!("Level:\n {0}\n", self.level));
         final_string.push_str(&format!("Difficulty:\n {0}\n", self.difficulty));
         final_string.push_str(&format!("Act:\n {0}\n", self.act));
         final_string.push_str(&format!("Map seed:\n {0}\n", self.map_seed));
@@ -165,7 +163,7 @@ impl Default for Character {
             progression: Progression::default(),
             title: String::default(),
             class: Class::Amazon,
-            level: Level::default(),
+            level: 1,
             last_played: get_sys_time_in_secs(),
             assigned_skills: [0x0000FFFF; 16],
             left_mouse_skill: 0,
@@ -216,15 +214,7 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         _ => class,
     };
 
-    let level_u8: u8 = u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Level))]);
-    character.level = match Level::from(level_u8) {
-        Err(_e) => {
-            return Err(ParseError {
-                message: format!("Found character level outside of 1-99 range : {0:?}.", level_u8),
-            })
-        }
-        Ok(res) => res,
-    };
+    character.level = u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Level))]);
 
     character.last_played =
         u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]);
@@ -298,7 +288,7 @@ pub fn generate(character: &Character) -> [u8; 319] {
         character.progression.value();
     bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] =
         u8::from(character.class);
-    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = character.level.value();
+    bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = character.level;
     bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]
         .copy_from_slice(&u32::to_le_bytes(character.last_played));
 

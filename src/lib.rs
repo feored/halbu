@@ -21,7 +21,6 @@ use utils::BytePosition;
 use utils::FileSection;
 
 use attributes::Attributes;
-use attributes::Level;
 use character::Character;
 use quests::Quests;
 use skills::SkillSet;
@@ -35,6 +34,7 @@ pub mod quests;
 pub mod skills;
 pub mod utils;
 pub mod waypoints;
+pub mod data;
 
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 
@@ -134,7 +134,7 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
     )?;
 
     let mut byte_position: BytePosition = BytePosition::default();
-    save.attributes = attributes::parse_with_position(
+    save.attributes = attributes::parse(
         &byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()].try_into().unwrap(),
         &mut byte_position,
     )?;
@@ -164,7 +164,7 @@ pub fn generate(save: &Save) -> Vec<u8> {
         .copy_from_slice(&waypoints::generate(&save.waypoints));
     result[Range::<usize>::from(FileSection::from(Section::Npcs))]
         .copy_from_slice(&npcs::generate(save.npcs));
-    result.append(&mut attributes::generate(&save.attributes));
+    result.append(&mut save.attributes.write());
     result.append(&mut skills::generate(&save.skills));
     result.append(&mut items::generate(&save.items, save.character.mercenary.is_hired()));
 
@@ -179,18 +179,18 @@ pub fn generate(save: &Save) -> Vec<u8> {
 }
 
 impl Save {
-    pub fn new_character(class: Class) -> Self {
-        Save {
-            attributes: Attributes::default_class(class),
-            character: Character::default_class(class),
-            ..Default::default()
-        }
-    }
+    // pub fn new_character(class: Class) -> Self {
+    //     Save {
+    //         attributes: Attributes::default_class(class),
+    //         character: Character::default_class(class),
+    //         ..Default::default()
+    //     }
+    // }
 
-    pub fn set_level(&mut self, new_level: Level) {
-        self.character.level = new_level;
-        self.attributes.set_level(new_level);
-    }
+    // pub fn set_level(&mut self, new_level: Level) {
+    //     self.character.level = new_level;
+    //     self.attributes.set_level(new_level);
+    // }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -400,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_parse_save() {
-        let path: &Path = Path::new("assets/Joe.d2s");
+        let path: &Path = Path::new("assets/test/Joe.d2s");
         let save_file: Vec<u8> = match std::fs::read(path) {
             Ok(bytes) => bytes,
             Err(e) => panic!("File invalid: {e:?}"),
@@ -416,18 +416,18 @@ mod tests {
         //println!("TEST SUCCESSFUL: {0:?}", save);
     }
 
-    #[test]
-    fn test_generate_save() {
-        let path: &Path = Path::new("assets/Test.d2s");
+    // #[test]
+    // fn test_generate_save() {
+    //     let path: &Path = Path::new("assets/test/Test.d2s");
 
-        let mut save: Save = Save::default();
-        save.character.name = Name::from(&String::from("test")).unwrap();
-        save.attributes = Attributes::default_class(Class::Amazon);
+    //     let mut save: Save = Save::default();
+    //     save.character.name = Name::from(&String::from("test")).unwrap();
+    //     save.attributes = Attributes::default_class(Class::Amazon);
 
-        let generated_save = generate(&mut save);
+    //     let generated_save = generate(&mut save);
 
-        let mut file = fs::OpenOptions::new().write(true).create(true).open(path).unwrap();
+    //     let mut file = fs::OpenOptions::new().write(true).create(true).open(path).unwrap();
 
-        file.write_all(&generated_save).unwrap();
-    }
+    //     file.write_all(&generated_save).unwrap();
+    // }
 }
