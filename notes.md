@@ -72,7 +72,7 @@ Can be edited with seemingly no impact.
 
 **Mercenary Name**
 
-Appears unchanged from the list at http://user.xmission.com/~trevin/DiabloIIv1.09_Mercenaries.html
+Appears unchanged from the list at http://user.xmission.com/~trevin/DiabloIIv1.09_Mercenaries.html except for a typo, the first Barbarian name should be Vardakha.
 
 **Mercenary Variant**
 

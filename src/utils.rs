@@ -7,8 +7,6 @@ use std::error::Error;
 use csv;
 use bit::BitIndex;
 
-pub static CSV_ITEMSTATCOST : &'static [u8] = include_bytes!("../assets/data/itemstatcost.txt");
-
 
 pub type Record = HashMap<String, String>;
 
