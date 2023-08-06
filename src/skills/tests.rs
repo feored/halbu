@@ -3,21 +3,18 @@ mod tests {
     use crate::skills::*;
 
     #[test]
-    fn test_parse_and_generate() {
+    fn test_parse_and_write() {
         let byte_vector = [
             0x69, 0x66, 0x00, 0x01, 0x00, 0x14, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x14, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x14,
         ];
 
-        let skills = parse(&byte_vector, Class::Sorceress).unwrap();
-        for i in 0..30 {
-            if skills.0[i].name == "Teleport" {
-                assert!(skills.0[i].id == 54 && skills.0[i].level == 1);
-            }
-        }
+        let skills = parse(&byte_vector).unwrap();
+        // Teleport
+        assert!(skills.0[18].points == 1);
 
-        let result = generate(&skills);
+        let result = skills.write();
 
         assert_eq!(result, byte_vector);
     }
@@ -30,12 +27,9 @@ mod tests {
             0x00, 0x00, 0x00, 0x14,
         ];
 
-        let skills = parse(&byte_vector, Class::Sorceress).unwrap();
-        // println!("{0:?}", skills);
-        for skill in skills.0 {
-            if skill.name == "Ice Blast" {
-                assert!(skill.id == 45 && skill.level == 17);
-            }
-        }
+        let skills = parse(&byte_vector).unwrap();
+        // Ice blast
+        assert!(skills.0[9].points == 17);
+
     }
 }

@@ -134,6 +134,29 @@ impl Attributes {
             _ => panic!("Tried to set a stat not found in itemstatcost.txt: {}", s)
         };
     }
+
+    pub fn set_stat_value(&mut self, stat_name: String, value: u32){
+        let s: &str = stat_name.as_str(); 
+        match s {
+            "strength" => self.strength.value = value,
+            "energy" => self.energy.value = value,
+            "dexterity" => self.dexterity.value = value,
+            "vitality" => self.vitality.value = value,
+            "statpts" => self.statpts.value = value,
+            "newskills" => self.newskills.value = value,
+            "hitpoints" => self.hitpoints.value = value,
+            "maxhp" => self.maxhp.value = value,
+            "mana" => self.mana.value = value,
+            "maxmana" => self.maxmana.value = value,
+            "stamina" => self.stamina.value = value,
+            "maxstamina" => self.maxstamina.value = value,
+            "level" => self.level.value = value,
+            "experience" => self.experience.value = value,
+            "gold" => self.gold.value = value,
+            "goldbank" => self.goldbank.value = value,
+            _ => panic!("Tried to set a stat not found in itemstatcost.txt: {}", s)
+        };
+    }
 }
 
 impl fmt::Display for Attributes {
@@ -202,23 +225,23 @@ pub fn parse(
 
     let mut attributes = Attributes::default();
 
+    // initialize all stats first so we always return a full struct
+    for (i, s) in STAT_KEY.iter().enumerate(){
+        let mut stat : Stat = Stat::default();
+        stat.name = s.to_string();
+        stat.bit_length = STAT_BITLENGTH[i];
+        stat.id = i as u32;
+        attributes.set_stat(stat.name.clone(), &stat);
+    }
+
     // In case all stats are written down, parse one more to make sure we parse 0x1FF trailer
     for _i in 0..(STAT_NUMBER + 1) {
         let header: u32 = read_bits(byte_vector, byte_position, STAT_HEADER_LENGTH);
-        //println!("Found header: {0:?} == ? {1:?}", header, SECTION_TRAILER);
         if header == SECTION_TRAILER {
-            //println!("BREAAAAAAAAAAK");
             break;
         }
-        //println!("Ok no break, {0}", header as usize);
-        let mut stat : Stat = Stat::default();
-        stat.name = String::from(STAT_KEY[header as usize]);
-        stat.id = header;
-        stat.bit_length = STAT_BITLENGTH[header as usize];
-        //println!("{0:?}", stat);
-        stat.value = read_bits(byte_vector, byte_position, stat.bit_length);
-        //println!("{0:?}", stat);
-        attributes.set_stat(stat.name.clone(), &stat);
+        let stat : Stat = attributes.stat(STAT_KEY[header as usize]);
+        attributes.set_stat_value(stat.name.clone(), read_bits(byte_vector, byte_position, stat.bit_length));
     }
     Ok(attributes)
 }
