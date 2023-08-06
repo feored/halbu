@@ -138,9 +138,7 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
     )?;
     let skills_offset = ATTRIBUTES_OFFSET + byte_position.current_byte + 1;
     save.skills = skills::parse(
-        &byte_vector[skills_offset..(skills_offset + 32)].try_into().unwrap(),
-        save.character.class,
-    )?;
+        &byte_vector[skills_offset..(skills_offset + 32)].try_into().unwrap())?;
     let items_offset = skills_offset + 32;
     // TODO make byte_vector not mut
     save.items = items::parse(&byte_vector[items_offset..byte_vector.len()]);
@@ -163,7 +161,7 @@ pub fn generate(save: &Save) -> Vec<u8> {
     result[Range::<usize>::from(FileSection::from(Section::Npcs))]
         .copy_from_slice(&npcs::generate(save.npcs));
     result.append(&mut save.attributes.write());
-    result.append(&mut skills::generate(&save.skills));
+    result.append(&mut save.skills.write());
     result.append(&mut items::generate(&save.items, save.character.mercenary.is_hired()));
 
     let length = result.len() as u32;
