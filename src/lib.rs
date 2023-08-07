@@ -13,7 +13,6 @@
 use bit::BitIndex;
 use serde::{Deserialize, Serialize};
 
-
 use std::fmt;
 use std::ops::Range;
 use utils::BytePosition;
@@ -138,55 +137,47 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
     )?;
     let skills_offset = ATTRIBUTES_OFFSET + byte_position.current_byte + 1;
     save.skills = skills::parse(
-        &byte_vector[skills_offset..(skills_offset + 32)].try_into().unwrap())?;
+        &byte_vector[skills_offset..(skills_offset + 32)].try_into().unwrap(), save.character.class)?;
     let items_offset = skills_offset + 32;
     // TODO make byte_vector not mut
     save.items = items::parse(&byte_vector[items_offset..byte_vector.len()]);
     Ok(save)
 }
 
-pub fn generate(save: &Save) -> Vec<u8> {
-    let mut result: Vec<u8> = Vec::<u8>::new();
-    result.resize(765, 0x00);
+impl Save{
+    pub fn write(&self) -> Vec<u8> {
+        let mut result: Vec<u8> = Vec::<u8>::new();
+        result.resize(765, 0x00);
+    
+        result[Range::<usize>::from(FileSection::from(Section::Signature))].copy_from_slice(&SIGNATURE);
+        result[Range::<usize>::from(FileSection::from(Section::Version))]
+            .copy_from_slice(&u32::to_le_bytes(u32::from(self.version)));
+        result[Range::<usize>::from(FileSection::from(Section::Character))]
+            .copy_from_slice(&self.character.write());
+        result[Range::<usize>::from(FileSection::from(Section::Quests))]
+            .copy_from_slice(&quests::generate(&self.quests));
+        result[Range::<usize>::from(FileSection::from(Section::Waypoints))]
+            .copy_from_slice(&waypoints::generate(&self.waypoints));
+        result[Range::<usize>::from(FileSection::from(Section::Npcs))]
+            .copy_from_slice(&npcs::generate(self.npcs));
+        result.append(&mut self.attributes.write());
+        result.append(&mut self.skills.write());
+        result.append(&mut items::generate(&self.items, self.character.mercenary.is_hired()));
+    
+        let length = result.len() as u32;
+        result[Range::<usize>::from(FileSection::from(Section::FileSize))]
+            .copy_from_slice(&u32::to_le_bytes(length));
+        let checksum = calc_checksum(&result);
+        result[Range::<usize>::from(FileSection::from(Section::Checksum))]
+            .copy_from_slice(&i32::to_le_bytes(checksum));
+    
+        result
+    }
 
-    result[Range::<usize>::from(FileSection::from(Section::Signature))].copy_from_slice(&SIGNATURE);
-    result[Range::<usize>::from(FileSection::from(Section::Version))]
-        .copy_from_slice(&u32::to_le_bytes(u32::from(save.version)));
-    result[Range::<usize>::from(FileSection::from(Section::Character))]
-        .copy_from_slice(&save.character.write());
-    result[Range::<usize>::from(FileSection::from(Section::Quests))]
-        .copy_from_slice(&quests::generate(&save.quests));
-    result[Range::<usize>::from(FileSection::from(Section::Waypoints))]
-        .copy_from_slice(&waypoints::generate(&save.waypoints));
-    result[Range::<usize>::from(FileSection::from(Section::Npcs))]
-        .copy_from_slice(&npcs::generate(save.npcs));
-    result.append(&mut save.attributes.write());
-    result.append(&mut save.skills.write());
-    result.append(&mut items::generate(&save.items, save.character.mercenary.is_hired()));
-
-    let length = result.len() as u32;
-    result[Range::<usize>::from(FileSection::from(Section::FileSize))]
-        .copy_from_slice(&u32::to_le_bytes(length));
-    let checksum = calc_checksum(&result);
-    result[Range::<usize>::from(FileSection::from(Section::Checksum))]
-        .copy_from_slice(&i32::to_le_bytes(checksum));
-
-    result
-}
-
-impl Save {
-    // pub fn new_character(class: Class) -> Self {
-    //     Save {
-    //         attributes: Attributes::default_class(class),
-    //         character: Character::default_class(class),
-    //         ..Default::default()
-    //     }
-    // }
-
-    // pub fn set_level(&mut self, new_level: Level) {
-    //     self.character.level = new_level;
-    //     self.attributes.set_level(new_level);
-    // }
+    pub fn default_class(class: Class) -> Self{
+        let default_class : Save = Save {attributes: Attributes::default_class(class), character: Character::default_class(class), ..Default::default()};
+        default_class
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -228,14 +219,14 @@ pub enum Version {
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Version::V100 => write!(f, "D2:LoD Patch 1.00"),
-            Version::V107 => write!(f, "D2:LoD Patch 1.07"),
-            Version::V108 => write!(f, "D2:LoD Patch 1.08"),
-            Version::V109 => write!(f, "D2:LoD Patch 1.09"),
-            Version::V110 => write!(f, "D2:LoD Patch 1.10"),
-            Version::V200R => write!(f, "D2:Resurrected Patch 2.0"),
-            Version::V240R => write!(f, "D2:Resurrected Patch 2.4"),
-            Version::V250R => write!(f, "D2:Resurrected Patch 2.5"),
+            Version::V100 => write!(f, "Diablo II: Lord of Destruction Patch 1.00"),
+            Version::V107 => write!(f, "Diablo II: Lord of Destruction Patch 1.07"),
+            Version::V108 => write!(f, "Diablo II: Lord of Destruction Patch 1.08"),
+            Version::V109 => write!(f, "Diablo II: Lord of Destruction Patch 1.09"),
+            Version::V110 => write!(f, "Diablo II: Lord of Destruction Patch 1.10"),
+            Version::V200R => write!(f, "Diablo II: Resurrected Patch 2.0"),
+            Version::V240R => write!(f, "Diablo II: Resurrected Patch 2.4"),
+            Version::V250R => write!(f, "Diablo II: Resurrected Patch 2.5"),
         }
     }
 }

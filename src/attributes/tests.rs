@@ -2,6 +2,7 @@
 mod tests {
     use crate::attributes::*;
     use crate::utils::*;
+    use crate::Class;
 
     #[test]
     fn test_write_and_read_attributes() {
@@ -112,6 +113,31 @@ mod tests {
         };
 
         assert_eq!(parsed_attributes, expected_attributes);
+    }
+
+    #[test]
+    fn test_attributes_class_default(){
+        let mut expected_attributes = Attributes::default();
+
+        expected_attributes.level.value = 1;
+
+        expected_attributes.strength.value = 15;
+        expected_attributes.dexterity.value = 25;
+        expected_attributes.vitality.value = 15;
+        expected_attributes.energy.value = 25;
+        
+        expected_attributes.maxhp.value = 45 * 256;
+        expected_attributes.hitpoints.value = expected_attributes.maxhp.value;
+
+        expected_attributes.maxmana.value = 25 * 256;
+        expected_attributes.mana.value = expected_attributes.maxmana.value;
+
+        expected_attributes.maxstamina.value = 79 * 256;
+        expected_attributes.stamina.value = expected_attributes.maxstamina.value;
+
+        let generated_result = Attributes::default_class(Class::Necromancer);
+
+        assert_eq!(generated_result, expected_attributes);
     }
 
     #[test]
