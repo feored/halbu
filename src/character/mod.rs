@@ -259,6 +259,10 @@ impl Character {
     
         bytes
     }
+    pub fn default_class(class: Class) -> Self {
+        let default_character: Character = Character { level: 1, class: class, ..Default::default()};
+        default_character
+    }
 }
 
 

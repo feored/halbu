@@ -2,7 +2,10 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Class;
+use crate::utils::Record;
 use crate::utils::read_bits;
+use crate::utils::read_csv;
 use crate::utils::write_bits;
 use crate::utils::BytePosition;
 use crate::ParseError;
@@ -69,7 +72,7 @@ impl fmt::Display for Stat {
 /// Representation of a character's attributes.
 ///
 /// Names are taken from itemstatcost.txt
-#[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Attributes {
     pub strength: Stat,
     pub energy: Stat,
@@ -199,8 +202,71 @@ impl Attributes {
         write_bits(&mut result, &mut byte_position, SECTION_TRAILER, STAT_HEADER_LENGTH);
         result
     }
+
+    pub fn default_class(class: Class) -> Self {
+        let mut class_attributes: Attributes = Attributes::default();
+        let charstats : Vec<Record> = read_csv(include_bytes!("../../assets/data/charstats.txt")).unwrap();
+
+        let class_id_in_csv = match class {
+            Class::Amazon => 0,
+            Class::Sorceress => 1,
+            Class::Necromancer => 2,
+            Class::Paladin => 3,
+            Class::Barbarian => 4,
+            Class::Druid => 6,
+            Class::Assassin => 7
+        };
+        class_attributes.level.value = 1;
+
+        class_attributes.strength.value = charstats[class_id_in_csv]["str"].parse::<u32>().unwrap();
+        class_attributes.energy.value = charstats[class_id_in_csv]["int"].parse::<u32>().unwrap();
+        class_attributes.dexterity.value = charstats[class_id_in_csv]["dex"].parse::<u32>().unwrap();
+        class_attributes.vitality.value = charstats[class_id_in_csv]["vit"].parse::<u32>().unwrap();
+        
+        class_attributes.maxhp.value =  (class_attributes.vitality.value + charstats[class_id_in_csv]["hpadd"].parse::<u32>().unwrap()) * 256;
+        class_attributes.hitpoints.value = class_attributes.maxhp.value;
+
+        class_attributes.maxmana.value = class_attributes.energy.value * 256;
+        class_attributes.mana.value = class_attributes.maxmana.value;
+
+        class_attributes.maxstamina.value = charstats[class_id_in_csv]["stamina"].parse::<u32>().unwrap() * 256;
+        class_attributes.stamina.value = class_attributes.maxstamina.value;
+        
+        class_attributes
+    }
 }
 
+impl Default for Attributes {
+    fn default() -> Self {
+        let mut attributes = Attributes{
+            strength: Stat::default(),
+            energy: Stat::default(),
+            dexterity: Stat::default(),
+            vitality: Stat::default(),
+            statpts: Stat::default(),
+            newskills: Stat::default(),
+            hitpoints: Stat::default(),
+            maxhp: Stat::default(),
+            mana: Stat::default(),
+            maxmana: Stat::default(),
+            stamina: Stat::default(),
+            maxstamina: Stat::default(),
+            level: Stat::default(),
+            experience: Stat::default(),
+            gold: Stat::default(),
+            goldbank: Stat::default()
+        };
+        // initialize all fields using csv
+        for (i, s) in STAT_KEY.iter().enumerate(){
+            let mut stat : Stat = Stat::default();
+            stat.name = s.to_string();
+            stat.bit_length = STAT_BITLENGTH[i];
+            stat.id = i as u32;
+            attributes.set_stat(stat.name.clone(), &stat);
+        }
+        attributes
+    }
+}
 /// Parse vector of bytes containing attributes data while storing byte position and return an Attributes struct.
 ///
 /// This function borrows a byte_position, which will store the length in bytes of the
@@ -224,15 +290,6 @@ pub fn parse(
     byte_position.current_byte = 2;
 
     let mut attributes = Attributes::default();
-
-    // initialize all stats first so we always return a full struct
-    for (i, s) in STAT_KEY.iter().enumerate(){
-        let mut stat : Stat = Stat::default();
-        stat.name = s.to_string();
-        stat.bit_length = STAT_BITLENGTH[i];
-        stat.id = i as u32;
-        attributes.set_stat(stat.name.clone(), &stat);
-    }
 
     // In case all stats are written down, parse one more to make sure we parse 0x1FF trailer
     for _i in 0..(STAT_NUMBER + 1) {
