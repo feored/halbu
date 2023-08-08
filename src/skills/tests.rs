@@ -32,4 +32,5 @@ mod tests {
         assert_eq!(skills.0[9], Skill{points: 17, name: String::from("Ice Blast"), id: 45, skilldesc:String::from("ice blast")});
 
     }
+
 }

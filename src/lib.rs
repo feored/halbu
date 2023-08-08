@@ -175,7 +175,7 @@ impl Save{
     }
 
     pub fn default_class(class: Class) -> Self{
-        let default_class : Save = Save {attributes: Attributes::default_class(class), character: Character::default_class(class), ..Default::default()};
+        let default_class : Save = Save {attributes: Attributes::default_class(class), character: Character::default_class(class), skills: SkillSet::default_class(class), ..Default::default()};
         default_class
     }
 }
@@ -388,7 +388,8 @@ pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
+    use std::{path::Path, time::Duration};
+    use crate::utils::*;
 
     #[test]
     fn test_parse_save() {
@@ -402,9 +403,6 @@ mod tests {
             Ok(res) => res,
             Err(e) => panic!("test_parse_save failed: {e}"),
         };
-
-        //println!("{0}", _save);
-
     }
 
 }
