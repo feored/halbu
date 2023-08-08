@@ -2,16 +2,16 @@ use std::fmt;
 
 use crate::ParseError;
 use crate::Class;
-use crate::utils::read_csv;
-use crate::utils::Record;
 
 use serde::{Deserialize, Serialize};
 
 mod tests;
+pub mod consts;
+use consts::*;
 
-pub const SECTION_HEADER: [u8; 2] = [0x69, 0x66];
-pub const SKILLS_NUMBER : usize = 30;
-pub const SKILLS_OFFSET : [usize; 7] = [6, 36, 66, 96, 126, 221, 251];
+const SECTION_HEADER: [u8; 2] = [0x69, 0x66];
+const SKILLS_NUMBER : usize = 30;
+
 
 /// Represents a single skill. The id values match the ones found in Skills.txt in the game's files.
 #[derive(Default, PartialEq, Eq, Debug, Ord, PartialOrd, Clone, Serialize, Deserialize)]
@@ -61,7 +61,6 @@ impl SkillSet {
 
     pub fn default_class(class: Class) -> Self {
         let mut default_skills : Vec<Skill> = vec![Skill{id: 0, name: String::from(""), skilldesc: String::from(""), points: 0u8}; SKILLS_NUMBER];
-        let csv_skills : Vec<Record> = read_csv(include_bytes!("../../assets/data/skills.txt")).unwrap();
         let skill_offset = SKILLS_OFFSET[match class {
             Class::Amazon => 0,
             Class::Sorceress => 1,
@@ -74,8 +73,8 @@ impl SkillSet {
         for (i, skill) in default_skills.iter_mut().enumerate() {
             let id = i + skill_offset;
             skill.id = id as u8;
-            skill.name = csv_skills[id]["skill"].clone();
-            skill.skilldesc = csv_skills[id]["skilldesc"].clone();
+            skill.name = String::from(SKILLID[id]);
+            skill.skilldesc = String::from(SKILLDESC[id]);
             skill.points = 0;
         }
         SkillSet(default_skills.try_into().unwrap())
