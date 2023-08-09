@@ -16,7 +16,7 @@ const SKILLS_NUMBER : usize = 30;
 /// Represents a single skill. The id values match the ones found in Skills.txt in the game's files.
 #[derive(Default, PartialEq, Eq, Debug, Ord, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct Skill {
-    pub id: u8,
+    pub id: u32,
     pub name: String,
     pub skilldesc: String,
     pub points: u8
@@ -72,7 +72,7 @@ impl SkillSet {
         }];
         for (i, skill) in default_skills.iter_mut().enumerate() {
             let id = i + skill_offset;
-            skill.id = id as u8;
+            skill.id = id as u32;
             skill.name = String::from(SKILLID[id]);
             skill.skilldesc = String::from(SKILLDESC[id]);
             skill.points = 0;
