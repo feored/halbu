@@ -118,9 +118,8 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
             .try_into()
             .unwrap(),
     )?;
-    save.quests = quests::parse(
-        &byte_vector[Range::<usize>::from(FileSection::from(Section::Quests))].try_into().unwrap(),
-    )?;
+    save.quests =
+        Quests::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Quests))])?;
     save.waypoints = waypoints::parse(
         &byte_vector[Range::<usize>::from(FileSection::from(Section::Waypoints))]
             .try_into()
@@ -137,25 +136,28 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
     )?;
     let skills_offset = ATTRIBUTES_OFFSET + byte_position.current_byte + 1;
     save.skills = skills::parse(
-        &byte_vector[skills_offset..(skills_offset + 32)].try_into().unwrap(), save.character.class)?;
+        &byte_vector[skills_offset..(skills_offset + 32)].try_into().unwrap(),
+        save.character.class,
+    )?;
     let items_offset = skills_offset + 32;
     // TODO make byte_vector not mut
     save.items = items::parse(&byte_vector[items_offset..byte_vector.len()]);
     Ok(save)
 }
 
-impl Save{
+impl Save {
     pub fn write(&self) -> Vec<u8> {
         let mut result: Vec<u8> = Vec::<u8>::new();
         result.resize(765, 0x00);
-    
-        result[Range::<usize>::from(FileSection::from(Section::Signature))].copy_from_slice(&SIGNATURE);
+
+        result[Range::<usize>::from(FileSection::from(Section::Signature))]
+            .copy_from_slice(&SIGNATURE);
         result[Range::<usize>::from(FileSection::from(Section::Version))]
             .copy_from_slice(&u32::to_le_bytes(u32::from(self.version)));
         result[Range::<usize>::from(FileSection::from(Section::Character))]
             .copy_from_slice(&self.character.write());
         result[Range::<usize>::from(FileSection::from(Section::Quests))]
-            .copy_from_slice(&quests::generate(&self.quests));
+            .copy_from_slice(&self.quests.to_bytes());
         result[Range::<usize>::from(FileSection::from(Section::Waypoints))]
             .copy_from_slice(&waypoints::generate(&self.waypoints));
         result[Range::<usize>::from(FileSection::from(Section::Npcs))]
@@ -163,19 +165,24 @@ impl Save{
         result.append(&mut self.attributes.write());
         result.append(&mut self.skills.write());
         result.append(&mut items::generate(&self.items, self.character.mercenary.is_hired()));
-    
+
         let length = result.len() as u32;
         result[Range::<usize>::from(FileSection::from(Section::FileSize))]
             .copy_from_slice(&u32::to_le_bytes(length));
         let checksum = calc_checksum(&result);
         result[Range::<usize>::from(FileSection::from(Section::Checksum))]
             .copy_from_slice(&i32::to_le_bytes(checksum));
-    
+
         result
     }
 
-    pub fn default_class(class: Class) -> Self{
-        let default_class : Save = Save {attributes: Attributes::default_class(class), character: Character::default_class(class), skills: SkillSet::default_class(class), ..Default::default()};
+    pub fn default_class(class: Class) -> Self {
+        let default_class: Save = Save {
+            attributes: Attributes::default_class(class),
+            character: Character::default_class(class),
+            skills: SkillSet::default_class(class),
+            ..Default::default()
+        };
         default_class
     }
 }
@@ -259,11 +266,10 @@ impl fmt::Display for Difficulty {
         match self {
             Difficulty::Normal => write!(f, "Normal"),
             Difficulty::Nightmare => write!(f, "Nightmare"),
-            Difficulty::Hell => write!(f, "Hell")
+            Difficulty::Hell => write!(f, "Hell"),
         }
     }
 }
-
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Act {
@@ -326,7 +332,7 @@ pub enum Class {
     Assassin,
 }
 
-impl fmt::Display for Class{
+impl fmt::Display for Class {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let class: &'static str = match self {
             Class::Amazon => "Amazon",
@@ -335,7 +341,7 @@ impl fmt::Display for Class{
             Class::Paladin => "Paladin",
             Class::Barbarian => "Barbarian",
             Class::Druid => "Druid",
-            Class::Assassin => "Assassin"
+            Class::Assassin => "Assassin",
         };
         write!(f, "{0}", class)
     }
@@ -356,7 +362,6 @@ impl TryFrom<u8> for Class {
         }
     }
 }
-
 
 impl From<Class> for u8 {
     fn from(class: Class) -> u8 {
@@ -388,8 +393,8 @@ pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{path::Path, time::Duration};
     use crate::utils::*;
+    use std::{path::Path, time::Duration};
 
     #[test]
     fn test_parse_save() {
@@ -404,5 +409,4 @@ mod tests {
             Err(e) => panic!("test_parse_save failed: {e}"),
         };
     }
-
 }

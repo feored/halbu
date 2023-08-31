@@ -1,20 +1,22 @@
-use std::ops::Range;
 use std::cmp;
-use std::time::SystemTime;
 use std::collections::HashMap;
 use std::error::Error;
+use std::ops::Range;
+use std::time::SystemTime;
 
-use csv;
 use bit::BitIndex;
+use csv;
 
+pub struct SectionRange {
+    start: usize,
+    end: usize,
+}
 
 pub type Record = HashMap<String, String>;
 
-pub fn read_csv(csv_file: &[u8]) -> Result<Vec<Record>, Box<dyn Error>>{
-    let mut records : Vec<Record> = Vec::<Record>::new();
-    let mut rdr = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
-        .from_reader(csv_file);
+pub fn read_csv(csv_file: &[u8]) -> Result<Vec<Record>, Box<dyn Error>> {
+    let mut records: Vec<Record> = Vec::<Record>::new();
+    let mut rdr = csv::ReaderBuilder::new().delimiter(b'\t').from_reader(csv_file);
     for result in rdr.deserialize() {
         let record: Record = result?;
         records.push(record)
@@ -59,8 +61,6 @@ pub fn u16_from(slice: &[u8]) -> u16 {
 pub fn u8_from(slice: &[u8]) -> u8 {
     slice[0]
 }
-
-
 
 /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
 pub fn write_byte(
@@ -123,7 +123,6 @@ pub fn write_bits<T: Into<u32>>(
         byte_source_current += 1;
     }
 }
-
 
 /// Read a certain number of bits in a vector of bytes, starting at a given byte and bit index, and return a u32 with the value.
 ///

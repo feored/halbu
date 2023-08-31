@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 use std::ops::Range;
 use std::str;
@@ -5,85 +6,394 @@ use std::str;
 use bit::BitIndex;
 use serde::{Deserialize, Serialize};
 
-use crate::Act;
-use crate::Difficulty;
 use crate::ParseError;
 
 use crate::utils::u16_from;
-use crate::utils::u8_from;
-use crate::utils::FileSection;
 
-pub mod consts;
-use consts::*;
+const SECTION_LENGTH: usize = 298;
+const SECTION_HEADER: [u8; 10] = [0x57, 0x6F, 0x6F, 0x21, 0x06, 0x00, 0x00, 0x00, 0x2A, 0x01]; // Woo! + header
 
-#[derive(PartialEq, Eq, Debug)]
-enum Section {
-    Act1Introduction,
-    Act1Quests,
-    Act2Travel,
-    Act2Introduction,
-    Act2Quests,
-    Act3Travel,
-    Act3Introduction,
-    Act3Quests,
-    Act4Travel,
-    Act4Introduction,
-    Act4Quests,
-    Act5Travel,
-    BaseGameComplete,
-    Act5Quests,
-    ResetStats,
-    DifficultyComplete,
+pub enum Section {
+    Header,
+    Normal,
+    Nightmare,
+    Hell,
+    Act1,
+    Act2,
+    Act3,
+    Act4,
+    Act5,
 }
 
-impl From<Section> for FileSection {
-    fn from(section: Section) -> FileSection {
-        match section {
-            Section::Act1Introduction => FileSection { offset: 0, bytes: 2 },
-            Section::Act1Quests => FileSection { offset: 2, bytes: 12 },
-            Section::Act2Travel => FileSection { offset: 14, bytes: 2 },
-            Section::Act2Introduction => FileSection { offset: 16, bytes: 2 },
-            Section::Act2Quests => FileSection { offset: 18, bytes: 12 },
-            Section::Act3Travel => FileSection { offset: 30, bytes: 2 },
-            Section::Act3Introduction => FileSection { offset: 32, bytes: 2 },
-            Section::Act3Quests => FileSection { offset: 34, bytes: 12 },
-            Section::Act4Travel => FileSection { offset: 46, bytes: 2 },
-            Section::Act4Introduction => FileSection { offset: 48, bytes: 2 },
-            Section::Act4Quests => FileSection { offset: 50, bytes: 12 },
-            Section::Act5Travel => FileSection { offset: 62, bytes: 2 },
-            Section::BaseGameComplete => FileSection { offset: 64, bytes: 2 },
-            Section::Act5Quests => FileSection { offset: 70, bytes: 12 },
-            Section::ResetStats => FileSection { offset: 82, bytes: 1 },
-            Section::DifficultyComplete => FileSection { offset: 83, bytes: 1 },
+impl Section {
+    const fn range(self) -> Range<usize> {
+        match self {
+            Section::Header => 0..10,
+            Section::Normal => 10..106,
+            Section::Nightmare => 106..202,
+            Section::Hell => 202..298,
+            Section::Act1 => 0..16,
+            Section::Act2 => 16..32,
+            Section::Act3 => 32..48,
+            Section::Act4 => 48..64,
+            Section::Act5 => 64..84,
         }
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
-pub enum Stage {
-    Completed,
-    RequirementsMet,
-    Started,
-    Closed,
-    CompletedInGame,
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize, Hash)]
+pub enum QuestFlag {
+    RewardGranted = 0,
+    RewardPending = 1,
+    Started = 2,
+    LeaveTown = 3,
+    EnterArea = 4,
+    Custom1 = 5,
+    Custom2 = 6,
+    Custom3 = 7,
+    Custom4 = 8,
+    Custom5 = 9,
+    Custom6 = 10,
+    Custom7 = 11,
+    UpdateQuestLog = 12,
+    PrimaryGoalDone = 13,
+    CompletedNow = 14,
+    CompletedBefore = 15,
 }
+
+const ALL_QUEST_FLAGS: [QuestFlag; 16] = [
+    QuestFlag::RewardGranted,
+    QuestFlag::RewardPending,
+    QuestFlag::Started,
+    QuestFlag::LeaveTown,
+    QuestFlag::EnterArea,
+    QuestFlag::Custom1,
+    QuestFlag::Custom2,
+    QuestFlag::Custom3,
+    QuestFlag::Custom4,
+    QuestFlag::Custom5,
+    QuestFlag::Custom6,
+    QuestFlag::Custom7,
+    QuestFlag::UpdateQuestLog,
+    QuestFlag::PrimaryGoalDone,
+    QuestFlag::CompletedNow,
+    QuestFlag::CompletedBefore,
+];
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Quest {
-    id: usize,
-    name: String,
-    flags: u16,
-    act: Act,
-    difficulty: Difficulty,
+    pub state: HashSet<QuestFlag>,
+}
+
+impl From<u16> for Quest {
+    fn from(value: u16) -> Self {
+        let mut quest = Quest::default();
+        for qf in ALL_QUEST_FLAGS {
+            if value.bit(qf as usize) {
+                quest.state.insert(qf);
+            }
+        }
+        quest
+    }
+}
+
+pub fn apply_flag(short: &mut u16, flag: QuestFlag, value: bool) {
+    short.set_bit(flag as usize, value);
+}
+
+impl Quest {
+    pub fn value(&self) -> u16 {
+        let mut value: u16 = 0;
+        for flag in self.state.iter() {
+            apply_flag(&mut value, *flag, true);
+        }
+        value
+    }
 }
 
 impl fmt::Display for Quest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Quest State: {0:?}:\t{1:#018b}\t{1:X?}", self.state, self.value())
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
+pub struct Act1 {
+    pub prologue: Quest,
+    pub q1: Quest,
+    pub q2: Quest,
+    pub q3: Quest,
+    pub q4: Quest,
+    pub q5: Quest,
+    pub q6: Quest,
+    pub completion: Quest,
+}
+
+impl Act1 {
+    fn to_bytes(&self) -> [u8; 16] {
+        let mut quest_values: [u16; 8] = [0; 8];
+        quest_values[0] = self.prologue.value();
+        quest_values[1] = self.q1.value();
+        quest_values[2] = self.q2.value();
+        quest_values[3] = self.q3.value();
+        quest_values[4] = self.q4.value();
+        quest_values[5] = self.q5.value();
+        quest_values[6] = self.q6.value();
+        quest_values[7] = self.completion.value();
+        let mut quest_bytes: [u8; 16] = [0; 16];
+        for val in quest_values {
+            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        }
+        quest_bytes
+    }
+}
+
+impl From<&[u8]> for Act1 {
+    fn from(value: &[u8]) -> Self {
+        let mut complete_act = Act1::default();
+        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
+        complete_act.q1 = Quest::from(u16_from(&value[2..4]));
+        complete_act.q2 = Quest::from(u16_from(&value[4..6]));
+        complete_act.q3 = Quest::from(u16_from(&value[6..8]));
+        complete_act.q4 = Quest::from(u16_from(&value[8..10]));
+        complete_act.q5 = Quest::from(u16_from(&value[10..12]));
+        complete_act.q6 = Quest::from(u16_from(&value[12..14]));
+        complete_act.completion = Quest::from(u16_from(&value[14..16]));
+        complete_act
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
+pub struct Act2 {
+    pub prologue: Quest,
+    pub q1: Quest,
+    pub q2: Quest,
+    pub q3: Quest,
+    pub q4: Quest,
+    pub q5: Quest,
+    pub q6: Quest,
+    pub completion: Quest,
+}
+
+impl Act2 {
+    fn to_bytes(&self) -> [u8; 16] {
+        let mut quest_values: [u16; 8] = [0; 8];
+        quest_values[0] = self.prologue.value();
+        quest_values[1] = self.q1.value();
+        quest_values[2] = self.q2.value();
+        quest_values[3] = self.q3.value();
+        quest_values[4] = self.q4.value();
+        quest_values[5] = self.q5.value();
+        quest_values[6] = self.q6.value();
+        quest_values[7] = self.completion.value();
+        let mut quest_bytes: [u8; 16] = [0; 16];
+        for val in quest_values {
+            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        }
+        quest_bytes
+    }
+}
+
+impl From<&[u8]> for Act2 {
+    fn from(value: &[u8]) -> Self {
+        let mut complete_act = Act2::default();
+        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
+        complete_act.q1 = Quest::from(u16_from(&value[2..4]));
+        complete_act.q2 = Quest::from(u16_from(&value[4..6]));
+        complete_act.q3 = Quest::from(u16_from(&value[6..8]));
+        complete_act.q4 = Quest::from(u16_from(&value[8..10]));
+        complete_act.q5 = Quest::from(u16_from(&value[10..12]));
+        complete_act.q6 = Quest::from(u16_from(&value[12..14]));
+        complete_act.completion = Quest::from(u16_from(&value[14..16]));
+        complete_act
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
+pub struct Act3 {
+    pub prologue: Quest,
+    pub q1: Quest,
+    pub q2: Quest,
+    pub q3: Quest,
+    pub q4: Quest,
+    pub q5: Quest,
+    pub q6: Quest,
+    pub completion: Quest,
+}
+
+impl Act3 {
+    fn to_bytes(&self) -> [u8; 16] {
+        let mut quest_values: [u16; 8] = [0; 8];
+        quest_values[0] = self.prologue.value();
+        quest_values[1] = self.q1.value();
+        quest_values[2] = self.q2.value();
+        quest_values[3] = self.q3.value();
+        quest_values[4] = self.q4.value();
+        quest_values[5] = self.q5.value();
+        quest_values[6] = self.q6.value();
+        quest_values[7] = self.completion.value();
+        let mut quest_bytes: [u8; 16] = [0; 16];
+        for val in quest_values {
+            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        }
+        quest_bytes
+    }
+}
+
+impl From<&[u8]> for Act3 {
+    fn from(value: &[u8]) -> Self {
+        let mut complete_act = Act3::default();
+        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
+        complete_act.q1 = Quest::from(u16_from(&value[2..4]));
+        complete_act.q2 = Quest::from(u16_from(&value[4..6]));
+        complete_act.q3 = Quest::from(u16_from(&value[6..8]));
+        complete_act.q4 = Quest::from(u16_from(&value[8..10]));
+        complete_act.q5 = Quest::from(u16_from(&value[10..12]));
+        complete_act.q6 = Quest::from(u16_from(&value[12..14]));
+        complete_act.completion = Quest::from(u16_from(&value[14..16]));
+        complete_act
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
+pub struct Act4 {
+    pub prologue: Quest,
+    pub q1: Quest,
+    pub q2: Quest,
+    pub q3: Quest,
+    pub completion: Quest,
+    pub unused_1: Quest,
+    pub unused_2: Quest,
+    pub unused_3: Quest,
+}
+
+impl Act4 {
+    fn to_bytes(&self) -> [u8; 16] {
+        let mut quest_values: [u16; 8] = [0; 8];
+        quest_values[0] = self.prologue.value();
+        quest_values[1] = self.q1.value();
+        quest_values[2] = self.q2.value();
+        quest_values[3] = self.q3.value();
+        quest_values[4] = self.completion.value();
+        quest_values[5] = self.unused_1.value();
+        quest_values[6] = self.unused_2.value();
+        quest_values[7] = self.unused_3.value();
+        let mut quest_bytes: [u8; 16] = [0; 16];
+        for val in quest_values {
+            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        }
+        quest_bytes
+    }
+}
+
+impl From<&[u8]> for Act4 {
+    fn from(value: &[u8]) -> Self {
+        let mut complete_act = Act4::default();
+        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
+        complete_act.q1 = Quest::from(u16_from(&value[2..4]));
+        complete_act.q2 = Quest::from(u16_from(&value[4..6]));
+        complete_act.q3 = Quest::from(u16_from(&value[6..8]));
+        complete_act.completion = Quest::from(u16_from(&value[8..10]));
+        complete_act.unused_1 = Quest::from(u16_from(&value[10..12]));
+        complete_act.unused_2 = Quest::from(u16_from(&value[12..14]));
+        complete_act.unused_3 = Quest::from(u16_from(&value[14..16]));
+        complete_act
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
+pub struct Act5 {
+    pub prologue: Quest,
+    pub unused_1: Quest,
+    pub unused_2: Quest,
+    pub q1: Quest,
+    pub q2: Quest,
+    pub q3: Quest,
+    pub q4: Quest,
+    pub q5: Quest,
+    pub q6: Quest,
+    pub completion: Quest,
+}
+
+impl Act5 {
+    fn to_bytes(&self) -> [u8; 20] {
+        let mut quest_values: [u16; 10] = [0; 10];
+        quest_values[0] = self.prologue.value();
+        quest_values[1] = self.unused_1.value();
+        quest_values[2] = self.unused_2.value();
+        quest_values[3] = self.q1.value();
+        quest_values[4] = self.q2.value();
+        quest_values[5] = self.q3.value();
+        quest_values[6] = self.q4.value();
+        quest_values[7] = self.q5.value();
+        quest_values[8] = self.q6.value();
+        quest_values[9] = self.completion.value();
+        let mut quest_bytes: [u8; 20] = [0; 20];
+        for val in quest_values {
+            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        }
+        quest_bytes
+    }
+}
+
+impl From<&[u8]> for Act5 {
+    fn from(value: &[u8]) -> Self {
+        let mut complete_act = Act5::default();
+        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
+        complete_act.unused_1 = Quest::from(u16_from(&value[2..4]));
+        complete_act.unused_2 = Quest::from(u16_from(&value[4..6]));
+        complete_act.q1 = Quest::from(u16_from(&value[6..8]));
+        complete_act.q2 = Quest::from(u16_from(&value[8..10]));
+        complete_act.q3 = Quest::from(u16_from(&value[10..12]));
+        complete_act.q4 = Quest::from(u16_from(&value[12..14]));
+        complete_act.q5 = Quest::from(u16_from(&value[14..16]));
+        complete_act.q6 = Quest::from(u16_from(&value[16..18]));
+        complete_act.completion = Quest::from(u16_from(&value[18..20]));
+        complete_act
+    }
+}
+
+impl fmt::Display for DifficultyQuests {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Quest {0}:\t{1}\t({2} {3}):\t{4:#018b}\t{4:?}\t {4:X?}",
-            self.id, self.name, self.act, self.difficulty, self.flags
+            "Act I:\n {0:?}\nAct II:\n{1:?}\nAct III:\n{2:?}\nAct IV:\n{3:?}\nAct V:\n{4:?}",
+            self.act1, self.act2, self.act3, self.act4, self.act5
         )
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
+pub struct DifficultyQuests {
+    pub act1: Act1,
+    pub act2: Act2,
+    pub act3: Act3,
+    pub act4: Act4,
+    pub act5: Act5,
+}
+
+// section length = 298bytes -> header 10 bytes -> 288bytes for all quests -> 96 * 3 difficulties
+impl DifficultyQuests {
+    pub fn to_bytes(&self) -> [u8; 96] {
+        let mut byte_vector: [u8; 96] = [0; 96];
+        byte_vector[Section::Act1.range()].copy_from_slice(&self.act1.to_bytes());
+        byte_vector[Section::Act2.range()].copy_from_slice(&self.act2.to_bytes());
+        byte_vector[Section::Act3.range()].copy_from_slice(&self.act3.to_bytes());
+        byte_vector[Section::Act4.range()].copy_from_slice(&self.act4.to_bytes());
+        byte_vector[Section::Act5.range()].copy_from_slice(&self.act5.to_bytes());
+        byte_vector
+    }
+}
+
+impl From<&[u8]> for DifficultyQuests {
+    fn from(value: &[u8]) -> Self {
+        let mut diff_quests: DifficultyQuests = DifficultyQuests::default();
+        diff_quests.act1 = Act1::from(&value[Section::Act1.range()]);
+        diff_quests.act2 = Act2::from(&value[Section::Act2.range()]);
+        diff_quests.act3 = Act3::from(&value[Section::Act3.range()]);
+        diff_quests.act4 = Act4::from(&value[Section::Act4.range()]);
+        diff_quests.act5 = Act5::from(&value[Section::Act5.range()]);
+        diff_quests
     }
 }
 
@@ -100,271 +410,44 @@ impl fmt::Display for Quests {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
-pub struct DifficultyQuests {
-    pub flags: QuestFlags,
-    pub quests: QuestSet,
-}
+impl Quests {
+    pub fn to_bytes(&self) -> [u8; 298] {
+        let mut byte_vector: [u8; 298] = [0; 298];
+        byte_vector[Section::Header.range()].copy_from_slice(&SECTION_HEADER);
+        byte_vector[Section::Normal.range()].copy_from_slice(&self.normal.to_bytes());
+        byte_vector[Section::Nightmare.range()].copy_from_slice(&self.nightmare.to_bytes());
+        byte_vector[Section::Hell.range()].copy_from_slice(&self.hell.to_bytes());
+        byte_vector
+    }
 
-pub type QuestSet = [Quest; 27];
-
-impl fmt::Display for DifficultyQuests {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut final_string = format!("Flags:\n {0}\nQuests:\n", self.flags);
-        for i in 0..self.quests.len() {
-            final_string.push_str(&format!("{0}\n", self.quests[i]));
+    pub fn parse(bytes: &[u8]) -> Result<Self, ParseError> {
+        if bytes.len() < SECTION_LENGTH {
+            return Err(ParseError {
+                message: format!(
+                    "Quests section should be {0} bytes but found {1} instead.",
+                    SECTION_LENGTH,
+                    bytes.len()
+                ),
+            });
         }
-        write!(f, "{0}", final_string)
-    }
-}
-
-#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, Serialize, Deserialize)]
-pub struct QuestFlags {
-    pub act_1_introduction: bool,
-    pub act_2_travel: bool,
-    pub act_2_introduction: bool,
-    pub act_3_travel: bool,
-    pub act_3_introduction: bool,
-    pub act_4_travel: bool,
-    pub act_4_introduction: bool,
-    pub act_5_travel: bool,
-    pub completed_base_game: bool,
-    pub reset_stats: bool,
-    pub completed_difficulty: bool,
-}
-
-impl fmt::Display for QuestFlags {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Completed difficulty: {0:?}", self.completed_difficulty)
-    }
-}
-
-#[allow(dead_code)]
-impl Quest {
-    fn set_stage(&mut self, stage: Stage, value: bool) {
-        self.flags.set_bit(usize::from(stage), value);
-    }
-    fn finish(&mut self) {
-        self.set_stage(Stage::Completed, true);
-        self.set_stage(Stage::Closed, true);
-    }
-    fn clear(&mut self) {
-        self.flags = 0;
-    }
-}
-
-impl From<Stage> for usize {
-    fn from(stage: Stage) -> usize {
-        match stage {
-            Stage::Completed => 0,
-            Stage::RequirementsMet => 1,
-            Stage::Started => 2,
-            Stage::Closed => 12,
-            Stage::CompletedInGame => 13,
+        if bytes[Section::Header.range()] != SECTION_HEADER {
+            return Err(ParseError {
+                message: format!(
+                    "Found wrong header for quests, expected {0:X?} but found {1:X?}",
+                    SECTION_HEADER,
+                    &bytes[Section::Header.range()]
+                ),
+            });
         }
+
+        let mut quests: Quests = Quests::default();
+
+        quests.normal = DifficultyQuests::from(&bytes[Section::Normal.range()]);
+        quests.nightmare = DifficultyQuests::from(&bytes[Section::Nightmare.range()]);
+        quests.hell = DifficultyQuests::from(&bytes[Section::Hell.range()]);
+
+        Ok(quests)
     }
-}
-
-fn write_flags(bytes: &mut [u8], flags: &QuestFlags) {
-    bytes[Range::<usize>::from(FileSection::from(Section::Act1Introduction))]
-        .copy_from_slice(&u16::to_le_bytes(flags.act_1_introduction as u16));
-    bytes[Range::<usize>::from(FileSection::from(Section::Act2Travel))]
-        .copy_from_slice(&u16::to_le_bytes(flags.act_2_travel as u16));
-    bytes[Range::<usize>::from(FileSection::from(Section::Act2Introduction))]
-        .copy_from_slice(&u16::to_le_bytes(flags.act_2_introduction as u16));
-    bytes[Range::<usize>::from(FileSection::from(Section::Act3Travel))]
-        .copy_from_slice(&u16::to_le_bytes(flags.act_3_travel as u16));
-    bytes[Range::<usize>::from(FileSection::from(Section::Act3Introduction))]
-        .copy_from_slice(&u16::to_le_bytes(flags.act_3_introduction as u16));
-    bytes[Range::<usize>::from(FileSection::from(Section::Act4Travel))]
-        .copy_from_slice(&u16::to_le_bytes(flags.act_4_travel as u16));
-    bytes[Range::<usize>::from(FileSection::from(Section::Act4Introduction))]
-        .copy_from_slice(&u16::to_le_bytes(flags.act_4_introduction as u16));
-    bytes[Range::<usize>::from(FileSection::from(Section::Act5Travel))]
-        .copy_from_slice(&u16::to_le_bytes(flags.act_5_travel as u16));
-    bytes[Range::<usize>::from(FileSection::from(Section::BaseGameComplete))]
-        .copy_from_slice(&u16::to_le_bytes(flags.completed_base_game as u16));
-    bytes[Range::<usize>::from(FileSection::from(Section::ResetStats))]
-        .copy_from_slice(&u8::to_le_bytes(flags.reset_stats as u8));
-    bytes[Range::<usize>::from(FileSection::from(Section::DifficultyComplete))].copy_from_slice(
-        match flags.completed_difficulty {
-            true => &[0x80],
-            false => &[0x00],
-        },
-    );
-}
-
-fn parse_flags(bytes: &[u8; 96]) -> Result<QuestFlags, ParseError> {
-    let mut flags: QuestFlags = QuestFlags::default();
-    flags.act_1_introduction =
-        0 != u16_from(&bytes[Range::<usize>::from(FileSection::from(Section::Act1Introduction))]);
-    // Any non-zero is considered true
-    flags.act_2_travel =
-        0 != u16_from(&bytes[Range::<usize>::from(FileSection::from(Section::Act2Travel))]);
-    flags.act_2_introduction =
-        0 != u16_from(&bytes[Range::<usize>::from(FileSection::from(Section::Act2Introduction))]);
-    flags.act_3_travel =
-        0 != u16_from(&bytes[Range::<usize>::from(FileSection::from(Section::Act3Travel))]);
-    flags.act_3_introduction =
-        0 != u16_from(&bytes[Range::<usize>::from(FileSection::from(Section::Act3Introduction))]);
-    flags.act_4_travel =
-        0 != u16_from(&bytes[Range::<usize>::from(FileSection::from(Section::Act4Travel))]);
-    flags.act_4_introduction =
-        0 != u16_from(&bytes[Range::<usize>::from(FileSection::from(Section::Act4Introduction))]);
-    flags.act_5_travel =
-        0 != u16_from(&bytes[Range::<usize>::from(FileSection::from(Section::Act5Travel))]);
-    flags.completed_base_game =
-        0 != u16_from(&bytes[Range::<usize>::from(FileSection::from(Section::BaseGameComplete))]);
-    flags.reset_stats =
-        0 != u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::ResetStats))]);
-    flags.completed_difficulty =
-        0 != u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::DifficultyComplete))]);
-    Ok(flags)
-}
-
-fn write_quests(byte_vector: &mut [u8], quests: &QuestSet) {
-    for act in 0..=4 {
-        let mut act_quests: [u8; 12] = [0x00; 12];
-        let quests_number = match act {
-            0..=2 | 4 => 6,
-            3 => 3,
-            _ => unreachable!(),
-        };
-        for i in 0..quests_number {
-            let quest_index = i + match act {
-                0 => 0,
-                1 => 6,
-                2 => 12,
-                3 => 18,
-                4 => 21,
-                _ => unreachable!(),
-            };
-            let quest_value = u16::to_le_bytes(quests[quest_index].flags);
-            // println!{"@@@@@ Quest: {0}", quests[quest_index]};
-            // println!("%%%%% Flags: {0:?} Quest value: {quest_value:X?} ", quests[quest_index].flags);
-            act_quests[i * 2] = quest_value[0];
-            act_quests[(i * 2) + 1] = quest_value[1];
-            // println!("Putting them at {0}..{1}", (i * 2), (i * 2) + 1);
-            // println!{"Current quests: {0:X?}", act_quests};
-        }
-        let section = match act {
-            0 => Section::Act1Quests,
-            1 => Section::Act2Quests,
-            2 => Section::Act3Quests,
-            3 => Section::Act4Quests,
-            4 => Section::Act5Quests,
-            _ => unreachable!(),
-        };
-        // println!{"############# Writing quests: {0:X?}", act_quests};
-        byte_vector[Range::<usize>::from(FileSection::from(section))].copy_from_slice(&act_quests);
-    }
-}
-
-fn parse_quests(bytes: &[u8; 96], difficulty: Difficulty) -> Result<QuestSet, ParseError> {
-    let mut quests: QuestSet = QuestSet::default();
-    let act_1_quests = &bytes[Range::<usize>::from(FileSection::from(Section::Act1Quests))];
-    // println!("{0:X?}", act_1_quests);
-    for i in 0..6 {
-        // println!("{0:X?}", &act_1_quests[(i*2)..((i*2)+ 2)]);
-        quests[i] = Quest {
-            id: i,
-            name: String::from(ACT_1_QUESTS[i]),
-            act: Act::Act1,
-            difficulty,
-            flags: u16_from(&act_1_quests[(i * 2)..((i * 2) + 2)]),
-        };
-    }
-
-    let act_2_quests = &bytes[Range::<usize>::from(FileSection::from(Section::Act2Quests))];
-    for i in 0..6 {
-        quests[i + 6] = Quest {
-            id: i + 6,
-            name: String::from(ACT_2_QUESTS[i]),
-            act: Act::Act2,
-            difficulty,
-            flags: u16_from(&act_2_quests[(i * 2)..((i * 2) + 2)]),
-        };
-    }
-
-    let act_3_quests = &bytes[Range::<usize>::from(FileSection::from(Section::Act3Quests))];
-    for i in 0..6 {
-        quests[i + 12] = Quest {
-            id: i + 12,
-            name: String::from(ACT_3_QUESTS[i]),
-            act: Act::Act3,
-            difficulty,
-            flags: u16_from(&act_3_quests[(i * 2)..((i * 2) + 2)]),
-        };
-    }
-
-    let act_4_quests = &bytes[Range::<usize>::from(FileSection::from(Section::Act4Quests))];
-    for i in 0..3 {
-        quests[i + 18] = Quest {
-            id: i + 18,
-            name: String::from(ACT_4_QUESTS[i]),
-            act: Act::Act4,
-            difficulty,
-            flags: u16_from(&act_4_quests[(i * 2)..((i * 2) + 2)]),
-        };
-    }
-
-    let act_5_quests = &bytes[Range::<usize>::from(FileSection::from(Section::Act5Quests))];
-    for i in 0..6 {
-        quests[i + 21] = Quest {
-            id: i + 21,
-            name: String::from(ACT_5_QUESTS[i]),
-            act: Act::Act5,
-            difficulty,
-            flags: u16_from(&act_5_quests[(i * 2)..((i * 2) + 2)]),
-        };
-    }
-
-    Ok(quests)
-}
-
-pub fn parse(bytes: &[u8; 298]) -> Result<Quests, ParseError> {
-    if bytes[0..10] != SECTION_HEADER {
-        return Err(ParseError {
-            message: format! {"Found wrong header for quests: {:02X?}", &bytes[0..10]},
-        });
-    }
-    let mut quests = Quests::default();
-
-    quests.normal.quests = parse_quests(&bytes[10..106].try_into().unwrap(), Difficulty::Normal)?;
-    quests.nightmare.quests =
-        parse_quests(&bytes[106..202].try_into().unwrap(), Difficulty::Nightmare)?;
-    quests.hell.quests = parse_quests(&bytes[202..298].try_into().unwrap(), Difficulty::Hell)?;
-
-    quests.normal.flags = parse_flags(&bytes[10..106].try_into().unwrap())?;
-    quests.nightmare.flags = parse_flags(&bytes[106..202].try_into().unwrap())?;
-    quests.hell.flags = parse_flags(&bytes[202..298].try_into().unwrap())?;
-
-    Ok(quests)
-}
-
-pub fn generate(all_quests: &Quests) -> Vec<u8> {
-    let mut byte_vector = SECTION_HEADER.to_vec();
-    byte_vector.resize(298, 0x00);
-
-    let mut normal = Vec::<u8>::new();
-    normal.resize(96, 0x00);
-    write_quests(&mut normal, &all_quests.normal.quests);
-    write_flags(&mut normal, &all_quests.normal.flags);
-    byte_vector[10..106].copy_from_slice(&normal);
-
-    let mut nightmare = Vec::<u8>::new();
-    nightmare.resize(96, 0x00);
-    write_quests(&mut nightmare, &all_quests.nightmare.quests);
-    write_flags(&mut nightmare, &all_quests.nightmare.flags);
-    byte_vector[106..202].copy_from_slice(&nightmare);
-
-    let mut hell = Vec::<u8>::new();
-    hell.resize(96, 0x00);
-    write_quests(&mut hell, &all_quests.hell.quests);
-    write_flags(&mut hell, &all_quests.hell.flags);
-    byte_vector[202..298].copy_from_slice(&hell);
-
-    byte_vector
 }
 
 #[cfg(test)]
