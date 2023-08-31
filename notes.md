@@ -173,8 +173,6 @@ experience/xp_rate < 761852, therefore level = s - 1 = 90
 ```
 ## Attributes
 
-Incompatible with 1.09 and before.
-
 Saved is col 7
 CSvSigned is col 8
 CSvBits# is col 9
@@ -202,20 +200,45 @@ CSvBits# is col 9
 
 ## Quests
 
-Ex: Den of Evil
+The data for every quest is held in 2 bytes. The quests structure contains 8 quests for every act:
+one for the introduction to a new act, 6 for every quest (3 in act 4 + padding), and a completion quest.
 
-Quest not started: 0x00 0x00 =>                                 0000 0000   0000 0000
+Some of the flags are constant, others depend on the quest.
 
-Quest started (Talked to Akara): 0x04 0x00 =>                   0000 0000   0000 0100
+Here is the list, from [D2MOO](https://github.com/ThePhrozenKeep/D2MOO/blob/57dcc6ceb493a33dfba82461bd96dd04adb471fe/source/D2CommonDefinitions/include/D2Constants.h#L587):
 
-Cleared Den of Evil (Return to Akara for reward): 0x1C 0x00 =>  0000 0000   0001 1100
+| Flag                         | Bit |
+|  --------------------------- | --- |
+| QFLAG_REWARDGRANTED          | 0   |
+| QFLAG_REWARDPENDING          | 1   |
+| QFLAG_STARTED                | 2   |
+| QFLAG_LEAVETOWN              | 3   |
+| QFLAG_ENTERAREA              | 4   |
+| QFLAG_CUSTOM1                | 5   |
+| QFLAG_CUSTOM2                | 6   |
+| QFLAG_CUSTOM3                | 7   |
+| QFLAG_CUSTOM4                | 8   |
+| QFLAG_CUSTOM5                | 9   |
+| QFLAG_CUSTOM6                | 10  |
+| QFLAG_CUSTOM7                | 11  |
+| QFLAG_UPDATEQUESTLOG         | 12  |
+| QFLAG_PRIMARYGOALDONE        | 13  |
+| QFLAG_COMPLETEDNOW           | 14  |
+| QFLAG_COMPLETEDBEFORE        | 15  |
 
-Talked to Akara (Completed quest): 0x01 0x30 =>                 0011 0000   0000 0001
+As always, bits should be read right to left.
 
-Used skill point: 0x01 0x10 =>                                  0001 0000   0000 0001
+Example of some stages of Den of Evil:
 
+| Quest Stage                                      | Bytes     | Binary                  | Flags Set                                                      |
+| ------------------------------------------------ | --------- | ----------------------- | -------------------------------------------------------------- |
+| Quest not started                                | 0x00 0x00 | 0000 0000   0000 0000   | None                                                           |
+| Quest started (Talked to Akara)                  | 0x04 0x00 | 0000 0000   0000 0100   | QFLAG_STARTED                                                  |
+| Cleared Den of Evil (Return to Akara for reward) | 0x1C 0x00 | 0000 0000   0001 1100   | QFLAG_STARTED QFLAG_LEAVETOWN QFLAG_ENTERAREA                  |
+| Talked to Akara (Completed quest)                | 0x01 0x30 | 0011 0000   0000 0001   | QFLAG_REWARDGRANTED QFLAG_UPDATEQUESTLOG QFLAG_PRIMARYGOALDONE |
+| Used skill point                                 | 0x01 0x10 | 0001 0000   0000 0001   | QFLAG_REWARDGRANTED QFLAG_UPDATEQUESTLOG                       |
 
-Akara reset (offset 82) seems to be set to 2 if unlocked but not used, and to 1 if used.
+Akara reset (offset 82 out of 96) seems to be set to 2 if unlocked but not used, and to 1 if used.
 
 ## Waypoints
 
