@@ -1,4 +1,5 @@
-use crate::ParseError;
+use crate::utils::u16_from;
+use crate::utils::u32_from;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Range;
@@ -44,23 +45,6 @@ impl fmt::Display for Mercenary {
     }
 }
 
-pub fn parse(data: &[u8; 14]) -> Result<Mercenary, ParseError> {
-    let mut mercenary: Mercenary = Mercenary::default();
-    if u16::from_le_bytes(<[u8; 2]>::try_from(&data[Section::IsDead.range()]).unwrap()) != 0 {
-        mercenary.is_dead = true;
-    }
-
-    mercenary.id = u32::from_le_bytes(<[u8; 4]>::try_from(&data[Section::Id.range()]).unwrap());
-    mercenary.variant_id =
-        u16::from_le_bytes(<[u8; 2]>::try_from(&data[Section::VariantId.range()]).unwrap());
-    mercenary.name_id =
-        u16::from_le_bytes(<[u8; 2]>::try_from(&data[Section::NameId.range()]).unwrap());
-    mercenary.experience =
-        u32::from_le_bytes(<[u8; 4]>::try_from(&data[Section::Experience.range()]).unwrap());
-
-    Ok(mercenary)
-}
-
 impl Mercenary {
     pub fn write(&self) -> [u8; 14] {
         let mut bytes: [u8; 14] = [0x00; 14];
@@ -74,6 +58,20 @@ impl Mercenary {
         bytes[Section::VariantId.range()].copy_from_slice(&self.variant_id.to_le_bytes());
         bytes[Section::Experience.range()].copy_from_slice(&self.experience.to_le_bytes());
         bytes
+    }
+
+    pub fn parse(data: &[u8; 14]) -> Mercenary {
+        let mut mercenary: Mercenary = Mercenary::default();
+        if u16_from(&data[Section::IsDead.range()], "mercenary.is_dead") != 0 {
+            mercenary.is_dead = true;
+        }
+
+        mercenary.id = u32_from(&data[Section::Id.range()], "mercenary.id");
+        mercenary.variant_id = u16_from(&data[Section::VariantId.range()], "mercenary.variant_id");
+        mercenary.name_id = u16_from(&data[Section::NameId.range()], "mercenary.name_id");
+        mercenary.experience = u32_from(&data[Section::Experience.range()], "mercenary.experience");
+
+        mercenary
     }
 
     pub fn is_hired(&self) -> bool {

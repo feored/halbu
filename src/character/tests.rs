@@ -36,7 +36,7 @@ mod tests {
             class: Class::Sorceress,
             level: 92,
             last_played: 1690118587,
-            progression:15,
+            progression: 15,
             assigned_skills: [
                 40, 59, 54, 42, 43, 65535, 65535, 155, 149, 52, 220, 65535, 65535, 65535, 65535,
                 65535,
@@ -66,14 +66,7 @@ mod tests {
             ],
             name: String::from("Nyahallo"),
         };
-        let parsed_result = match parse(&bytes) {
-            Ok(result) => result,
-            Err(e) => {
-                println!("{e:?}");
-                assert_eq!(false, true);
-                return;
-            }
-        };
+        let parsed_result = Character::parse(&bytes);
         assert_eq!(parsed_result, expected_result);
     }
 
@@ -141,9 +134,8 @@ mod tests {
             ],
             name: String::from("Nyahallo"),
         };
-        let generated_result = character.write();
+        let generated_result = character.to_bytes();
 
         assert_eq!(expected_result, generated_result);
     }
-
 }

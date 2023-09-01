@@ -10,11 +10,19 @@ mod tests {
             0x00, 0x00, 0x00, 0x14,
         ];
 
-        let skills = parse(&byte_vector, Class::Sorceress).unwrap();
+        let skills = SkillSet::parse(&byte_vector, Class::Sorceress);
         // Teleport
-        assert_eq!(skills.0[18], Skill{name: String::from("Teleport"), skilldesc:  String::from("teleport"), id: 54, points: 1});
+        assert_eq!(
+            skills.0[18],
+            Skill {
+                name: String::from("Teleport"),
+                skilldesc: String::from("teleport"),
+                id: 54,
+                points: 1
+            }
+        );
 
-        let result = skills.write();
+        let result = skills.to_bytes();
 
         assert_eq!(result, byte_vector);
     }
@@ -27,10 +35,16 @@ mod tests {
             0x00, 0x00, 0x00, 0x14,
         ];
 
-        let skills = parse(&byte_vector, Class::Sorceress).unwrap();
+        let skills = SkillSet::parse(&byte_vector, Class::Sorceress);
         // Ice blast
-        assert_eq!(skills.0[9], Skill{points: 17, name: String::from("Ice Blast"), id: 45, skilldesc:String::from("ice blast")});
-
+        assert_eq!(
+            skills.0[9],
+            Skill {
+                points: 17,
+                name: String::from("Ice Blast"),
+                id: 45,
+                skilldesc: String::from("ice blast")
+            }
+        );
     }
-
 }
