@@ -2,6 +2,7 @@ use std::fmt;
 use std::ops::Range;
 
 use bit::BitIndex;
+use log::warn;
 use serde::{Deserialize, Serialize};
 
 use crate::Act;
@@ -61,14 +62,6 @@ impl fmt::Display for Waypoints {
         )
     }
 }
-
-// impl Waypoints {
-//     fn acquire(&mut self, difficulty: Difficulty, id: Waypoint) {
-//         match Act::from(id) {
-//             Act::Act1 => self.act1[id as usize].acquired = true,
-//         }
-//     }
-// }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct DifficultyWaypoints {
@@ -258,106 +251,112 @@ impl TryFrom<usize> for Waypoint {
     }
 }
 
-fn parse_waypoints(bytes: &[u8; 24]) -> Result<DifficultyWaypoints, ParseError> {
-    let mut waypoints: DifficultyWaypoints = DifficultyWaypoints::default();
-    if bytes[Section::DifficultyHeader.range()] != DIFFICULTY_HEADER {
-        return Err(ParseError {
-            message: format!("Found wrong waypoint difficulty header: {0:X?}", &bytes[0..2]),
-        });
+impl Waypoints {
+    pub fn parse(bytes: &[u8]) -> Waypoints {
+        let mut waypoints = Waypoints::default();
+
+        if bytes[Section::Header.range()] != SECTION_HEADER {
+            warn!(
+                "Found wrong waypoints header: {0:X?} (Expected: {1:X?}",
+                &bytes[Section::Header.range()],
+                SECTION_HEADER
+            );
+        }
+        waypoints.normal =
+            Waypoints::parse_difficulty(&bytes[Section::Normal.range()].try_into().unwrap());
+        waypoints.nightmare =
+            Waypoints::parse_difficulty(&bytes[Section::Nightmare.range()].try_into().unwrap());
+        waypoints.hell =
+            Waypoints::parse_difficulty(&bytes[Section::Hell.range()].try_into().unwrap());
+        waypoints
     }
-    for id in 0..39 {
-        let current_byte = bytes[2 + id / 8];
-        let waypoint = Waypoint::try_from(id)?;
-        match Act::from(waypoint) {
-            Act::Act1 => {
-                waypoints.act1[id] = WaypointInfo {
-                    id: waypoint,
-                    name: String::from(NAMES_ACT1[id]),
-                    act: Act::Act1,
-                    acquired: current_byte.bit(id % 8),
+
+    fn parse_difficulty(bytes: &[u8; 24]) -> DifficultyWaypoints {
+        let mut waypoints: DifficultyWaypoints = DifficultyWaypoints::default();
+        if bytes[Section::DifficultyHeader.range()] != DIFFICULTY_HEADER {
+            warn!(
+                "Found wrong waypoint difficulty header: {0:X?} (Expected: {1:X?}",
+                &bytes[0..2],
+                DIFFICULTY_HEADER
+            );
+        }
+        for id in 0..39 {
+            let current_byte = bytes[2 + id / 8];
+            let waypoint = Waypoint::try_from(id).unwrap();
+            match Act::from(waypoint) {
+                Act::Act1 => {
+                    waypoints.act1[id] = WaypointInfo {
+                        id: waypoint,
+                        name: String::from(NAMES_ACT1[id]),
+                        act: Act::Act1,
+                        acquired: current_byte.bit(id % 8),
+                    }
                 }
-            }
-            Act::Act2 => {
-                waypoints.act2[id - 9] = WaypointInfo {
-                    id: waypoint,
-                    name: String::from(NAMES_ACT2[id - 9]),
-                    act: Act::Act2,
-                    acquired: current_byte.bit(id % 8),
+                Act::Act2 => {
+                    waypoints.act2[id - 9] = WaypointInfo {
+                        id: waypoint,
+                        name: String::from(NAMES_ACT2[id - 9]),
+                        act: Act::Act2,
+                        acquired: current_byte.bit(id % 8),
+                    }
                 }
-            }
-            Act::Act3 => {
-                waypoints.act3[id - 18] = WaypointInfo {
-                    id: waypoint,
-                    name: String::from(NAMES_ACT3[id - 18]),
-                    act: Act::Act3,
-                    acquired: current_byte.bit(id % 8),
+                Act::Act3 => {
+                    waypoints.act3[id - 18] = WaypointInfo {
+                        id: waypoint,
+                        name: String::from(NAMES_ACT3[id - 18]),
+                        act: Act::Act3,
+                        acquired: current_byte.bit(id % 8),
+                    }
                 }
-            }
-            Act::Act4 => {
-                waypoints.act4[id - 27] = WaypointInfo {
-                    id: waypoint,
-                    name: String::from(NAMES_ACT4[id - 27]),
-                    act: Act::Act4,
-                    acquired: current_byte.bit(id % 8),
+                Act::Act4 => {
+                    waypoints.act4[id - 27] = WaypointInfo {
+                        id: waypoint,
+                        name: String::from(NAMES_ACT4[id - 27]),
+                        act: Act::Act4,
+                        acquired: current_byte.bit(id % 8),
+                    }
                 }
-            }
-            Act::Act5 => {
-                waypoints.act5[id - 30] = WaypointInfo {
-                    id: waypoint,
-                    name: String::from(NAMES_ACT5[id - 30]),
-                    act: Act::Act5,
-                    acquired: current_byte.bit(id % 8),
+                Act::Act5 => {
+                    waypoints.act5[id - 30] = WaypointInfo {
+                        id: waypoint,
+                        name: String::from(NAMES_ACT5[id - 30]),
+                        act: Act::Act5,
+                        acquired: current_byte.bit(id % 8),
+                    }
                 }
             }
         }
+        waypoints
     }
-    Ok(waypoints)
-}
 
-pub fn parse(bytes: &[u8; 80]) -> Result<Waypoints, ParseError> {
-    let mut waypoints = Waypoints::default();
-    if bytes[Section::Header.range()] != SECTION_HEADER {
-        return Err(ParseError {
-            message: format!(
-                "Found wrong waypoints header: {0:X?}",
-                &bytes[Section::Header.range()]
-            ),
-        });
+    pub fn to_bytes(&self) -> [u8; 80] {
+        let mut bytes: [u8; 80] = [0x00; 80];
+        bytes[Section::Header.range()].copy_from_slice(&SECTION_HEADER);
+        bytes[Section::Normal.range()]
+            .copy_from_slice(&Waypoints::difficulty_to_bytes(&self.normal));
+        bytes[Section::Nightmare.range()]
+            .copy_from_slice(&Waypoints::difficulty_to_bytes(&self.nightmare));
+        bytes[Section::Hell.range()].copy_from_slice(&Waypoints::difficulty_to_bytes(&self.hell));
+        bytes
     }
-    waypoints.normal = match parse_waypoints(&bytes[Section::Normal.range()].try_into().unwrap()) {
-        Ok(res) => res,
-        Err(e) => return Err(e),
-    };
-    waypoints.nightmare = parse_waypoints(&bytes[Section::Nightmare.range()].try_into().unwrap())?;
-    waypoints.hell = parse_waypoints(&bytes[Section::Hell.range()].try_into().unwrap())?;
-    Ok(waypoints)
-}
 
-fn generate_difficulty(waypoints: &DifficultyWaypoints) -> [u8; 24] {
-    let mut bytes: [u8; 24] = [0x00; 24];
-    bytes[0..2].copy_from_slice(&DIFFICULTY_HEADER);
-    fn fill_flags(waypoints: &[WaypointInfo], length: usize) -> u64 {
+    fn difficulty_to_bytes(waypoints: &DifficultyWaypoints) -> [u8; 24] {
+        let mut bytes: [u8; 24] = [0x00; 24];
+        bytes[0..2].copy_from_slice(&DIFFICULTY_HEADER);
+        fn fill_flags(waypoints: &[WaypointInfo], length: usize) -> u64 {
+            let mut flags: u64 = 0;
+            for i in 0..length {
+                flags.set_bit(i, waypoints[i].acquired);
+            }
+            flags
+        }
         let mut flags: u64 = 0;
-        for i in 0..length {
-            flags.set_bit(i, waypoints[i].acquired);
-        }
-        flags
+        flags.set_bit_range(0..9, fill_flags(&waypoints.act1, 9).bit_range(0..9));
+        flags.set_bit_range(9..18, fill_flags(&waypoints.act2, 9).bit_range(0..9));
+        flags.set_bit_range(18..27, fill_flags(&waypoints.act3, 9).bit_range(0..9));
+        flags.set_bit_range(27..30, fill_flags(&waypoints.act4, 3).bit_range(0..3));
+        flags.set_bit_range(30..39, fill_flags(&waypoints.act5, 9).bit_range(0..9));
+        bytes[Section::DifficultyWaypointsValue.range()].copy_from_slice(&u64::to_le_bytes(flags));
+        bytes
     }
-    let mut flags: u64 = 0;
-    flags.set_bit_range(0..9, fill_flags(&waypoints.act1, 9).bit_range(0..9));
-    flags.set_bit_range(9..18, fill_flags(&waypoints.act2, 9).bit_range(0..9));
-    flags.set_bit_range(18..27, fill_flags(&waypoints.act3, 9).bit_range(0..9));
-    flags.set_bit_range(27..30, fill_flags(&waypoints.act4, 3).bit_range(0..3));
-    flags.set_bit_range(30..39, fill_flags(&waypoints.act5, 9).bit_range(0..9));
-    bytes[Section::DifficultyWaypointsValue.range()].copy_from_slice(&u64::to_le_bytes(flags));
-    bytes
-}
-
-pub fn generate(waypoints: &Waypoints) -> [u8; 80] {
-    let mut bytes: [u8; 80] = [0x00; 80];
-    bytes[Section::Header.range()].copy_from_slice(&SECTION_HEADER);
-    bytes[Section::Normal.range()].copy_from_slice(&generate_difficulty(&waypoints.normal));
-    bytes[Section::Nightmare.range()].copy_from_slice(&generate_difficulty(&waypoints.nightmare));
-    bytes[Section::Hell.range()].copy_from_slice(&generate_difficulty(&waypoints.hell));
-    bytes
 }

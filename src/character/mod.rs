@@ -3,22 +3,26 @@ use std::ops::Range;
 use std::str;
 
 use bit::BitIndex;
+use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
+
+use crate::utils::get_sys_time_in_secs;
+use crate::utils::u32_from;
+use crate::utils::u8_from;
 
 use crate::Act;
 use crate::Class;
 use crate::Difficulty;
 use crate::ParseError;
 
-use crate::utils::get_sys_time_in_secs;
-use crate::utils::u32_from;
-use crate::utils::u8_from;
-
 use mercenary::Mercenary;
 
 pub mod mercenary;
 mod tests;
+
+pub const DEFAULT_CLASS: Class = Class::Amazon;
+pub const DEFAULT_NAME: &'static str = "default";
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 enum Section {
@@ -111,7 +115,7 @@ impl Default for Character {
             weapon_switch: false,
             status: Status::default(),
             progression: 0,
-            class: Class::Amazon,
+            class: DEFAULT_CLASS,
             level: 1,
             last_played: get_sys_time_in_secs(),
             assigned_skills: [0x0000FFFF; 16],
@@ -125,71 +129,107 @@ impl Default for Character {
             map_seed: 0,
             mercenary: Mercenary::default(),
             resurrected_menu_appearance: [0x00; 48],
-            name: String::from("default"),
+            name: String::from(DEFAULT_NAME),
         }
     }
-}
-
-pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
-    let mut character: Character = Character::default();
-    character.weapon_switch = u32_from(&bytes[Section::WeaponSet.range()]) != 0;
-
-    character.status = Status::from(u8_from(&bytes[Section::Status.range()]));
-
-    character.progression = u8_from(&bytes[Section::Progression.range()]);
-
-    character.class = Class::try_from(u8_from(&bytes[Section::Class.range()]))?;
-
-    character.level = u8_from(&bytes[Section::Level.range()]);
-
-    character.last_played = u32_from(&bytes[Section::LastPlayed.range()]);
-    let assigned_skills: &[u8] = &bytes[Section::AssignedSkills.range()];
-    for i in 0..16 {
-        let start = i * 4;
-        let assigned_skill =
-            u32::from_le_bytes(assigned_skills[start..start + 4].try_into().unwrap());
-        character.assigned_skills[i] = assigned_skill;
-    }
-
-    character.left_mouse_skill = u32_from(&bytes[Section::LeftMouseSkill.range()]);
-    character.right_mouse_skill = u32_from(&bytes[Section::RightMouseSkill.range()]);
-    character.left_mouse_switch_skill = u32_from(&bytes[Section::LeftMouseSwitchSkill.range()]);
-    character.right_mouse_switch_skill = u32_from(&bytes[Section::RightMouseSwitchSkill.range()]);
-
-    character.menu_appearance.clone_from_slice(&bytes[Section::MenuAppearance.range()]);
-
-    let last_act = parse_last_act(&bytes[Section::Difficulty.range()].try_into().unwrap());
-
-    match last_act {
-        Ok(last_act) => {
-            character.difficulty = last_act.0;
-            character.act = last_act.1;
-        }
-        Err(e) => return Err(e),
-    };
-
-    character.map_seed = u32_from(&bytes[Section::MapSeed.range()]);
-    character.mercenary = mercenary::parse(&bytes[Section::Mercenary.range()].try_into().unwrap())?;
-
-    character
-        .resurrected_menu_appearance
-        .clone_from_slice(&bytes[Section::ResurrectedMenuAppearance.range()]);
-
-    let utf8name = match str::from_utf8(&bytes[Section::Name.range()]) {
-        Ok(res) => res.trim_matches(char::from(0)),
-        Err(e) => {
-            return Err(ParseError {
-                message: format!("Invalid utf-8 for character name: {0:?}", e),
-            });
-        }
-    };
-    character.name = String::from(utf8name);
-
-    Ok(character)
 }
 
 impl Character {
-    pub fn write(&self) -> [u8; 319] {
+    pub fn parse(bytes: &[u8]) -> Character {
+        let mut character: Character = Character::default();
+        character.weapon_switch =
+            u32_from(&bytes[Section::WeaponSet.range()], "character.weapon_switch") != 0;
+
+        character.status = Status::from(u8_from(&bytes[Section::Status.range()]));
+
+        character.progression = u8_from(&bytes[Section::Progression.range()]);
+
+        character.class = match Class::try_from(u8_from(&bytes[Section::Class.range()])) {
+            Ok(res) => res,
+            Err(e) => {
+                warn!(
+                    "{0}\nFailed to get class, using default: {1}.",
+                    e.to_string(),
+                    DEFAULT_CLASS
+                );
+                DEFAULT_CLASS
+            }
+        };
+
+        character.level = u8_from(&bytes[Section::Level.range()]);
+
+        character.last_played =
+            u32_from(&bytes[Section::LastPlayed.range()], "character.last_played");
+        let assigned_skills: &[u8] = &bytes[Section::AssignedSkills.range()];
+        for i in 0..16 {
+            let start = i * 4;
+            let assigned_skill =
+                u32_from(&assigned_skills[start..start + 4], "character/assigned_skill");
+            character.assigned_skills[i] = assigned_skill;
+        }
+
+        character.left_mouse_skill =
+            u32_from(&bytes[Section::LeftMouseSkill.range()], "character.left_mouse_skill");
+        character.right_mouse_skill =
+            u32_from(&bytes[Section::RightMouseSkill.range()], "character.right_mouse_skill");
+        character.left_mouse_switch_skill = u32_from(
+            &bytes[Section::LeftMouseSwitchSkill.range()],
+            "character.left_mouse_switch_skill",
+        );
+        character.right_mouse_switch_skill = u32_from(
+            &bytes[Section::RightMouseSwitchSkill.range()],
+            "character.right_mouse_switch_skill",
+        );
+
+        character.menu_appearance.clone_from_slice(&bytes[Section::MenuAppearance.range()]);
+
+        let last_act = parse_last_act(&bytes[Section::Difficulty.range()].try_into().unwrap());
+
+        match last_act {
+            Ok(last_act) => {
+                character.difficulty = last_act.0;
+                character.act = last_act.1;
+            }
+            Err(e) => {
+                {
+                    warn!(
+                        "{0}\nFailed to get last difficulty and act, using default: {1} {2}.",
+                        e.to_string(),
+                        Act::Act1,
+                        Difficulty::Normal
+                    );
+                }
+                character.difficulty = Difficulty::Normal;
+                character.act = Act::Act1;
+            }
+        };
+
+        character.map_seed = u32_from(&bytes[Section::MapSeed.range()], "Character Map Seed");
+        // Mercenary size is contained within character size, so no need to check length
+        character.mercenary =
+            Mercenary::parse(&bytes[Section::Mercenary.range()].try_into().unwrap());
+
+        character
+            .resurrected_menu_appearance
+            .clone_from_slice(&bytes[Section::ResurrectedMenuAppearance.range()]);
+
+        let utf8name = match str::from_utf8(&bytes[Section::Name.range()]) {
+            Ok(res) => res.trim_matches(char::from(0)),
+            Err(e) => {
+                warn!(
+                    "Found invalid utf-8 for character name: {0}, using default: {1}",
+                    e.to_string(),
+                    DEFAULT_NAME
+                );
+                DEFAULT_NAME
+            }
+        };
+        character.name = String::from(utf8name);
+
+        character
+    }
+
+    pub fn to_bytes(&self) -> [u8; 319] {
         let mut bytes: [u8; 319] = [0x00; 319];
 
         bytes[Section::WeaponSet.range()]

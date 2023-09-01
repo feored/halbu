@@ -1,5 +1,6 @@
 use std::fmt;
 
+use log::{error, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::read_bits;
@@ -8,7 +9,6 @@ use crate::utils::write_bits;
 use crate::utils::BytePosition;
 use crate::utils::Record;
 use crate::Class;
-use crate::ParseError;
 
 mod tests;
 
@@ -188,8 +188,59 @@ impl fmt::Display for Attributes {
 }
 
 impl Attributes {
+    /// Parse vector of bytes containing attributes data while storing byte position and return an Attributes struct.
+    ///
+    /// This function borrows a byte_position, which will store the length in bytes of the
+    /// attributes section to help find the offset at which to start reading the next section.
+    ///
+    /// Attributes are stored in a pair format (header:value). Not all attributes are required to be
+    /// present. Headers are always 9 bits. Values span different number of bits found in itemstatcost.txt
+    pub fn parse(byte_vector: &Vec<u8>, byte_position: &mut BytePosition) -> Attributes {
+        if byte_vector[0..2] != SECTION_HEADER {
+            warn!(
+                "Found wrong header for attributes, expected {0:X?} but found {1:X?}",
+                SECTION_HEADER,
+                &byte_vector[0..2]
+            );
+        }
+        byte_position.current_byte = 2;
+
+        let mut attributes = Attributes::default();
+
+        // In case all stats are written down, parse one more to make sure we parse 0x1FF trailer
+        for _i in 0..(STAT_NUMBER + 1) {
+            let header: u32 = match read_bits(byte_vector, byte_position, STAT_HEADER_LENGTH) {
+                Ok(res) => res,
+                Err(e) => {
+                    error!("Error while parsing attributes header {0}: {1}", _i, e.to_string());
+                    return attributes;
+                }
+            };
+            if header == SECTION_TRAILER {
+                break;
+            }
+            let stat: Stat = attributes.stat(STAT_KEY[header as usize]);
+            attributes.set_stat_value(
+                stat.name.clone(),
+                match read_bits(byte_vector, byte_position, stat.bit_length) {
+                    Ok(res) => res,
+                    Err(e) => {
+                        error!(
+                            "Error while parsing attributes value {0} (header {1}): {2}",
+                            _i,
+                            header,
+                            e.to_string()
+                        );
+                        return attributes;
+                    }
+                },
+            );
+        }
+        attributes
+    }
+
     /// Get a byte-aligned vector of bytes representing a character's attribute.
-    pub fn write(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut result: Vec<u8> = Vec::<u8>::new();
         let mut byte_position: BytePosition = BytePosition::default();
         result.append(&mut SECTION_HEADER.to_vec());
@@ -276,42 +327,4 @@ impl Default for Attributes {
         }
         attributes
     }
-}
-/// Parse vector of bytes containing attributes data while storing byte position and return an Attributes struct.
-///
-/// This function borrows a byte_position, which will store the length in bytes of the
-/// attributes section to help find the offset at which to start reading the next section.
-///
-/// Attributes are stored in a pair format (header:value). Not all attributes are required to be
-/// present. Headers are always 9 bits. Values span different number of bits found in itemstatcost.txt
-pub fn parse(
-    byte_vector: &Vec<u8>,
-    byte_position: &mut BytePosition,
-) -> Result<Attributes, ParseError> {
-    if byte_vector[0..2] != SECTION_HEADER {
-        return Err(ParseError {
-            message: format!(
-                "Found wrong header for attributes, expected {0:X?} but found {1:X?}",
-                SECTION_HEADER,
-                &byte_vector[0..2]
-            ),
-        });
-    }
-    byte_position.current_byte = 2;
-
-    let mut attributes = Attributes::default();
-
-    // In case all stats are written down, parse one more to make sure we parse 0x1FF trailer
-    for _i in 0..(STAT_NUMBER + 1) {
-        let header: u32 = read_bits(byte_vector, byte_position, STAT_HEADER_LENGTH);
-        if header == SECTION_TRAILER {
-            break;
-        }
-        let stat: Stat = attributes.stat(STAT_KEY[header as usize]);
-        attributes.set_stat_value(
-            stat.name.clone(),
-            read_bits(byte_vector, byte_position, stat.bit_length),
-        );
-    }
-    Ok(attributes)
 }

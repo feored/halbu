@@ -7,116 +7,48 @@ mod tests {
     #[test]
     fn test_write_and_read_attributes() {
         let expected_attributes = Attributes {
-            strength: Stat{
-                id: 0,
-                name:String::from("strength"),
-                value: 156,
-                bit_length: 10
-            },
-            energy: Stat{
-                id: 1,
-                name:String::from("energy"),
-                value: 35,
-                bit_length: 10
-            },
-            dexterity: Stat{
-                id: 2,
-                name:String::from("dexterity"),
-                value: 35,
-                bit_length: 10
-            },
-            vitality: Stat{
-                id: 3,
-                name:String::from("vitality"),
-                value: 324,
-                bit_length: 10
-            },
-            statpts:Stat{
-                id: 4,
-                name:String::from("statpts"),
-                value: 0,
-                bit_length: 10
-            },
-            newskills: Stat{
-                id: 5,
-                name:String::from("newskills"),
-                value: 0,
-                bit_length: 8
-            },
-            hitpoints: Stat{
+            strength: Stat { id: 0, name: String::from("strength"), value: 156, bit_length: 10 },
+            energy: Stat { id: 1, name: String::from("energy"), value: 35, bit_length: 10 },
+            dexterity: Stat { id: 2, name: String::from("dexterity"), value: 35, bit_length: 10 },
+            vitality: Stat { id: 3, name: String::from("vitality"), value: 324, bit_length: 10 },
+            statpts: Stat { id: 4, name: String::from("statpts"), value: 0, bit_length: 10 },
+            newskills: Stat { id: 5, name: String::from("newskills"), value: 0, bit_length: 8 },
+            hitpoints: Stat {
                 id: 6,
-                name:String::from("hitpoints"),
+                name: String::from("hitpoints"),
                 value: 322560,
-                bit_length: 21
+                bit_length: 21,
             },
-            maxhp: Stat{
-                        id: 7,
-                        name:String::from("maxhp"),
-                        value: 209664,
-                        bit_length: 21
+            maxhp: Stat { id: 7, name: String::from("maxhp"), value: 209664, bit_length: 21 },
+            mana: Stat { id: 8, name: String::from("mana"), value: 156, bit_length: 21 },
+            maxmana: Stat { id: 9, name: String::from("maxmana"), value: 55552, bit_length: 21 },
+            stamina: Stat { id: 10, name: String::from("stamina"), value: 140544, bit_length: 21 },
+            maxstamina: Stat {
+                id: 11,
+                name: String::from("maxstamina"),
+                value: 122624,
+                bit_length: 21,
             },
-            mana: Stat{
-                        id: 8,
-                        name:String::from("mana"),
-                        value: 156,
-                        bit_length: 21
+            level: Stat { id: 12, name: String::from("level"), value: 92, bit_length: 7 },
+            experience: Stat {
+                id: 13,
+                name: String::from("experience"),
+                value: 2036912623,
+                bit_length: 32,
             },
-            maxmana: Stat{
-                        id: 9,
-                        name:String::from("maxmana"),
-                        value: 55552,
-                        bit_length: 21
-            },
-            stamina: Stat{
-                        id: 10,
-                        name:String::from("stamina"),
-                        value: 140544,
-                        bit_length: 21
-            },
-            maxstamina: Stat{
-                        id: 11,
-                        name: String::from("maxstamina"),
-                        value: 122624,
-                        bit_length: 21
-            },
-            level: Stat{
-                        id: 12,
-                        name: String::from("level"),
-                        value: 92,
-                        bit_length: 7
-            },
-            experience: Stat{
-                        id: 13,
-                        name: String::from("experience"),
-                        value: 2036912623,
-                        bit_length: 32
-            },
-            gold: Stat{
-                        id: 14,
-                        name: String::from("gold"),
-                        value: 0,
-                        bit_length: 25
-            },
-            goldbank: Stat{
-                        id: 15,
-                        name: String::from("goldbank"),
-                        value: 45964,
-                        bit_length: 25
-                    }
+            gold: Stat { id: 14, name: String::from("gold"), value: 0, bit_length: 25 },
+            goldbank: Stat { id: 15, name: String::from("goldbank"), value: 45964, bit_length: 25 },
         };
-        let result: Vec<u8> = expected_attributes.write();
+        let result: Vec<u8> = expected_attributes.to_bytes();
 
-        let mut byte_position : BytePosition = BytePosition::default();
-        let parsed_attributes = match parse(&result, &mut byte_position) {
-            Ok(res) => res,
-            Err(e) => panic!("Failed test_write_and_read_attributes: {e}"),
-        };
+        let mut byte_position: BytePosition = BytePosition::default();
+        let parsed_attributes = Attributes::parse(&result, &mut byte_position);
 
         assert_eq!(parsed_attributes, expected_attributes);
     }
 
     #[test]
-    fn test_attributes_class_default(){
+    fn test_attributes_class_default() {
         let mut expected_attributes = Attributes::default();
 
         expected_attributes.level.value = 1;
@@ -125,7 +57,7 @@ mod tests {
         expected_attributes.dexterity.value = 25;
         expected_attributes.vitality.value = 15;
         expected_attributes.energy.value = 25;
-        
+
         expected_attributes.maxhp.value = 45 * 256;
         expected_attributes.hitpoints.value = expected_attributes.maxhp.value;
 
@@ -160,11 +92,10 @@ mod tests {
     fn test_read_stats() {
         let bytes: Vec<u8> = vec![0x00, 0x3C, 0x08, 0x0A0, 0x80, 0x00, 0x0A, 0x06];
         let mut byte_position = BytePosition::default();
-        let header_result = read_bits(&bytes, &mut byte_position, 9);
+        let header_result = read_bits(&bytes, &mut byte_position, 9).unwrap();
         assert_eq!(header_result, 0);
 
-        let value_result = read_bits(&bytes, &mut byte_position, 10);
+        let value_result = read_bits(&bytes, &mut byte_position, 10).unwrap();
         assert_eq!(value_result, 30);
     }
-
 }

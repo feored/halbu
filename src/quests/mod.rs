@@ -4,9 +4,8 @@ use std::ops::Range;
 use std::str;
 
 use bit::BitIndex;
+use log::{error, warn};
 use serde::{Deserialize, Serialize};
-
-use crate::ParseError;
 
 use crate::utils::u16_from;
 
@@ -152,14 +151,14 @@ impl Act1 {
 impl From<&[u8]> for Act1 {
     fn from(value: &[u8]) -> Self {
         let mut complete_act = Act1::default();
-        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
-        complete_act.q1 = Quest::from(u16_from(&value[2..4]));
-        complete_act.q2 = Quest::from(u16_from(&value[4..6]));
-        complete_act.q3 = Quest::from(u16_from(&value[6..8]));
-        complete_act.q4 = Quest::from(u16_from(&value[8..10]));
-        complete_act.q5 = Quest::from(u16_from(&value[10..12]));
-        complete_act.q6 = Quest::from(u16_from(&value[12..14]));
-        complete_act.completion = Quest::from(u16_from(&value[14..16]));
+        complete_act.prologue = Quest::from(u16_from(&value[0..2], "A1 Prologue"));
+        complete_act.q1 = Quest::from(u16_from(&value[2..4], "A1 Q1"));
+        complete_act.q2 = Quest::from(u16_from(&value[4..6], "A1 Q2"));
+        complete_act.q3 = Quest::from(u16_from(&value[6..8], "A1 Q3"));
+        complete_act.q4 = Quest::from(u16_from(&value[8..10], "A1 Q4"));
+        complete_act.q5 = Quest::from(u16_from(&value[10..12], "A1 Q5"));
+        complete_act.q6 = Quest::from(u16_from(&value[12..14], "A1 Q6"));
+        complete_act.completion = Quest::from(u16_from(&value[14..16], "A1 Completion"));
         complete_act
     }
 }
@@ -199,14 +198,14 @@ impl Act2 {
 impl From<&[u8]> for Act2 {
     fn from(value: &[u8]) -> Self {
         let mut complete_act = Act2::default();
-        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
-        complete_act.q1 = Quest::from(u16_from(&value[2..4]));
-        complete_act.q2 = Quest::from(u16_from(&value[4..6]));
-        complete_act.q3 = Quest::from(u16_from(&value[6..8]));
-        complete_act.q4 = Quest::from(u16_from(&value[8..10]));
-        complete_act.q5 = Quest::from(u16_from(&value[10..12]));
-        complete_act.q6 = Quest::from(u16_from(&value[12..14]));
-        complete_act.completion = Quest::from(u16_from(&value[14..16]));
+        complete_act.prologue = Quest::from(u16_from(&value[0..2], "A2 Prologue"));
+        complete_act.q1 = Quest::from(u16_from(&value[2..4], "A2 Q1"));
+        complete_act.q2 = Quest::from(u16_from(&value[4..6], "A2 Q2"));
+        complete_act.q3 = Quest::from(u16_from(&value[6..8], "A2 Q3"));
+        complete_act.q4 = Quest::from(u16_from(&value[8..10], "A2 Q4"));
+        complete_act.q5 = Quest::from(u16_from(&value[10..12], "A2 Q5"));
+        complete_act.q6 = Quest::from(u16_from(&value[12..14], "A2 Q6"));
+        complete_act.completion = Quest::from(u16_from(&value[14..16], "A2 Completion"));
         complete_act
     }
 }
@@ -246,14 +245,14 @@ impl Act3 {
 impl From<&[u8]> for Act3 {
     fn from(value: &[u8]) -> Self {
         let mut complete_act = Act3::default();
-        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
-        complete_act.q1 = Quest::from(u16_from(&value[2..4]));
-        complete_act.q2 = Quest::from(u16_from(&value[4..6]));
-        complete_act.q3 = Quest::from(u16_from(&value[6..8]));
-        complete_act.q4 = Quest::from(u16_from(&value[8..10]));
-        complete_act.q5 = Quest::from(u16_from(&value[10..12]));
-        complete_act.q6 = Quest::from(u16_from(&value[12..14]));
-        complete_act.completion = Quest::from(u16_from(&value[14..16]));
+        complete_act.prologue = Quest::from(u16_from(&value[0..2], "A3 Prologue"));
+        complete_act.q1 = Quest::from(u16_from(&value[2..4], "A3 Q1"));
+        complete_act.q2 = Quest::from(u16_from(&value[4..6], "A3 Q2"));
+        complete_act.q3 = Quest::from(u16_from(&value[6..8], "A3 Q3"));
+        complete_act.q4 = Quest::from(u16_from(&value[8..10], "A3 Q4"));
+        complete_act.q5 = Quest::from(u16_from(&value[10..12], "A3 Q5"));
+        complete_act.q6 = Quest::from(u16_from(&value[12..14], "A3 Q6"));
+        complete_act.completion = Quest::from(u16_from(&value[14..16], "A3 Complete"));
         complete_act
     }
 }
@@ -293,14 +292,14 @@ impl Act4 {
 impl From<&[u8]> for Act4 {
     fn from(value: &[u8]) -> Self {
         let mut complete_act = Act4::default();
-        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
-        complete_act.q1 = Quest::from(u16_from(&value[2..4]));
-        complete_act.q2 = Quest::from(u16_from(&value[4..6]));
-        complete_act.q3 = Quest::from(u16_from(&value[6..8]));
-        complete_act.completion = Quest::from(u16_from(&value[8..10]));
-        complete_act.unused_1 = Quest::from(u16_from(&value[10..12]));
-        complete_act.unused_2 = Quest::from(u16_from(&value[12..14]));
-        complete_act.unused_3 = Quest::from(u16_from(&value[14..16]));
+        complete_act.prologue = Quest::from(u16_from(&value[0..2], "A4 Prologue"));
+        complete_act.q1 = Quest::from(u16_from(&value[2..4], "A4 Q1"));
+        complete_act.q2 = Quest::from(u16_from(&value[4..6], "A4 Q2"));
+        complete_act.q3 = Quest::from(u16_from(&value[6..8], "A4 Q3"));
+        complete_act.completion = Quest::from(u16_from(&value[8..10], "A4 Completion"));
+        complete_act.unused_1 = Quest::from(u16_from(&value[10..12], "A4 Unused1"));
+        complete_act.unused_2 = Quest::from(u16_from(&value[12..14], "A4 Unused2"));
+        complete_act.unused_3 = Quest::from(u16_from(&value[14..16], "A4 Unused3"));
         complete_act
     }
 }
@@ -344,16 +343,16 @@ impl Act5 {
 impl From<&[u8]> for Act5 {
     fn from(value: &[u8]) -> Self {
         let mut complete_act = Act5::default();
-        complete_act.prologue = Quest::from(u16_from(&value[0..2]));
-        complete_act.unused_1 = Quest::from(u16_from(&value[2..4]));
-        complete_act.unused_2 = Quest::from(u16_from(&value[4..6]));
-        complete_act.q1 = Quest::from(u16_from(&value[6..8]));
-        complete_act.q2 = Quest::from(u16_from(&value[8..10]));
-        complete_act.q3 = Quest::from(u16_from(&value[10..12]));
-        complete_act.q4 = Quest::from(u16_from(&value[12..14]));
-        complete_act.q5 = Quest::from(u16_from(&value[14..16]));
-        complete_act.q6 = Quest::from(u16_from(&value[16..18]));
-        complete_act.completion = Quest::from(u16_from(&value[18..20]));
+        complete_act.prologue = Quest::from(u16_from(&value[0..2], "A5 Prologue"));
+        complete_act.unused_1 = Quest::from(u16_from(&value[2..4], "A5 Unused1"));
+        complete_act.unused_2 = Quest::from(u16_from(&value[4..6], "A1 Unused2"));
+        complete_act.q1 = Quest::from(u16_from(&value[6..8], "A5 Q1"));
+        complete_act.q2 = Quest::from(u16_from(&value[8..10], "A5 Q2"));
+        complete_act.q3 = Quest::from(u16_from(&value[10..12], "A5 Q3"));
+        complete_act.q4 = Quest::from(u16_from(&value[12..14], "A5 Q4"));
+        complete_act.q5 = Quest::from(u16_from(&value[14..16], "A5 Q5"));
+        complete_act.q6 = Quest::from(u16_from(&value[16..18], "A5 Q6"));
+        complete_act.completion = Quest::from(u16_from(&value[18..20], "A5 Completion"));
         complete_act
     }
 }
@@ -425,33 +424,31 @@ impl Quests {
         byte_vector
     }
 
-    pub fn parse(bytes: &[u8]) -> Result<Self, ParseError> {
+    pub fn parse(bytes: &[u8]) -> Self {
+        let mut quests: Quests = Quests::default();
+
         if bytes.len() < SECTION_LENGTH {
-            return Err(ParseError {
-                message: format!(
-                    "Quests section should be {0} bytes but found {1} instead.",
-                    SECTION_LENGTH,
-                    bytes.len()
-                ),
-            });
-        }
-        if bytes[Section::Header.range()] != SECTION_HEADER {
-            return Err(ParseError {
-                message: format!(
-                    "Found wrong header for quests, expected {0:X?} but found {1:X?}",
-                    SECTION_HEADER,
-                    &bytes[Section::Header.range()]
-                ),
-            });
+            error!(
+                "Quests section should be {0} bytes but found {1} instead.",
+                SECTION_LENGTH,
+                bytes.len()
+            );
+            return quests;
         }
 
-        let mut quests: Quests = Quests::default();
+        if bytes[Section::Header.range()] != SECTION_HEADER {
+            warn!(
+                "Found wrong header for quests, expected {0:X?} but found {1:X?}",
+                SECTION_HEADER,
+                &bytes[Section::Header.range()]
+            );
+        }
 
         quests.normal = DifficultyQuests::from(&bytes[Section::Normal.range()]);
         quests.nightmare = DifficultyQuests::from(&bytes[Section::Nightmare.range()]);
         quests.hell = DifficultyQuests::from(&bytes[Section::Hell.range()]);
 
-        Ok(quests)
+        quests
     }
 }
 

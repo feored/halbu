@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::time::SystemTime;
 
+use crate::ParseError;
 use bit::BitIndex;
 use csv;
+use log::error;
 
 pub type Record = HashMap<String, String>;
 
@@ -25,12 +27,34 @@ pub fn get_sys_time_in_secs() -> u32 {
     }
 }
 
-pub fn u32_from(slice: &[u8]) -> u32 {
-    u32::from_le_bytes(slice.try_into().unwrap())
+pub fn u32_from(slice: &[u8], name: &'static str) -> u32 {
+    u32::from_le_bytes(match slice.try_into() {
+        Ok(res) => res,
+        Err(e) => {
+            error!(
+                "Reference: {0}\n{1}\nFailed to coerce [u8;4] from bytes: {2:?}",
+                name,
+                e.to_string(),
+                slice
+            );
+            [0; 4]
+        }
+    })
 }
 
-pub fn u16_from(slice: &[u8]) -> u16 {
-    u16::from_le_bytes(slice.try_into().unwrap())
+pub fn u16_from(slice: &[u8], name: &'static str) -> u16 {
+    u16::from_le_bytes(match slice.try_into() {
+        Ok(res) => res,
+        Err(e) => {
+            error!(
+                "Reference: {0}\n{1}\nFailed to coerce [u8;2] from bytes: {2:?}",
+                name,
+                e.to_string(),
+                slice
+            );
+            [0; 2]
+        }
+    })
 }
 
 pub fn u8_from(slice: &[u8]) -> u8 {
@@ -109,7 +133,11 @@ pub fn write_bits<T: Into<u32>>(
 ///
 /// The attributes are stored in a packed struct with non-aligned bytes.
 /// Headers for instance contain 9 bits, so they must be read over multiple bytes.
-pub fn read_bits(byte_slice: &[u8], byte_position: &mut BytePosition, bits_to_read: usize) -> u32 {
+pub fn read_bits(
+    byte_slice: &[u8],
+    byte_position: &mut BytePosition,
+    bits_to_read: usize,
+) -> Result<u32, ParseError> {
     let mut bits_left_to_read: usize = bits_to_read;
     let mut buffer: u32 = 0;
     let mut buffer_bit_position: usize = 0;
@@ -120,6 +148,15 @@ pub fn read_bits(byte_slice: &[u8], byte_position: &mut BytePosition, bits_to_re
         if byte_position.current_bit > 7 {
             byte_position.current_byte += 1;
             byte_position.current_bit = 0;
+        }
+        if byte_position.current_byte >= byte_slice.len() {
+            return Err(ParseError {
+                message: format!(
+                    "Tried to read byte at position {0}, but only {1} bytes given go read.",
+                    byte_position.current_byte,
+                    byte_slice.len()
+                ),
+            });
         }
         let bits_parsing_count = cmp::min(8 - byte_position.current_bit, bits_left_to_read);
         let bits_parsed: u8 = byte_slice[byte_position.current_byte]
@@ -133,5 +170,5 @@ pub fn read_bits(byte_slice: &[u8], byte_position: &mut BytePosition, bits_to_re
         bits_left_to_read -= bits_parsing_count;
         byte_position.current_bit += bits_parsing_count;
     }
-    buffer
+    Ok(buffer)
 }
