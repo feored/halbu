@@ -14,7 +14,6 @@ use crate::ParseError;
 use crate::utils::get_sys_time_in_secs;
 use crate::utils::u32_from;
 use crate::utils::u8_from;
-use crate::utils::FileSection;
 
 use mercenary::Mercenary;
 
@@ -42,26 +41,26 @@ enum Section {
     Name,
 }
 
-impl From<Section> for FileSection {
-    fn from(section: Section) -> FileSection {
-        match section {
-            Section::WeaponSet => FileSection { offset: 0, bytes: 4 },
-            Section::Status => FileSection { offset: 20, bytes: 1 },
-            Section::Progression => FileSection { offset: 21, bytes: 1 },
-            Section::Class => FileSection { offset: 24, bytes: 1 },
-            Section::Level => FileSection { offset: 27, bytes: 1 },
-            Section::LastPlayed => FileSection { offset: 32, bytes: 4 },
-            Section::AssignedSkills => FileSection { offset: 40, bytes: 64 },
-            Section::LeftMouseSkill => FileSection { offset: 104, bytes: 4 },
-            Section::RightMouseSkill => FileSection { offset: 108, bytes: 4 },
-            Section::LeftMouseSwitchSkill => FileSection { offset: 112, bytes: 4 },
-            Section::RightMouseSwitchSkill => FileSection { offset: 116, bytes: 4 },
-            Section::MenuAppearance => FileSection { offset: 120, bytes: 32 },
-            Section::Difficulty => FileSection { offset: 152, bytes: 3 },
-            Section::MapSeed => FileSection { offset: 155, bytes: 4 },
-            Section::Mercenary => FileSection { offset: 161, bytes: 14 },
-            Section::ResurrectedMenuAppearance => FileSection { offset: 203, bytes: 48 },
-            Section::Name => FileSection { offset: 251, bytes: 48 },
+impl Section {
+    const fn range(self) -> Range<usize> {
+        match self {
+            Section::WeaponSet => 0..4,
+            Section::Status => 20..21,
+            Section::Progression => 21..22,
+            Section::Class => 24..25,
+            Section::Level => 27..28,
+            Section::LastPlayed => 32..36,
+            Section::AssignedSkills => 40..104,
+            Section::LeftMouseSkill => 104..108,
+            Section::RightMouseSkill => 108..112,
+            Section::LeftMouseSwitchSkill => 112..116,
+            Section::RightMouseSwitchSkill => 116..120,
+            Section::MenuAppearance => 120..152,
+            Section::Difficulty => 152..155,
+            Section::MapSeed => 155..159,
+            Section::Mercenary => 161..175,
+            Section::ResurrectedMenuAppearance => 203..251,
+            Section::Name => 251..299,
         }
     }
 }
@@ -133,23 +132,18 @@ impl Default for Character {
 
 pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
     let mut character: Character = Character::default();
-    character.weapon_switch = u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::WeaponSet))]) != 0;
+    character.weapon_switch = u32_from(&bytes[Section::WeaponSet.range()]) != 0;
 
-    character.status =
-        Status::from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Status))]));
+    character.status = Status::from(u8_from(&bytes[Section::Status.range()]));
 
-    character.progression = u8_from(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Progression))],
-    );
+    character.progression = u8_from(&bytes[Section::Progression.range()]);
 
-    character.class =
-        Class::try_from(u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Class))]))?;
+    character.class = Class::try_from(u8_from(&bytes[Section::Class.range()]))?;
 
-    character.level = u8_from(&bytes[Range::<usize>::from(FileSection::from(Section::Level))]);
+    character.level = u8_from(&bytes[Section::Level.range()]);
 
-    character.last_played =
-        u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]);
-    let assigned_skills: &[u8] = &bytes[Range::<usize>::from(FileSection::from(Section::AssignedSkills))];
+    character.last_played = u32_from(&bytes[Section::LastPlayed.range()]);
+    let assigned_skills: &[u8] = &bytes[Section::AssignedSkills.range()];
     for i in 0..16 {
         let start = i * 4;
         let assigned_skill =
@@ -157,22 +151,14 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         character.assigned_skills[i] = assigned_skill;
     }
 
-    character.left_mouse_skill =
-        u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::LeftMouseSkill))]);
-    character.right_mouse_skill =
-        u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::RightMouseSkill))]);
-    character.left_mouse_switch_skill =
-        u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::LeftMouseSwitchSkill))]);
-    character.right_mouse_switch_skill =
-        u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::RightMouseSwitchSkill))]);
+    character.left_mouse_skill = u32_from(&bytes[Section::LeftMouseSkill.range()]);
+    character.right_mouse_skill = u32_from(&bytes[Section::RightMouseSkill.range()]);
+    character.left_mouse_switch_skill = u32_from(&bytes[Section::LeftMouseSwitchSkill.range()]);
+    character.right_mouse_switch_skill = u32_from(&bytes[Section::RightMouseSwitchSkill.range()]);
 
-    character
-        .menu_appearance
-        .clone_from_slice(&bytes[Range::<usize>::from(FileSection::from(Section::MenuAppearance))]);
+    character.menu_appearance.clone_from_slice(&bytes[Section::MenuAppearance.range()]);
 
-    let last_act = parse_last_act(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Difficulty))].try_into().unwrap(),
-    );
+    let last_act = parse_last_act(&bytes[Section::Difficulty.range()].try_into().unwrap());
 
     match last_act {
         Ok(last_act) => {
@@ -182,25 +168,21 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
         Err(e) => return Err(e),
     };
 
-    character.map_seed =
-        u32_from(&bytes[Range::<usize>::from(FileSection::from(Section::MapSeed))]);
-    character.mercenary = mercenary::parse(
-        &bytes[Range::<usize>::from(FileSection::from(Section::Mercenary))].try_into().unwrap(),
-    )?;
+    character.map_seed = u32_from(&bytes[Section::MapSeed.range()]);
+    character.mercenary = mercenary::parse(&bytes[Section::Mercenary.range()].try_into().unwrap())?;
 
-    character.resurrected_menu_appearance.clone_from_slice(
-        &bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))],
-    );
+    character
+        .resurrected_menu_appearance
+        .clone_from_slice(&bytes[Section::ResurrectedMenuAppearance.range()]);
 
-    let utf8name =
-        match str::from_utf8(&bytes[Range::<usize>::from(FileSection::from(Section::Name))]) {
-            Ok(res) => res.trim_matches(char::from(0)),
-            Err(e) => {
-                return Err(ParseError {
-                    message: format!("Invalid utf-8 for character name: {0:?}", e),
-                });
-            }
-        };
+    let utf8name = match str::from_utf8(&bytes[Section::Name.range()]) {
+        Ok(res) => res.trim_matches(char::from(0)),
+        Err(e) => {
+            return Err(ParseError {
+                message: format!("Invalid utf-8 for character name: {0:?}", e),
+            });
+        }
+    };
     character.name = String::from(utf8name);
 
     Ok(character)
@@ -209,63 +191,54 @@ pub fn parse(bytes: &[u8; 319]) -> Result<Character, ParseError> {
 impl Character {
     pub fn write(&self) -> [u8; 319] {
         let mut bytes: [u8; 319] = [0x00; 319];
-    
-        bytes[Range::<usize>::from(FileSection::from(Section::WeaponSet))]
+
+        bytes[Section::WeaponSet.range()]
             .copy_from_slice(&u32::to_le_bytes(u32::from(self.weapon_switch)));
-        bytes[Range::<usize>::from(FileSection::from(Section::Status)).start] =
-            u8::from(self.status);
-        bytes[Range::<usize>::from(FileSection::from(Section::Progression)).start] =
-            self.progression;
-        bytes[Range::<usize>::from(FileSection::from(Section::Class)).start] =
-            u8::from(self.class);
-        bytes[Range::<usize>::from(FileSection::from(Section::Level)).start] = self.level;
-        bytes[Range::<usize>::from(FileSection::from(Section::LastPlayed))]
-            .copy_from_slice(&u32::to_le_bytes(self.last_played));
-    
+        bytes[Section::Status.range().start] = u8::from(self.status);
+        bytes[Section::Progression.range().start] = self.progression;
+        bytes[Section::Class.range().start] = u8::from(self.class);
+        bytes[Section::Level.range().start] = self.level;
+        bytes[Section::LastPlayed.range()].copy_from_slice(&u32::to_le_bytes(self.last_played));
+
         let mut assigned_skills: [u8; 64] = [0x00; 64];
         for i in 0..16 {
             assigned_skills[(i * 4)..((i * 4) + 4)]
                 .copy_from_slice(&u32::to_le_bytes(self.assigned_skills[i]));
         }
-        bytes[Range::<usize>::from(FileSection::from(Section::AssignedSkills))]
-            .copy_from_slice(&assigned_skills);
-        bytes[Range::<usize>::from(FileSection::from(Section::LeftMouseSkill))]
+        bytes[Section::AssignedSkills.range()].copy_from_slice(&assigned_skills);
+        bytes[Section::LeftMouseSkill.range()]
             .copy_from_slice(&u32::to_le_bytes(self.left_mouse_skill));
-        bytes[Range::<usize>::from(FileSection::from(Section::RightMouseSkill))]
+        bytes[Section::RightMouseSkill.range()]
             .copy_from_slice(&u32::to_le_bytes(self.right_mouse_skill));
-        bytes[Range::<usize>::from(FileSection::from(Section::LeftMouseSwitchSkill))]
+        bytes[Section::LeftMouseSwitchSkill.range()]
             .copy_from_slice(&u32::to_le_bytes(self.left_mouse_switch_skill));
-        bytes[Range::<usize>::from(FileSection::from(Section::RightMouseSwitchSkill))]
+        bytes[Section::RightMouseSwitchSkill.range()]
             .copy_from_slice(&u32::to_le_bytes(self.right_mouse_switch_skill));
-        bytes[Range::<usize>::from(FileSection::from(Section::MenuAppearance))]
-            .copy_from_slice(&self.menu_appearance);
-        bytes[Range::<usize>::from(FileSection::from(Section::Difficulty))]
+        bytes[Section::MenuAppearance.range()].copy_from_slice(&self.menu_appearance);
+        bytes[Section::Difficulty.range()]
             .copy_from_slice(&write_last_act(self.difficulty, self.act));
-        bytes[Range::<usize>::from(FileSection::from(Section::MapSeed))]
-            .copy_from_slice(&u32::to_le_bytes(self.map_seed));
-        bytes[Range::<usize>::from(FileSection::from(Section::Mercenary))]
-            .copy_from_slice(&self.mercenary.write());
-        bytes[Range::<usize>::from(FileSection::from(Section::ResurrectedMenuAppearance))]
+        bytes[Section::MapSeed.range()].copy_from_slice(&u32::to_le_bytes(self.map_seed));
+        bytes[Section::Mercenary.range()].copy_from_slice(&self.mercenary.write());
+        bytes[Section::ResurrectedMenuAppearance.range()]
             .copy_from_slice(&self.resurrected_menu_appearance);
         let mut name: [u8; 48] = [0x00; 48];
         let name_as_bytes = self.name.as_bytes();
         name[0..name_as_bytes.len()].clone_from_slice(name_as_bytes);
-        bytes[Range::<usize>::from(FileSection::from(Section::Name))].copy_from_slice(&name);
-    
+        bytes[Section::Name.range()].copy_from_slice(&name);
+
         // Add padding, unknown bytes, etc
         bytes[25] = 0x10;
         bytes[26] = 0x1E;
         bytes[36..40].copy_from_slice(&[0xFF, 0xFF, 0xFF, 0xFF]);
-    
+
         bytes
     }
     pub fn default_class(class: Class) -> Self {
-        let default_character: Character = Character { level: 1, class: class, ..Default::default()};
+        let default_character: Character =
+            Character { level: 1, class: class, ..Default::default() };
         default_character
     }
 }
-
-
 
 fn parse_last_act(bytes: &[u8; 3]) -> Result<(Difficulty, Act), ParseError> {
     let mut last_act = (Difficulty::Normal, Act::Act1);
@@ -306,7 +279,6 @@ impl fmt::Display for Status {
         )
     }
 }
-
 
 fn write_last_act(difficulty: Difficulty, act: Act) -> [u8; 3] {
     let mut active_byte = u8::from(act);
