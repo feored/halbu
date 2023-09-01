@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Range;
 use utils::BytePosition;
-use utils::FileSection;
 
 use attributes::Attributes;
 use character::Character;
@@ -49,17 +48,17 @@ enum Section {
     Npcs, // Attributes has no fixed length, and therefore the Skills and Item sections that come after have no fixed offset
 }
 
-impl From<Section> for FileSection {
-    fn from(section: Section) -> FileSection {
-        match section {
-            Section::Signature => FileSection { offset: 0, bytes: 4 },
-            Section::Version => FileSection { offset: 4, bytes: 4 },
-            Section::FileSize => FileSection { offset: 8, bytes: 4 },
-            Section::Checksum => FileSection { offset: 12, bytes: 4 },
-            Section::Character => FileSection { offset: 16, bytes: 319 },
-            Section::Quests => FileSection { offset: 335, bytes: 298 },
-            Section::Waypoints => FileSection { offset: 633, bytes: 81 },
-            Section::Npcs => FileSection { offset: 713, bytes: 52 },
+impl Section {
+    const fn range(self) -> Range<usize> {
+        match self {
+            Section::Signature => 0..4,
+            Section::Version => 4..4,
+            Section::FileSize => 8..4,
+            Section::Checksum => 12..4,
+            Section::Character => 16..335,
+            Section::Quests => 335..633,
+            Section::Waypoints => 633..713,
+            Section::Npcs => 713..765,
         }
     }
 }
@@ -103,31 +102,22 @@ pub fn parse(byte_vector: &Vec<u8>) -> Result<Save, ParseError> {
         });
     }
 
-    if byte_vector[Range::<usize>::from(FileSection::from(Section::Signature))] != SIGNATURE {
+    if byte_vector[Section::Signature.range()] != SIGNATURE {
         return Err(ParseError {
             message: format!(
                 "File signature should be {:0X?} but is {1:X?}",
                 SIGNATURE,
-                &byte_vector[Range::<usize>::from(FileSection::from(Section::Signature))]
+                &byte_vector[Section::Signature.range()]
             ),
         });
     }
 
-    save.character = character::parse(
-        &byte_vector[Range::<usize>::from(FileSection::from(Section::Character))]
-            .try_into()
-            .unwrap(),
-    )?;
-    save.quests =
-        Quests::parse(&byte_vector[Range::<usize>::from(FileSection::from(Section::Quests))])?;
-    save.waypoints = waypoints::parse(
-        &byte_vector[Range::<usize>::from(FileSection::from(Section::Waypoints))]
-            .try_into()
-            .unwrap(),
-    )?;
-    save.npcs = npcs::parse(
-        &byte_vector[Range::<usize>::from(FileSection::from(Section::Npcs))].try_into().unwrap(),
-    )?;
+    save.character =
+        character::parse(&byte_vector[Section::Character.range()].try_into().unwrap())?;
+    save.quests = Quests::parse(&byte_vector[Section::Quests.range()])?;
+    save.waypoints =
+        waypoints::parse(&byte_vector[Section::Waypoints.range()].try_into().unwrap())?;
+    save.npcs = npcs::parse(&byte_vector[Section::Npcs.range()].try_into().unwrap())?;
 
     let mut byte_position: BytePosition = BytePosition::default();
     save.attributes = attributes::parse(
@@ -150,28 +140,21 @@ impl Save {
         let mut result: Vec<u8> = Vec::<u8>::new();
         result.resize(765, 0x00);
 
-        result[Range::<usize>::from(FileSection::from(Section::Signature))]
-            .copy_from_slice(&SIGNATURE);
-        result[Range::<usize>::from(FileSection::from(Section::Version))]
+        result[Section::Signature.range()].copy_from_slice(&SIGNATURE);
+        result[Section::Version.range()]
             .copy_from_slice(&u32::to_le_bytes(u32::from(self.version)));
-        result[Range::<usize>::from(FileSection::from(Section::Character))]
-            .copy_from_slice(&self.character.write());
-        result[Range::<usize>::from(FileSection::from(Section::Quests))]
-            .copy_from_slice(&self.quests.to_bytes());
-        result[Range::<usize>::from(FileSection::from(Section::Waypoints))]
-            .copy_from_slice(&waypoints::generate(&self.waypoints));
-        result[Range::<usize>::from(FileSection::from(Section::Npcs))]
-            .copy_from_slice(&npcs::generate(self.npcs));
+        result[Section::Character.range()].copy_from_slice(&self.character.write());
+        result[Section::Quests.range()].copy_from_slice(&self.quests.to_bytes());
+        result[Section::Waypoints.range()].copy_from_slice(&waypoints::generate(&self.waypoints));
+        result[Section::Npcs.range()].copy_from_slice(&npcs::generate(self.npcs));
         result.append(&mut self.attributes.write());
         result.append(&mut self.skills.write());
         result.append(&mut items::generate(&self.items, self.character.mercenary.is_hired()));
 
         let length = result.len() as u32;
-        result[Range::<usize>::from(FileSection::from(Section::FileSize))]
-            .copy_from_slice(&u32::to_le_bytes(length));
+        result[Section::FileSize.range()].copy_from_slice(&u32::to_le_bytes(length));
         let checksum = calc_checksum(&result);
-        result[Range::<usize>::from(FileSection::from(Section::Checksum))]
-            .copy_from_slice(&i32::to_le_bytes(checksum));
+        result[Section::Checksum.range()].copy_from_slice(&i32::to_le_bytes(checksum));
 
         result
     }
@@ -379,7 +362,7 @@ impl From<Class> for u8 {
 
 pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
     let mut checksum: i32 = 0;
-    let range = Range::<usize>::from(FileSection::from(Section::Checksum));
+    let range = Section::Checksum.range();
     for i in 0..bytes.len() {
         let mut ch: i32 = bytes[i] as i32;
         if i >= range.start && i < range.end {

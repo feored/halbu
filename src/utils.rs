@@ -1,16 +1,10 @@
 use std::cmp;
 use std::collections::HashMap;
 use std::error::Error;
-use std::ops::Range;
 use std::time::SystemTime;
 
 use bit::BitIndex;
 use csv;
-
-pub struct SectionRange {
-    start: usize,
-    end: usize,
-}
 
 pub type Record = HashMap<String, String>;
 
@@ -31,25 +25,6 @@ pub fn get_sys_time_in_secs() -> u32 {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
-pub struct FileSection {
-    pub offset: usize,
-    pub bytes: usize,
-}
-
-impl From<FileSection> for Range<usize> {
-    fn from(file_section: FileSection) -> Range<usize> {
-        file_section.offset..(file_section.offset + file_section.bytes)
-    }
-}
-
-/// Keep track of current byte and bit index in the attributes byte vector.
-#[derive(Default, PartialEq, Eq, Debug)]
-pub struct BytePosition {
-    pub current_byte: usize,
-    pub current_bit: usize,
-}
-
 pub fn u32_from(slice: &[u8]) -> u32 {
     u32::from_le_bytes(slice.try_into().unwrap())
 }
@@ -60,6 +35,12 @@ pub fn u16_from(slice: &[u8]) -> u16 {
 
 pub fn u8_from(slice: &[u8]) -> u8 {
     slice[0]
+}
+
+#[derive(Default, PartialEq, Eq, Debug)]
+pub struct BytePosition {
+    pub current_byte: usize,
+    pub current_bit: usize,
 }
 
 /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.

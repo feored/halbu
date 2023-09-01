@@ -141,8 +141,9 @@ impl Act1 {
         quest_values[6] = self.q6.value();
         quest_values[7] = self.completion.value();
         let mut quest_bytes: [u8; 16] = [0; 16];
-        for val in quest_values {
-            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        for (index, val) in quest_values.iter().enumerate() {
+            let start: usize = index * 2;
+            quest_bytes[start..start + 2].copy_from_slice(&u16::to_le_bytes(*val));
         }
         quest_bytes
     }
@@ -187,8 +188,9 @@ impl Act2 {
         quest_values[6] = self.q6.value();
         quest_values[7] = self.completion.value();
         let mut quest_bytes: [u8; 16] = [0; 16];
-        for val in quest_values {
-            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        for (index, val) in quest_values.iter().enumerate() {
+            let start: usize = index * 2;
+            quest_bytes[start..start + 2].copy_from_slice(&u16::to_le_bytes(*val));
         }
         quest_bytes
     }
@@ -233,8 +235,9 @@ impl Act3 {
         quest_values[6] = self.q6.value();
         quest_values[7] = self.completion.value();
         let mut quest_bytes: [u8; 16] = [0; 16];
-        for val in quest_values {
-            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        for (index, val) in quest_values.iter().enumerate() {
+            let start: usize = index * 2;
+            quest_bytes[start..start + 2].copy_from_slice(&u16::to_le_bytes(*val));
         }
         quest_bytes
     }
@@ -279,8 +282,9 @@ impl Act4 {
         quest_values[6] = self.unused_2.value();
         quest_values[7] = self.unused_3.value();
         let mut quest_bytes: [u8; 16] = [0; 16];
-        for val in quest_values {
-            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        for (index, val) in quest_values.iter().enumerate() {
+            let start: usize = index * 2;
+            quest_bytes[start..start + 2].copy_from_slice(&u16::to_le_bytes(*val));
         }
         quest_bytes
     }
@@ -329,8 +333,9 @@ impl Act5 {
         quest_values[8] = self.q6.value();
         quest_values[9] = self.completion.value();
         let mut quest_bytes: [u8; 20] = [0; 20];
-        for val in quest_values {
-            quest_bytes.copy_from_slice(&u16::to_le_bytes(val));
+        for (index, val) in quest_values.iter().enumerate() {
+            let start: usize = index * 2;
+            quest_bytes[start..start + 2].copy_from_slice(&u16::to_le_bytes(*val));
         }
         quest_bytes
     }
