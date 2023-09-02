@@ -86,14 +86,16 @@ impl SkillSet {
     pub fn parse(byte_vector: &[u8], class: Class) -> SkillSet {
         let mut skills: SkillSet = SkillSet::default_class(class);
         if byte_vector.len() < 2 {
-            warn!("Skills section too short to even read header (length: {0}), setting all skills to 0.", byte_vector.len())
+            warn!("Skills section too short to even read header (length: {0}), setting all skills to 0.", byte_vector.len());
+            return skills;
         }
         if byte_vector[0..2] != SECTION_HEADER {
             warn!(
-                "Found wrong header for skills section: expected {0:?}, found {1:?}",
+                "Found wrong header for skills section: expected {0:X?}, found {1:X?}. Setting all skills to 0.",
                 SECTION_HEADER,
                 &byte_vector[0..2]
             );
+            return skills;
         }
         for i in 0..SKILLS_NUMBER {
             if (i + 2) >= byte_vector.len() {
