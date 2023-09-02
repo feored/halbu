@@ -36,8 +36,8 @@ pub mod utils;
 pub mod waypoints;
 
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
-
 const ATTRIBUTES_OFFSET: usize = 765;
+const DEFAULT_VERSION: u32 = 99;
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 enum Section {
@@ -55,9 +55,9 @@ impl Section {
     const fn range(self) -> Range<usize> {
         match self {
             Section::Signature => 0..4,
-            Section::Version => 4..4,
-            Section::FileSize => 8..4,
-            Section::Checksum => 12..4,
+            Section::Version => 4..8,
+            Section::FileSize => 8..12,
+            Section::Checksum => 12..16,
             Section::Character => 16..335,
             Section::Quests => 335..633,
             Section::Waypoints => 633..713,
@@ -70,7 +70,7 @@ impl Section {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Save {
     pub version: u32,
     pub character: Character,
@@ -80,6 +80,21 @@ pub struct Save {
     pub attributes: Attributes,
     pub skills: SkillSet,
     pub items: items::Placeholder,
+}
+
+impl Default for Save {
+    fn default() -> Self {
+        Save {
+            version: DEFAULT_VERSION,
+            character: Character::default(),
+            quests: Quests::default(),
+            waypoints: Waypoints::default(),
+            npcs: NPCs::default(),
+            attributes: Attributes::default(),
+            skills: SkillSet::default(),
+            items: items::Placeholder::default(),
+        }
+    }
 }
 
 impl fmt::Display for Save {
@@ -138,8 +153,7 @@ impl Save {
         if !Save::section_readable(&byte_vector, Section::Version) {
             return save;
         }
-        save.version = u32_from(&byte_vector[Section::Version.range()], "save.version");
-
+        save.version = u32_from(&byte_vector[Section::Version.range()], "save.version").into();
         if !Save::section_readable(&byte_vector, Section::Character) {
             return save;
         }
@@ -230,34 +244,6 @@ impl fmt::Display for ParseError {
 impl fmt::Display for GameLogicError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Game logic error: {}", self.message)
-    }
-}
-
-#[derive(PartialEq, Eq, Debug, Default, Copy, Clone, Serialize, Deserialize)]
-pub enum Version {
-    V100,
-    V107,
-    V108,
-    V109,
-    V110,
-    V200R,
-    V240R,
-    #[default]
-    V250R,
-}
-
-impl From<Version> for u32 {
-    fn from(version: Version) -> u32 {
-        match version {
-            Version::V100 => 71,
-            Version::V107 => 87,
-            Version::V108 => 89,
-            Version::V109 => 92,
-            Version::V110 => 96,
-            Version::V200R => 97,
-            Version::V240R => 98,
-            Version::V250R => 99,
-        }
     }
 }
 

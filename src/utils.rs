@@ -32,7 +32,7 @@ pub fn u32_from(slice: &[u8], name: &'static str) -> u32 {
         Ok(res) => res,
         Err(e) => {
             error!(
-                "Reference: {0}\n{1}\nFailed to coerce [u8;4] from bytes: {2:?}",
+                "Reference: {0}:{1} (Failed to coerce [u8;4] from bytes: {2:?})",
                 name,
                 e.to_string(),
                 slice
@@ -47,7 +47,7 @@ pub fn u16_from(slice: &[u8], name: &'static str) -> u16 {
         Ok(res) => res,
         Err(e) => {
             error!(
-                "Reference: {0}\n{1}\nFailed to coerce [u8;2] from bytes: {2:?}",
+                "Reference: {0}: {1} (Failed to coerce [u8;2] from bytes: {2:?})",
                 name,
                 e.to_string(),
                 slice
