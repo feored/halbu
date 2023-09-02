@@ -1,6 +1,6 @@
 use std::fmt;
 
-use log::{error, warn};
+use log::warn;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::read_bits;
@@ -212,11 +212,14 @@ impl Attributes {
             let header: u32 = match read_bits(byte_vector, byte_position, STAT_HEADER_LENGTH) {
                 Ok(res) => res,
                 Err(e) => {
-                    error!("Error while parsing attributes header {0}: {1}", _i, e.to_string());
-                    return attributes;
+                    warn!("Error while parsing attributes header {0}: {1}", _i, e.to_string());
+                    break;
                 }
             };
             if header == SECTION_TRAILER {
+                break;
+            } else if header as usize >= STAT_KEY.len() {
+                warn!("Error while parsing attributes header {0}: {1}, using default values for following attributes.", _i, header);
                 break;
             }
             let stat: Stat = attributes.stat(STAT_KEY[header as usize]);
@@ -225,13 +228,13 @@ impl Attributes {
                 match read_bits(byte_vector, byte_position, stat.bit_length) {
                     Ok(res) => res,
                     Err(e) => {
-                        error!(
+                        warn!(
                             "Error while parsing attributes value {0} (header {1}): {2}",
                             _i,
                             header,
                             e.to_string()
                         );
-                        return attributes;
+                        break;
                     }
                 },
             );
