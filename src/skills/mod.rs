@@ -23,19 +23,19 @@ pub struct Skill {
 
 impl fmt::Display for Skill {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{0}: {1}pts", self.id, self.points)
+        write!(f, "[{0}] {1}: {2}pts", self.id, self.name, self.points)
     }
 }
 
 /// Holds entire skill tree of a character.
 #[derive(PartialEq, Eq, Debug, Ord, PartialOrd, Clone, Serialize, Deserialize)]
-pub struct SkillSet([Skill; SKILLS_NUMBER]);
+pub struct SkillSet(pub [Skill; SKILLS_NUMBER]);
 
 impl fmt::Display for SkillSet {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut final_string = String::default();
         for i in 0usize..SKILLS_NUMBER {
-            final_string.push_str(&format!("{0}\n", self.0[i]));
+            final_string.push_str(&format!("{0}: {1}\n", i, self.0[i]));
         }
         write!(f, "{0}", final_string)
     }
@@ -48,6 +48,28 @@ impl Default for SkillSet {
 }
 
 impl SkillSet {
+    // Set all skills to given number of points
+    pub fn set_all(&mut self, new_points: u8) {
+        for skill in self.0.iter_mut() {
+            skill.points = new_points
+        }
+    }
+
+    /// Set skill points of a skill
+    pub fn set(&mut self, skill_index: usize, new_points: u8) {
+        if skill_index >= self.0.len() {
+            panic!("Skill index must be inferior to 30, but tried to set {0}", skill_index);
+        }
+        self.0[skill_index].points = new_points;
+    }
+    /// Get skill points of a skill
+    pub fn get(&self, skill_index: usize) -> u8 {
+        if skill_index >= self.0.len() {
+            panic!("Skill index must be inferior to 30, but tried to get {0}", skill_index);
+        }
+        self.0[skill_index].points
+    }
+
     /// Generates a byte vector from a given SkillSet
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut byte_vector: Vec<u8> = SECTION_HEADER.to_vec();

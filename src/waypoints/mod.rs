@@ -34,10 +34,10 @@ impl Section {
 
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WaypointInfo {
-    id: Waypoint,
-    name: String,
-    act: Act,
-    acquired: bool,
+    pub id: Waypoint,
+    pub name: String,
+    pub act: Act,
+    pub acquired: bool,
 }
 
 impl fmt::Display for WaypointInfo {
@@ -48,9 +48,9 @@ impl fmt::Display for WaypointInfo {
 
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Waypoints {
-    normal: DifficultyWaypoints,
-    nightmare: DifficultyWaypoints,
-    hell: DifficultyWaypoints,
+    pub normal: DifficultyWaypoints,
+    pub nightmare: DifficultyWaypoints,
+    pub hell: DifficultyWaypoints,
 }
 
 impl fmt::Display for Waypoints {
@@ -62,40 +62,160 @@ impl fmt::Display for Waypoints {
         )
     }
 }
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+
+pub struct ActWaypoints(pub [WaypointInfo; 9]);
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+
+pub struct Act4Waypoints(pub [WaypointInfo; 3]);
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct DifficultyWaypoints {
-    act1: [WaypointInfo; 9],
-    act2: [WaypointInfo; 9],
-    act3: [WaypointInfo; 9],
-    act4: [WaypointInfo; 3],
-    act5: [WaypointInfo; 9],
+    pub act1: ActWaypoints,
+    pub act2: ActWaypoints,
+    pub act3: ActWaypoints,
+    pub act4: Act4Waypoints,
+    pub act5: ActWaypoints,
+}
+
+impl Act4Waypoints {
+    /// Set whether single waypoint is acquired using WaypointID
+    pub fn set(&mut self, wp_id: Waypoint, acquired: bool) {
+        for wp in self.0.iter_mut() {
+            if wp.id == wp_id {
+                wp.acquired = acquired;
+            }
+        }
+    }
+    /// Get whether a single waypoint is acquired using WaypointID
+    pub fn get(&self, wp_id: Waypoint) -> bool {
+        for wp in self.0.clone().into_iter() {
+            if wp.id == wp_id {
+                return wp.acquired;
+            }
+        }
+        false
+    }
+    /// Set whether all waypoints in this act are acquired
+    pub fn set_all(&mut self, acquired: bool) {
+        for wp in self.0.iter_mut() {
+            wp.acquired = acquired;
+        }
+    }
+    /// Set whether single waypoint is acquired
+    pub fn set_num(&mut self, index: usize, acquired: bool) {
+        if index >= self.0.len() {
+            panic!(
+                "Current act has only {0} waypoints but tried to set {1} on waypoint {2}",
+                self.0.len(),
+                acquired,
+                index
+            );
+        }
+        self.0[index].acquired = acquired;
+    }
+    /// Get whether a single waypoint is acquired
+    pub fn get_num(&self, index: usize) -> bool {
+        if index >= self.0.len() {
+            panic!(
+                "Current act has only {0} waypoints but tried to get value of waypoint {1}",
+                self.0.len(),
+                index
+            );
+        }
+        self.0[index].acquired
+    }
+}
+
+impl ActWaypoints {
+    /// Set whether all waypoints in this act are acquired
+    pub fn set_all(&mut self, acquired: bool) {
+        for wp in self.0.iter_mut() {
+            wp.acquired = acquired;
+        }
+    }
+    /// Set whether single waypoint is acquired using WaypointID
+    pub fn set(&mut self, wp_id: Waypoint, acquired: bool) {
+        for wp in self.0.iter_mut() {
+            if wp.id == wp_id {
+                wp.acquired = acquired;
+            }
+        }
+    }
+    /// Get whether a single waypoint is acquired using WaypointID
+    pub fn get(&self, wp_id: Waypoint) -> bool {
+        for wp in self.0.clone().into_iter() {
+            if wp.id == wp_id {
+                return wp.acquired;
+            }
+        }
+        false
+    }
+
+    /// Set whether single waypoint is acquired
+    pub fn set_num(&mut self, index: usize, acquired: bool) {
+        if index >= self.0.len() {
+            panic!(
+                "Current act has only {0} waypoints but tried to set {1} on waypoint {2}",
+                self.0.len(),
+                acquired,
+                index
+            );
+        }
+        self.0[index].acquired = acquired;
+    }
+    /// Get whether a single waypoint is acquired
+    pub fn get_num(&self, index: usize) -> bool {
+        if index >= self.0.len() {
+            panic!(
+                "Current act has only {0} waypoints but tried to get value of waypoint {1}",
+                self.0.len(),
+                index
+            );
+        }
+        self.0[index].acquired
+    }
+}
+
+impl fmt::Display for ActWaypoints {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut final_string = String::default();
+        for wp in &self.0 {
+            final_string.push_str(format!("{0}\n", wp).as_str());
+        }
+        write!(f, "{0}", final_string)
+    }
+}
+
+impl fmt::Display for Act4Waypoints {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut final_string = String::default();
+        for wp in &self.0 {
+            final_string.push_str(format!("{0}\n", wp).as_str());
+        }
+        write!(f, "{0}", final_string)
+    }
+}
+
+impl DifficultyWaypoints {
+    pub fn set_all(&mut self, acquired: bool) {
+        self.act1.set_all(acquired);
+        self.act2.set_all(acquired);
+        self.act3.set_all(acquired);
+        self.act4.set_all(acquired);
+        self.act5.set_all(acquired);
+    }
 }
 
 impl fmt::Display for DifficultyWaypoints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let array_to_string = |array: &[WaypointInfo], length: usize| -> String {
-            let mut final_string = String::default();
-            for i in 0..length {
-                final_string.push_str(&array[i].to_string());
-                final_string.push('\n');
-            }
-            final_string
-        };
-        let mut final_string = String::default();
-        final_string.push_str(&array_to_string(&self.act1, 9));
-        final_string.push_str(&array_to_string(&self.act2, 9));
-        final_string.push_str(&array_to_string(&self.act3, 9));
-        final_string.push_str(&array_to_string(&self.act4, 3));
-        final_string.push_str(&array_to_string(&self.act5, 9));
-
-        write!(f, "{0}", final_string)
+        write!(f, "{0}\n{1}\n{2}\n{3}\n{4}", self.act1, self.act2, self.act3, self.act4, self.act5)
     }
 }
 
 impl Default for DifficultyWaypoints {
     fn default() -> Self {
-        fn default_waypoints(act: Act) -> [WaypointInfo; 9] {
+        fn default_waypoints(act: Act) -> ActWaypoints {
             let mut default_waypoints: [WaypointInfo; 9] = <[WaypointInfo; 9]>::default();
             for i in 0..9 {
                 default_waypoints[i].act = act;
@@ -122,7 +242,7 @@ impl Default for DifficultyWaypoints {
             if act == Act::Act1 {
                 default_waypoints[0].acquired = true;
             }
-            default_waypoints
+            ActWaypoints(default_waypoints)
         }
         Self {
             act1: default_waypoints(Act::Act1),
@@ -139,7 +259,7 @@ impl Default for DifficultyWaypoints {
                     };
                     default_waypoints[i].acquired = false;
                 }
-                default_waypoints
+                Act4Waypoints(default_waypoints)
             },
             act5: default_waypoints(Act::Act5),
         }
@@ -285,7 +405,7 @@ impl Waypoints {
             let waypoint = Waypoint::try_from(id).unwrap();
             match Act::from(waypoint) {
                 Act::Act1 => {
-                    waypoints.act1[id] = WaypointInfo {
+                    waypoints.act1.0[id] = WaypointInfo {
                         id: waypoint,
                         name: String::from(NAMES_ACT1[id]),
                         act: Act::Act1,
@@ -293,7 +413,7 @@ impl Waypoints {
                     }
                 }
                 Act::Act2 => {
-                    waypoints.act2[id - 9] = WaypointInfo {
+                    waypoints.act2.0[id - 9] = WaypointInfo {
                         id: waypoint,
                         name: String::from(NAMES_ACT2[id - 9]),
                         act: Act::Act2,
@@ -301,7 +421,7 @@ impl Waypoints {
                     }
                 }
                 Act::Act3 => {
-                    waypoints.act3[id - 18] = WaypointInfo {
+                    waypoints.act3.0[id - 18] = WaypointInfo {
                         id: waypoint,
                         name: String::from(NAMES_ACT3[id - 18]),
                         act: Act::Act3,
@@ -309,7 +429,7 @@ impl Waypoints {
                     }
                 }
                 Act::Act4 => {
-                    waypoints.act4[id - 27] = WaypointInfo {
+                    waypoints.act4.0[id - 27] = WaypointInfo {
                         id: waypoint,
                         name: String::from(NAMES_ACT4[id - 27]),
                         act: Act::Act4,
@@ -317,7 +437,7 @@ impl Waypoints {
                     }
                 }
                 Act::Act5 => {
-                    waypoints.act5[id - 30] = WaypointInfo {
+                    waypoints.act5.0[id - 30] = WaypointInfo {
                         id: waypoint,
                         name: String::from(NAMES_ACT5[id - 30]),
                         act: Act::Act5,
@@ -351,11 +471,11 @@ impl Waypoints {
             flags
         }
         let mut flags: u64 = 0;
-        flags.set_bit_range(0..9, fill_flags(&waypoints.act1, 9).bit_range(0..9));
-        flags.set_bit_range(9..18, fill_flags(&waypoints.act2, 9).bit_range(0..9));
-        flags.set_bit_range(18..27, fill_flags(&waypoints.act3, 9).bit_range(0..9));
-        flags.set_bit_range(27..30, fill_flags(&waypoints.act4, 3).bit_range(0..3));
-        flags.set_bit_range(30..39, fill_flags(&waypoints.act5, 9).bit_range(0..9));
+        flags.set_bit_range(0..9, fill_flags(&waypoints.act1.0, 9).bit_range(0..9));
+        flags.set_bit_range(9..18, fill_flags(&waypoints.act2.0, 9).bit_range(0..9));
+        flags.set_bit_range(18..27, fill_flags(&waypoints.act3.0, 9).bit_range(0..9));
+        flags.set_bit_range(27..30, fill_flags(&waypoints.act4.0, 3).bit_range(0..3));
+        flags.set_bit_range(30..39, fill_flags(&waypoints.act5.0, 9).bit_range(0..9));
         bytes[Section::DifficultyWaypointsValue.range()].copy_from_slice(&u64::to_le_bytes(flags));
         bytes
     }

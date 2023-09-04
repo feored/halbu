@@ -62,7 +62,7 @@ impl fmt::Display for Stat {
             "{0} - {1}: {2} -- {3}bits [0-{4}])",
             self.id,
             self.name,
-            self.value,
+            if self.bit_length == 21 { self.value as f64 / 256f64 } else { self.value.into() },
             self.bit_length,
             self.max()
         )
