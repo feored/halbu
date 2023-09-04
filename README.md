@@ -97,6 +97,7 @@ fn main() {
 }
 
 ```
+For more information, please check the [documentation](https://docs.rs/halbu/0.1.0/halbu/).
 
 ### Resources
 
