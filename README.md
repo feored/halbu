@@ -1,4 +1,4 @@
-# Halbu
+## Halbu
 
 A .d2s file parsing library written in Rust.
 
@@ -12,9 +12,8 @@ A .d2s file parsing library written in Rust.
 use halbu::{quests::QuestFlag, waypoints::Waypoint, Class, Save};
 
 fn main() {
-    let save_file =
-        std::fs::read("C:\\Users\\Example\\Saved Games\\Diablo II Resurrected\\Jamella.d2s")
-            .unwrap();
+    // The name Halbu is a node to the first hero editor I used, Jamella Editor
+    let save_file = std::fs::read("C:\\Users\\Example\\Saved Games\\Diablo II Resurrected\\Jamella.d2s").unwrap();
 
     let mut save = Save::parse(&save_file);
 
@@ -64,10 +63,7 @@ fn main() {
     save.waypoints.hell.act4.set_num(1, true);
     println!("Hell Act IV WP 1: {}", save.waypoints.hell.act4.get_num(1));
 
-    save.waypoints
-        .hell
-        .act4
-        .set(Waypoint::CityOfTheDamned, false);
+    save.waypoints.hell.act4.set(Waypoint::CityOfTheDamned, false);
     println!(
         "Hell Act IV WP 1: {}",
         save.waypoints.hell.act4.get(Waypoint::CityOfTheDamned)
@@ -88,41 +84,24 @@ fn main() {
     save.quests.hell.act1.q1.state.clear();
     println!("Hell Act I Q1 State: {}", save.quests.hell.act1.q1);
 
-    // The flag names are from D2MOO. Refer to notes.md for a flagname <> bit table.
-    save.quests
-        .hell
-        .act1
-        .q1
-        .state
-        .insert(QuestFlag::RewardGranted);
+    // The flag names are from D2MOO. Refer to notes.md for a flagname <> bit # table.
+    save.quests.hell.act1.q1.state.insert(QuestFlag::RewardGranted);
     println!(
         "Hell Act I Q1 Completed: {}",
-        save.quests
-            .hell
-            .act1
-            .q1
-            .state
-            .contains(&QuestFlag::RewardGranted),
+        save.quests.hell.act1.q1.state.contains(&QuestFlag::RewardGranted)
     );
     // Save the file
     // Warning: The file name must match the character's name!
-    std::fs::write(
-        "C:\\Users\\Example\\Saved Games\\Diablo II Resurrected\\Halbu.d2s",
-        save.to_bytes(),
-    )
-    .unwrap();
+    std::fs::write("C:\\Users\\Example\\Saved Games\\Diablo II Resurrected\\Halbu.d2s", save.to_bytes()).unwrap();
 }
 
 ```
 
-
-
-
-#### Resources
+### Resources
 
 These resources have helped me understand the .d2s format. Many thanks to their authors for the work they've done!
 
-* http://user.xmission.com/~trevin/DiabloIIv1.09_File_Format.shtm
+* http://user.xmission.com/~trevin/DiabloIIv1.09_File_Format.shtml
 * https://github.com/dschu012/D2SLib (Unless you specifically need a rust library, you should probably use this.)
 * https://raw.githubusercontent.com/oaken-source/pyd2s/master/docs/d2s_save_file_format_1.13d.txt
 * https://github.com/WalterCouto/D2CE/blob/main/d2s_File_Format.md
