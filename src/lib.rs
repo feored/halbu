@@ -100,12 +100,12 @@ impl Default for Save {
 impl fmt::Display for Save {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut final_string = format!("Save:\nVersion: {0}\n", self.version);
-        final_string.push_str(&format!("Character:\n {0}\n", self.character));
-        final_string.push_str(&format!("Quests:\n {0}\n", self.quests));
-        final_string.push_str(&format!("Waypoints:\n {0}\n", self.waypoints));
+        final_string.push_str(&format!("Character:\n{0}\n", self.character));
+        final_string.push_str(&format!("Quests:\n{0}\n", self.quests));
+        final_string.push_str(&format!("Waypoints:\n{0}\n", self.waypoints));
         //final_string.push_str(&format!("NPCs:\n {0:?}\n", self.npcs));
-        final_string.push_str(&format!("Attributes:\n {0}\n", self.attributes));
-        final_string.push_str(&format!("Skills:\n {0}\n", self.skills));
+        final_string.push_str(&format!("Attributes:\n{0}\n", self.attributes));
+        final_string.push_str(&format!("Skills:\n{0}\n", self.skills));
         //final_string.push_str(&format!("Items:\n {0:?}\n", self.items));
         write!(f, "{0}", final_string)
     }
@@ -229,21 +229,9 @@ pub struct ParseError {
     message: String,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GameLogicError {
-    message: String,
-}
-
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Parsing error: {}", self.message)
-    }
-}
-
-impl fmt::Display for GameLogicError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Game logic error: {}", self.message)
     }
 }
 

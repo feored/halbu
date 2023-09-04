@@ -112,7 +112,7 @@ impl Quest {
 
 impl fmt::Display for Quest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Quest State: {0:?}:\t{1:#018b}\t{1:X?}", self.state, self.value())
+        write!(f, "State: {0:?}", self.state)
     }
 }
 
@@ -126,6 +126,16 @@ pub struct Act1 {
     pub q5: Quest,
     pub q6: Quest,
     pub completion: Quest,
+}
+
+impl fmt::Display for Act1 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Prologue: {0}\nQuest 1: {1}\nQuest 2: {2}\nQuest 3: {3}\nQuest 4: {4}\nQuest 5: {5}\nQuest 6: {6}\nCompletion: {7}",
+            self.prologue, self.q1, self.q2, self.q3, self.q4, self.q5, self.q6, self.completion
+        )
+    }
 }
 
 impl Act1 {
@@ -175,6 +185,16 @@ pub struct Act2 {
     pub completion: Quest,
 }
 
+impl fmt::Display for Act2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Prologue: {0}\nQuest 1: {1}\nQuest 2: {2}\nQuest 3: {3}\nQuest 4: {4}\nQuest 5: {5}\nQuest 6: {6}\nCompletion: {7}",
+            self.prologue, self.q1, self.q2, self.q3, self.q4, self.q5, self.q6, self.completion
+        )
+    }
+}
+
 impl Act2 {
     fn to_bytes(&self) -> [u8; 16] {
         let mut quest_values: [u16; 8] = [0; 8];
@@ -222,6 +242,16 @@ pub struct Act3 {
     pub completion: Quest,
 }
 
+impl fmt::Display for Act3 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Prologue: {0}\nQuest 1: {1}\nQuest 2: {2}\nQuest 3: {3}\nQuest 4: {4}\nQuest 5: {5}\nQuest 6: {6}\nCompletion: {7}",
+            self.prologue, self.q1, self.q2, self.q3, self.q4, self.q5, self.q6, self.completion
+        )
+    }
+}
+
 impl Act3 {
     fn to_bytes(&self) -> [u8; 16] {
         let mut quest_values: [u16; 8] = [0; 8];
@@ -267,6 +297,16 @@ pub struct Act4 {
     pub unused_1: Quest,
     pub unused_2: Quest,
     pub unused_3: Quest,
+}
+
+impl fmt::Display for Act4 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Prologue: {0}\nQuest 1: {1}\nQuest 2: {2}\nQuest 3: {3}\nCompletion: {4}\nUnused Quest 1: {5}\nUnused Quest 2: {6}\nUnused Quest 3: {7}\n",
+            self.prologue, self.q1, self.q2, self.q3, self.completion, self.unused_1, self.unused_2, self.unused_3
+        )
+    }
 }
 
 impl Act4 {
@@ -318,6 +358,16 @@ pub struct Act5 {
     pub completion: Quest,
 }
 
+impl fmt::Display for Act5 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Prologue: {0}\nUnused Quest 1: {1}\nUnused Quest 2: {2}\nQuest 1: {3}\nQuest 2: {4}\nQuest 3: {5}\n\nQuest 4: {6}\nQuest 5: {7}\nQuest 6: {8}\nCompletion: {9}",
+            self.prologue, self.unused_1, self.unused_2, self.q1, self.q2, self.q3, self.q4, self.q5, self.q6, self.completion
+        )
+    }
+}
+
 impl Act5 {
     fn to_bytes(&self) -> [u8; 20] {
         let mut quest_values: [u16; 10] = [0; 10];
@@ -361,7 +411,7 @@ impl fmt::Display for DifficultyQuests {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Act I:\n {0:?}\nAct II:\n{1:?}\nAct III:\n{2:?}\nAct IV:\n{3:?}\nAct V:\n{4:?}",
+            "Act I:\n{0}\nAct II:\n{1}\nAct III:\n{2}\nAct IV:\n{3}\nAct V:\n{4}",
             self.act1, self.act2, self.act3, self.act4, self.act5
         )
     }
@@ -410,7 +460,11 @@ pub struct Quests {
 
 impl fmt::Display for Quests {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Normal: {0}\nNightmare: {1}\nHell: {2}", self.normal, self.nightmare, self.hell)
+        write!(
+            f,
+            "Normal:\n{0}\nNightmare:\n{1}\nHell:\n{2}",
+            self.normal, self.nightmare, self.hell
+        )
     }
 }
 
@@ -453,48 +507,4 @@ impl Quests {
 }
 
 #[cfg(test)]
-mod tests {
-
-    // #[test]
-    // fn test_generate_and_parse() {
-    //     let bytes: [u8; 298] = [
-    //         0x57, 0x6F, 0x6F, 0x21, 0x06, 0x00, 0x00, 0x00, 0x2A, 0x01, 0x01, 0x00, 0x01, 0x10,
-    //         0x1D, 0x10, 0x4E, 0x80, 0x1D, 0x10, 0x00, 0x00, 0x1D, 0x00, 0x01, 0x00, 0x01, 0x00,
-    //         0x1D, 0x10, 0x79, 0x1C, 0x05, 0x10, 0x81, 0x11, 0x05, 0x10, 0x65, 0x1F, 0x01, 0x00,
-    //         0x01, 0x00, 0x01, 0x10, 0x7D, 0x10, 0xF5, 0x13, 0x01, 0x10, 0x0D, 0x10, 0x61, 0x10,
-    //         0x01, 0x00, 0x01, 0x00, 0x01, 0x10, 0x01, 0x13, 0x01, 0x10, 0x01, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x22, 0x80, 0x08, 0x00,
-    //         0x8D, 0x17, 0x0C, 0x00, 0x19, 0x13, 0xCD, 0x15, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x10, 0x0C, 0x00,
-    //         0x4A, 0x80, 0x19, 0x10, 0x00, 0x00, 0x19, 0x10, 0x01, 0x00, 0x01, 0x00, 0x11, 0x10,
-    //         0x79, 0x18, 0x05, 0x10, 0x81, 0x11, 0x05, 0x10, 0x25, 0x18, 0x01, 0x00, 0x01, 0x00,
-    //         0x01, 0x10, 0x7D, 0x10, 0xF5, 0x13, 0x01, 0x10, 0x0D, 0x10, 0x61, 0x10, 0x01, 0x00,
-    //         0x01, 0x00, 0x01, 0x10, 0x01, 0x13, 0x01, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x80, 0x08, 0x00, 0x89, 0x17,
-    //         0x0C, 0x00, 0x19, 0x13, 0xCD, 0x15, 0x02, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x10, 0x1D, 0x10, 0x0C, 0x00,
-    //         0x19, 0x14, 0x15, 0x10, 0x19, 0x10, 0x01, 0x00, 0x01, 0x00, 0x11, 0x90, 0x79, 0x1C,
-    //         0x05, 0x90, 0x81, 0x11, 0x05, 0x10, 0x25, 0x1A, 0x01, 0x00, 0x01, 0x00, 0x05, 0x10,
-    //         0x7D, 0x10, 0x00, 0x00, 0x01, 0x10, 0x09, 0x10, 0x71, 0x10, 0x01, 0x00, 0x01, 0x00,
-    //         0x01, 0x10, 0x01, 0x13, 0x01, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x21, 0x90, 0x01, 0x10, 0x89, 0x17, 0x1E, 0x80,
-    //         0x19, 0x13, 0xDD, 0x17, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00,
-    //     ];
-    //     let parsed_result = match parse(&bytes) {
-    //         Ok(res) => res,
-    //         Err(e) => {
-    //             println!("#### FAILED TO PARSE QUESTS");
-    //             panic!("{e:?}")
-    //         }
-    //     };
-    //     //println!("{0}", parsed_result);
-    //     assert_eq!(parsed_result.hell.flags.completed_difficulty, true);
-    //     assert_eq!(parsed_result.hell.quests[26].name, "Eve of Destruction");
-
-    //     let mut new_bytes : [u8;298] = [0x00; 298];
-    //     new_bytes.copy_from_slice(&generate(&parsed_result));
-
-    //     assert_eq!(bytes, new_bytes);
-    // }
-}
+mod tests {}

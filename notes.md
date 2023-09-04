@@ -1,16 +1,34 @@
-### Resources
-
-A list of incredibly useful resources that have helped me understand the .d2s format:
-
-* http://user.xmission.com/~trevin/DiabloIIv1.09_File_Format.shtm
-* https://github.com/oaken-source/pyd2s/blob/master/docs/d2s_save_file_format_1.13d.txt
-* https://github.com/WalterCouto/D2CE/blob/main/d2s_File_Format.md
-* https://github.com/krisives/d2s-format
-* https://github.com/nokka/d2s/blob/master/README.md
 
 The following is a list of of observations of my own as I test the editor on D2R patch 2.7, either completing some information here and there or adding things that have been changed since D2R. 
 
-### Character
+## Attributes
+
+Saved is col 7
+CSvSigned is col 8
+CSvBits# is col 9
+
+
+| Stat                  | ID        | Saved | Signed    | Bits      |
+| --------------------- | --------- | ----- | --------- | --------- |
+| Strength              | 0         | 1     | 0         | 10        |
+| Energy                | 1         | 1     | 0         | 10        |
+| Dexterity             | 2         | 1     | 0         | 10        |
+| Vitality              | 3         | 1     | 0         | 10        |
+| Stat Points Left      | 4         | 1     | 0         | 10        |
+| Skill Points Left     | 5         | 1     | 0         | 8         |
+| Hit Points (Current)  | 6         | 1     | 0         | 21        |
+| Hit Points (Max)      | 7         | 1     | 0         | 21        |
+| Mana (Current)        | 8         | 1     | 0         | 21        |
+| Mana (Max)            | 9         | 1     | 0         | 21        |
+| Stamina (Current)     | 10        | 1     | 0         | 21        |
+| Stamina (Max)         | 11        | 1     | 0         | 21        |
+| Level                 | 12        | 1     | 0         | 7         |
+| Experience            | 13        | 1     | 0         | 32        |
+| Gold (Inventory)      | 14        | 1     | 0         | 25        |
+| Gold (Stash)          | 15        | 1     | 0         | 25        |
+
+
+## Character
 
 The name now appears to fill 48 bytes. The names are still limited to 15 graphemes, but not 15 bytes. E.g using japanese kana that each take up 3 bytes, you may fill up 45 bytes of the name section.
 You can't mix and match languages, てすと　is valid but てtoす is not.
@@ -24,13 +42,13 @@ The character level shown in the menu preview is the from the attributes section
 
 Assigned skills have a default value of 0xFF 0xFF 0x00 0x00 before they are set (65535 in lower endian).
 
-### Legacy Character Menu Appearance
+#### Legacy Character Menu Appearance
 
 32 bytes starting at offset 136.
 
 Default value is 0xFF.
 
-**Byte 141:  Weapon**
+Byte 141:  Weapon
 
 Some codes gleaned from testing:
 
@@ -51,12 +69,6 @@ As far as I can tell, bytes 137..141 encode the visuals of the body armor, and 1
 Good resource: http://paul.siramy.free.fr/_divers2/Extracting%20Diablo%20II%20Animations.pdf (Page 11)
 
 Bytes 144..145 could be S1 and S2, and 137..141 obviously contain TR and probably RA and LA. More testing needed.
-
-* 02 02 02 02 // 02 02 -- Scale Mail
-
-* 03 03 03 03 // 03 03 -- Full Plate Mail
-
-* 01 02 02 01 // 02 02 -- Studded Leather
 
 
 ### Mercenary
@@ -171,41 +183,57 @@ s = floor(761851.992308^(1/3)) = 91
 91^3 + 91^2 = 761852
 experience/xp_rate < 761852, therefore level = s - 1 = 90
 ```
-## Attributes
-
-Saved is col 7
-CSvSigned is col 8
-CSvBits# is col 9
-
-
-| Stat                  | ID        | Saved | Signed    | Bits      |
-| --------------------- | --------- | ----- | --------- | --------- |
-| Strength              | 0         | 1     | 0         | 10        |
-| Energy                | 1         | 1     | 0         | 10        |
-| Dexterity             | 2         | 1     | 0         | 10        |
-| Vitality              | 3         | 1     | 0         | 10        |
-| Stat Points Left      | 4         | 1     | 0         | 10        |
-| Skill Points Left     | 5         | 1     | 0         | 8         |
-| Hit Points (Current)  | 6         | 1     | 0         | 21        |
-| Hit Points (Max)      | 7         | 1     | 0         | 21        |
-| Mana (Current)        | 8         | 1     | 0         | 21        |
-| Mana (Max)            | 9         | 1     | 0         | 21        |
-| Stamina (Current)     | 10        | 1     | 0         | 21        |
-| Stamina (Max)         | 11        | 1     | 0         | 21        |
-| Level                 | 12        | 1     | 0         | 7         |
-| Experience            | 13        | 1     | 0         | 32        |
-| Gold (Inventory)      | 14        | 1     | 0         | 25        |
-| Gold (Stash)          | 15        | 1     | 0         | 25        |
 
 
 ## Quests
 
-The data for every quest is held in 2 bytes. The quests structure contains 8 quests for every act:
-one for the introduction to a new act, 6 for every quest (3 in act 4 + padding), and a completion quest.
+The data for every quest is held in 2 bytes. The quests structure contains 8 quests for every act except act 5, which has a different structure and padding at the end.
+
+The first "quest" is the prologue to a new act, then come 6*2 bytes for every quest (3 in act 4 + 3 unused), and a completion quest.
+
+The prologue and completion quest only ever take a single flag, QFLAG_REWARDGRANTED, to signal true/false, which is also bit 0, so you can effectively treat them as 0/1.
+
+The prologue controls whether your character has been introduced to a given act, e.g has spoken to Warriv in Act I. The completion quest controls whether your character can use the waypoint to the next act, except for Act IV which requires you instead to have beaten Q2 (Terror's End).
+
+**Warning**: There are differences between the order the quests are stored in the same order and the order they appear in the game for Act I, III and IV. Refer to this table when editing quests.
+
+#### Act I
+
+| Quest Number      | Quest Name               | Quest Number in game |
+| ----------------- | ------------------------ | -------------------- |
+| 1                 | Den of Evil              | 1                    |
+| 2                 | Sisters' Burial Grounds  | 2                    |
+| 3                 | Tools of the Trade       | 5                    |
+| 4                 | The Search For Cain      | 3                    |
+| 5                 | The Forgotten Tower      | 4                    |
+| 6                 | Sisters to the Slaughter | 6                    |
+
+#### Act III
+
+| Quest Number      | Quest Name                | Quest Number in game |
+| ----------------- | ------------------------- | -------------------- |
+| 1                 | Lam Esen's Tome           | 4                     |
+| 2                 | Khalim's Will             | 3                     |
+| 3                 | Blade of the old Religion | 2                     |
+| 4                 | The Golden Bird           | 1                     |
+| 5                 | The Blackened Temple      | 5                     |
+| 6                 | The Guardian              | 6                     |
+
+#### Act IV
+
+| Quest Number      | Quest Name              | Quest Number in game |
+| ----------------- | ----------------------- | -------------------- |
+| 1                 | The Fallen Angel        | 1                    |
+| 2                 | Terror's End            | 3                    |
+| 3                 | Hell's Forge            | 2                    |
+
+
 
 Some of the flags are constant, others depend on the quest.
 
-Here is the list, from [D2MOO](https://github.com/ThePhrozenKeep/D2MOO/blob/57dcc6ceb493a33dfba82461bd96dd04adb471fe/source/D2CommonDefinitions/include/D2Constants.h#L587):
+Here is the list, from [D2MOO](https://github.com/ThePhrozenKeep/D2MOO/blob/57dcc6ceb493a33dfba82461bd96dd04adb471fe/source/D2CommonDefinitions/include/D2Constants.h#L587).
+
+*Note: The names are straight from D2MOO and may be changed yet.*
 
 | Flag                         | Bit |
 |  --------------------------- | --- |
@@ -226,8 +254,6 @@ Here is the list, from [D2MOO](https://github.com/ThePhrozenKeep/D2MOO/blob/57dc
 | QFLAG_COMPLETEDNOW           | 14  |
 | QFLAG_COMPLETEDBEFORE        | 15  |
 
-As always, bits should be read right to left.
-
 Example of some stages of Den of Evil:
 
 | Quest Stage                                      | Bytes     | Binary                  | Flags Set                                                      |
@@ -236,11 +262,10 @@ Example of some stages of Den of Evil:
 | Quest started (Talked to Akara)                  | 0x04 0x00 | 0000 0000   0000 0100   | QFLAG_STARTED                                                  |
 | Cleared Den of Evil (Return to Akara for reward) | 0x1C 0x00 | 0000 0000   0001 1100   | QFLAG_STARTED QFLAG_LEAVETOWN QFLAG_ENTERAREA                  |
 | Talked to Akara (Completed quest)                | 0x01 0x30 | 0011 0000   0000 0001   | QFLAG_REWARDGRANTED QFLAG_UPDATEQUESTLOG QFLAG_PRIMARYGOALDONE |
-| Used skill point                                 | 0x01 0x10 | 0001 0000   0000 0001   | QFLAG_REWARDGRANTED QFLAG_UPDATEQUESTLOG                       |
 
 Akara reset (offset 82 out of 96) seems to be set to 2 if unlocked but not used, and to 1 if used.
 
+
 ## Waypoints
 
-A new character will have three waypoints set to true by default: Rogue encampment in normal, nightmare and hell.
-Getting to a new act automatically unlocks the town wp.
+A new character will have three waypoints unlocked by default: Rogue encampment in normal, nightmare and hell.
