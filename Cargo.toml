@@ -2,7 +2,11 @@
 name = "halbu"
 version = "0.1.0"
 edition = "2021"
+description = "Diab"
 authors = ["feor"]
+license = "MIT"
+homepage = "Diablo II save file parsing library."
+categories = ["games"]
 
 [dependencies]
 bit = "0.1.1"
