@@ -4,7 +4,9 @@ A .d2s file parsing library written in Rust.
 
 ⚠ NPCs and Items section are not yet supported.
 
-[Notes](./notes.md) regarding D2R with some useful information regarding quests in particular.
+**[Notes](./NOTES.md)** regarding D2R with some useful information regarding quests in particular.
+
+This library uses the [log](https://docs.rs/log/latest/log/) crate to log parsing errors.
 
 ### Usage
 
