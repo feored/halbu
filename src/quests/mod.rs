@@ -79,6 +79,7 @@ const ALL_QUEST_FLAGS: [QuestFlag; 16] = [
     QuestFlag::CompletedBefore,
 ];
 
+/// Representation of the state of a quest. Stores a collection of `QuestFlag` values in a HashSet to indicate which flags are active.
 #[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Quest {
     pub state: HashSet<QuestFlag>,
@@ -101,6 +102,7 @@ pub fn apply_flag(short: &mut u16, flag: QuestFlag, value: bool) {
 }
 
 impl Quest {
+    /// Computes and returns the `u16` value representing the state of the quest.
     pub fn value(&self) -> u16 {
         let mut value: u16 = 0;
         for flag in self.state.iter() {
