@@ -195,7 +195,9 @@ The prologue and completion quest only ever take a single flag, QFLAG_REWARDGRAN
 
 The prologue controls whether your character has been introduced to a given act, e.g has spoken to Warriv in Act I. The completion quest controls whether your character can use the waypoint to the next act, except for Act IV which requires you instead to have beaten Q2 (Terror's End).
 
-**Warning**: There are differences between the order the quests are stored in the same order and the order they appear in the game for Act I, III and IV. Refer to this table when editing quests.
+Act V's completion quest also holds the information for Akara's skill/stat reset. The flags used are QFLAG_REWARDPENDING if a reset is available in this difficulty and QFLAG_REWARDGRANTED if it has been used. QFLAG_COMPLETEDBEFORE seems to be set if either the reset has been used or the difficulty has been completed. Trying to set QFLAG_REWARDPENDING without completing Den of Evil seems to clear this quest's flags.
+
+**Warning**: There are differences between the order the quests are stored in and the order they appear in the game for Act I, III and IV. Refer to this table when editing quests.
 
 #### Act I
 
@@ -269,3 +271,8 @@ Akara reset (offset 82 out of 96) seems to be set to 2 if unlocked but not used,
 ## Waypoints
 
 A new character will have three waypoints unlocked by default: Rogue encampment in normal, nightmare and hell.
+
+
+## Items
+
+The JM header at the top of every item has been removed in D2R.

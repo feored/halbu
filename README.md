@@ -1,12 +1,16 @@
 ## Halbu
 
-A .d2s file parsing library written in Rust.
+A .d2s file parsing library for Diablo II: Resurrected written in Rust.
 
-⚠ NPCs and Items section are not yet supported.
+⚠ NPCs/Greeting section (offset 713-765) and Items section are not yet supported.
 
 **[Notes](https://github.com/feored/halbu/blob/main/notes.md)** regarding D2R with some useful information regarding quests in particular.
 
 This library uses the [log](https://docs.rs/log/latest/log/) crate to log parsing errors.
+
+### Installation
+
+```cargo add halbu```
 
 ### Usage
 
@@ -101,11 +105,12 @@ For more information, please check the [documentation](https://docs.rs/halbu/0.1
 
 ### Resources
 
-These resources have helped me understand the .d2s format. Many thanks to their authors for the work they've done!
+These resources have helped me understand the .d2s format. Many thanks to their authors, they are the ones who have done all the hard work.
 
 * http://user.xmission.com/~trevin/DiabloIIv1.09_File_Format.shtml
 * https://github.com/dschu012/D2SLib (Unless you specifically need a rust library, you should probably use this.)
-* https://raw.githubusercontent.com/oaken-source/pyd2s/master/docs/d2s_save_file_format_1.13d.txt
+* https://github.com/d07RiV/d07riv.github.io/blob/master/d2r.html
+* https://github.com/oaken-source/pyd2s
 * https://github.com/WalterCouto/D2CE/blob/main/d2s_File_Format.md
 * https://github.com/krisives/d2s-format
 * https://github.com/nokka/d2s/
