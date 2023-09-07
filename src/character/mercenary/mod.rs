@@ -1,5 +1,4 @@
-use crate::utils::u16_from;
-use crate::utils::u32_from;
+use crate::convert::{u16_from, u32_from};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Range;

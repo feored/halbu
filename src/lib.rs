@@ -9,30 +9,35 @@
     unused_qualifications,
     variant_size_differences
 )]
+#![allow(non_upper_case_globals)] // https://github.com/rust-lang/rust-analyzer/issues/15344
+
 use bit::BitIndex;
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 
+use crate::bit_manipulation::BytePosition;
 use std::fmt;
 use std::ops::Range;
-use utils::BytePosition;
 
 use attributes::Attributes;
 use character::Character;
+use items::Items;
 use npcs::Placeholder as NPCs;
 use quests::Quests;
 use skills::SkillSet;
 use waypoints::Waypoints;
 
-use crate::utils::u32_from;
+use crate::convert::u32_from;
 
 pub mod attributes;
+mod bit_manipulation;
 pub mod character;
+mod convert;
+mod csv;
 pub mod items;
 pub mod npcs;
 pub mod quests;
 pub mod skills;
-pub mod utils;
 pub mod waypoints;
 
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
@@ -79,7 +84,6 @@ pub struct Save {
     pub npcs: npcs::Placeholder,
     pub attributes: Attributes,
     pub skills: SkillSet,
-    pub items: items::Placeholder,
 }
 
 impl Default for Save {
@@ -92,7 +96,6 @@ impl Default for Save {
             npcs: NPCs::default(),
             attributes: Attributes::default(),
             skills: SkillSet::default(),
-            items: items::Placeholder::default(),
         }
     }
 }
@@ -185,8 +188,8 @@ impl Save {
             save.character.class,
         );
         let items_offset = skills_offset + 32;
-        // TODO make byte_vector not mut
-        save.items = items::parse(&byte_vector[items_offset..byte_vector.len()]);
+
+        Items::parse(&byte_vector[items_offset..byte_vector.len()]);
 
         save
     }
@@ -203,7 +206,7 @@ impl Save {
         result[Section::Npcs.range()].copy_from_slice(&self.npcs.to_bytes());
         result.append(&mut self.attributes.to_bytes());
         result.append(&mut self.skills.to_bytes());
-        result.append(&mut items::generate(&self.items, self.character.mercenary.is_hired()));
+        //result.append(&mut items::generate(&self.items, self.character.mercenary.is_hired()));
 
         let length = result.len() as u32;
         result[Section::FileSize.range()].copy_from_slice(&u32::to_le_bytes(length));
@@ -375,7 +378,7 @@ pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::*;
+    use crate::csv::*;
     use std::{path::Path, time::Duration};
 
     #[test]

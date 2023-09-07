@@ -3,11 +3,11 @@ use std::fmt;
 use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::read_bits;
-use crate::utils::read_csv;
-use crate::utils::write_bits;
-use crate::utils::BytePosition;
-use crate::utils::Record;
+use crate::bit_manipulation::read_bits;
+use crate::bit_manipulation::write_bits;
+use crate::bit_manipulation::BytePosition;
+use crate::csv::read_csv;
+use crate::csv::Record;
 use crate::Class;
 
 mod tests;

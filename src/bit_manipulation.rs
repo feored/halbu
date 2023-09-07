@@ -1,74 +1,21 @@
-use std::cmp;
-use std::collections::HashMap;
-use std::error::Error;
-use std::time::SystemTime;
-
 use crate::ParseError;
 use bit::BitIndex;
-use csv;
-use log::error;
+use std::cmp;
 
-pub type Record = HashMap<String, String>;
-
-pub fn read_csv(csv_file: &[u8]) -> Result<Vec<Record>, Box<dyn Error>> {
-    let mut records: Vec<Record> = Vec::<Record>::new();
-    let mut rdr = csv::ReaderBuilder::new().delimiter(b'\t').from_reader(csv_file);
-    for result in rdr.deserialize() {
-        let record: Record = result?;
-        records.push(record)
-    }
-    Ok(records)
-}
-
-pub fn get_sys_time_in_secs() -> u32 {
-    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_secs() as u32,
-        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
-    }
-}
-
-pub fn u32_from(slice: &[u8], name: &'static str) -> u32 {
-    u32::from_le_bytes(match slice.try_into() {
-        Ok(res) => res,
-        Err(e) => {
-            error!(
-                "Reference: {0}:{1} (Failed to coerce [u8;4] from bytes: {2:?})",
-                name,
-                e.to_string(),
-                slice
-            );
-            [0; 4]
-        }
-    })
-}
-
-pub fn u16_from(slice: &[u8], name: &'static str) -> u16 {
-    u16::from_le_bytes(match slice.try_into() {
-        Ok(res) => res,
-        Err(e) => {
-            error!(
-                "Reference: {0}: {1} (Failed to coerce [u8;2] from bytes: {2:?})",
-                name,
-                e.to_string(),
-                slice
-            );
-            [0; 2]
-        }
-    })
-}
-
-pub fn u8_from(slice: &[u8]) -> u8 {
-    slice[0]
-}
-
-#[derive(Default, PartialEq, Eq, Debug)]
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy)]
 pub struct BytePosition {
     pub current_byte: usize,
     pub current_bit: usize,
 }
 
+impl BytePosition {
+    pub fn total_bits(&self) -> usize {
+        self.current_byte * 8 + self.current_bit
+    }
+}
+
 /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
-pub fn write_byte(
+pub(crate) fn write_byte(
     byte_vector: &mut Vec<u8>,
     byte_position: &mut BytePosition,
     bits_source: u8,
@@ -109,7 +56,7 @@ pub fn write_byte(
 }
 
 /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of u8.
-pub fn write_bits<T: Into<u32>>(
+pub(crate) fn write_bits<T: Into<u32>>(
     byte_vector: &mut Vec<u8>,
     byte_position: &mut BytePosition,
     bits_source: T,
@@ -133,7 +80,7 @@ pub fn write_bits<T: Into<u32>>(
 ///
 /// The attributes are stored in a packed struct with non-aligned bytes.
 /// Headers for instance contain 9 bits, so they must be read over multiple bytes.
-pub fn read_bits(
+pub(crate) fn read_bits(
     byte_slice: &[u8],
     byte_position: &mut BytePosition,
     bits_to_read: usize,
@@ -152,7 +99,7 @@ pub fn read_bits(
         if byte_position.current_byte >= byte_slice.len() {
             return Err(ParseError {
                 message: format!(
-                    "Tried to read byte at position {0}, but only {1} bytes given go read.",
+                    "Tried to read byte at position {0}, but only {1} left in the file.",
                     byte_position.current_byte,
                     byte_slice.len()
                 ),
@@ -171,4 +118,11 @@ pub fn read_bits(
         byte_position.current_bit += bits_parsing_count;
     }
     Ok(buffer)
+}
+
+pub(crate) fn read_bit(
+    byte_slice: &[u8],
+    byte_position: &mut BytePosition,
+) -> Result<bool, ParseError> {
+    Ok(read_bits(byte_slice, byte_position, 1)?.bit(0))
 }

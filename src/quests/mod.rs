@@ -7,7 +7,7 @@ use bit::BitIndex;
 use log::{error, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::utils::u16_from;
+use crate::convert::u16_from;
 
 const SECTION_LENGTH: usize = 298;
 const SECTION_HEADER: [u8; 10] = [0x57, 0x6F, 0x6F, 0x21, 0x06, 0x00, 0x00, 0x00, 0x2A, 0x01]; // Woo! + header

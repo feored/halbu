@@ -1,16 +1,14 @@
 use std::fmt;
 use std::ops::Range;
 use std::str;
+use std::time::SystemTime;
 
 use bit::BitIndex;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
 
-use crate::utils::get_sys_time_in_secs;
-use crate::utils::u32_from;
-use crate::utils::u8_from;
-
+use crate::convert::u32_from;
 use crate::Act;
 use crate::Class;
 use crate::Difficulty;
@@ -21,8 +19,8 @@ use mercenary::Mercenary;
 pub mod mercenary;
 mod tests;
 
-pub const DEFAULT_CLASS: Class = Class::Amazon;
-pub const DEFAULT_NAME: &'static str = "default";
+pub(crate) const DEFAULT_CLASS: Class = Class::Amazon;
+pub(crate) const DEFAULT_NAME: &'static str = "default";
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 enum Section {
@@ -140,11 +138,11 @@ impl Character {
         character.weapon_switch =
             u32_from(&bytes[Section::WeaponSet.range()], "character.weapon_switch") != 0;
 
-        character.status = Status::from(u8_from(&bytes[Section::Status.range()]));
+        character.status = Status::from(bytes[Section::Status.range()][0]);
 
-        character.progression = u8_from(&bytes[Section::Progression.range()]);
+        character.progression = bytes[Section::Progression.range()][0];
 
-        character.class = match Class::try_from(u8_from(&bytes[Section::Class.range()])) {
+        character.class = match Class::try_from(bytes[Section::Class.range()][0]) {
             Ok(res) => res,
             Err(e) => {
                 warn!(
@@ -156,7 +154,7 @@ impl Character {
             }
         };
 
-        character.level = u8_from(&bytes[Section::Level.range()]);
+        character.level = bytes[Section::Level.range()][0];
 
         character.last_played =
             u32_from(&bytes[Section::LastPlayed.range()], "character.last_played");
@@ -356,5 +354,12 @@ impl From<Status> for u8 {
         result.set_bit(6, status.ladder);
         //println!("Converted status: {0:#010b}", result);
         result
+    }
+}
+
+fn get_sys_time_in_secs() -> u32 {
+    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(n) => n.as_secs() as u32,
+        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
     }
 }

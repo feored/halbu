@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use crate::attributes::*;
-    use crate::utils::*;
     use crate::Class;
 
     #[test]
