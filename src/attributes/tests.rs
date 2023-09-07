@@ -6,37 +6,22 @@ mod tests {
     #[test]
     fn test_write_and_read_attributes() {
         let expected_attributes = Attributes {
-            strength: Stat { id: 0, name: String::from("strength"), value: 156, bit_length: 10 },
-            energy: Stat { id: 1, name: String::from("energy"), value: 35, bit_length: 10 },
-            dexterity: Stat { id: 2, name: String::from("dexterity"), value: 35, bit_length: 10 },
-            vitality: Stat { id: 3, name: String::from("vitality"), value: 324, bit_length: 10 },
-            statpts: Stat { id: 4, name: String::from("statpts"), value: 0, bit_length: 10 },
-            newskills: Stat { id: 5, name: String::from("newskills"), value: 0, bit_length: 8 },
-            hitpoints: Stat {
-                id: 6,
-                name: String::from("hitpoints"),
-                value: 322560,
-                bit_length: 21,
-            },
-            maxhp: Stat { id: 7, name: String::from("maxhp"), value: 209664, bit_length: 21 },
-            mana: Stat { id: 8, name: String::from("mana"), value: 156, bit_length: 21 },
-            maxmana: Stat { id: 9, name: String::from("maxmana"), value: 55552, bit_length: 21 },
-            stamina: Stat { id: 10, name: String::from("stamina"), value: 140544, bit_length: 21 },
-            maxstamina: Stat {
-                id: 11,
-                name: String::from("maxstamina"),
-                value: 122624,
-                bit_length: 21,
-            },
-            level: Stat { id: 12, name: String::from("level"), value: 92, bit_length: 7 },
-            experience: Stat {
-                id: 13,
-                name: String::from("experience"),
-                value: 2036912623,
-                bit_length: 32,
-            },
-            gold: Stat { id: 14, name: String::from("gold"), value: 0, bit_length: 25 },
-            goldbank: Stat { id: 15, name: String::from("goldbank"), value: 45964, bit_length: 25 },
+            strength: Stat { value: 156, bit_length: 10 },
+            energy: Stat { value: 35, bit_length: 10 },
+            dexterity: Stat { value: 35, bit_length: 10 },
+            vitality: Stat { value: 324, bit_length: 10 },
+            stat_points_left: Stat { value: 0, bit_length: 10 },
+            skill_points_left: Stat { value: 0, bit_length: 8 },
+            life_current: Stat { value: 322560, bit_length: 21 },
+            life_base: Stat { value: 209664, bit_length: 21 },
+            mana_current: Stat { value: 156, bit_length: 21 },
+            mana_base: Stat { value: 55552, bit_length: 21 },
+            stamina_current: Stat { value: 140544, bit_length: 21 },
+            stamina_base: Stat { value: 122624, bit_length: 21 },
+            level: Stat { value: 92, bit_length: 7 },
+            experience: Stat { value: 2036912623, bit_length: 32 },
+            gold_inventory: Stat { value: 0, bit_length: 25 },
+            gold_stash: Stat { value: 45964, bit_length: 25 },
         };
         let result: Vec<u8> = expected_attributes.to_bytes();
 
@@ -57,14 +42,14 @@ mod tests {
         expected_attributes.vitality.value = 15;
         expected_attributes.energy.value = 25;
 
-        expected_attributes.maxhp.value = 45 * 256;
-        expected_attributes.hitpoints.value = expected_attributes.maxhp.value;
+        expected_attributes.life_base.value = 45 * 256;
+        expected_attributes.life_current.value = expected_attributes.life_base.value;
 
-        expected_attributes.maxmana.value = 25 * 256;
-        expected_attributes.mana.value = expected_attributes.maxmana.value;
+        expected_attributes.mana_base.value = 25 * 256;
+        expected_attributes.mana_current.value = expected_attributes.mana_base.value;
 
-        expected_attributes.maxstamina.value = 79 * 256;
-        expected_attributes.stamina.value = expected_attributes.maxstamina.value;
+        expected_attributes.stamina_base.value = 79 * 256;
+        expected_attributes.stamina_current.value = expected_attributes.stamina_base.value;
 
         let generated_result = Attributes::default_class(Class::Necromancer);
 
