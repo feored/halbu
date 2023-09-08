@@ -1,14 +1,15 @@
 use huffman::Node;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use std::sync::OnceLock;
 
 mod huffman;
 
+use crate::csv::{get_row, read_csv, Record};
 use crate::{
     bit_manipulation::{read_bit, read_bits, BytePosition},
     convert::u16_from,
     Class, ParseError,
 };
-use bit::BitIndex;
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +19,10 @@ const IRON_GOLEM_HEADER: [u8; 2] = [0x6B, 0x66];
 
 const TP_BOOK: &'static str = "tbk ";
 const ID_BOOK: &'static str = "ibk ";
+
+static ARMORS: OnceLock<Vec<Record>> = OnceLock::new();
+static WEAPONS: OnceLock<Vec<Record>> = OnceLock::new();
+static MISC: OnceLock<Vec<Record>> = OnceLock::new();
 
 #[derive(IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
@@ -192,6 +197,18 @@ pub struct ExtendedItem {
     pub runeword_id: Option<u16>,
 }
 
+fn armors() -> &'static Vec<Record> {
+    ARMORS.get_or_init(|| read_csv(include_bytes!("../../assets/data/armor.txt")).unwrap())
+}
+
+fn weapons() -> &'static Vec<Record> {
+    WEAPONS.get_or_init(|| read_csv(include_bytes!("../../assets/data/weapons.txt")).unwrap())
+}
+
+fn misc() -> &'static Vec<Record> {
+    MISC.get_or_init(|| read_csv(include_bytes!("../../assets/data/misc.txt")).unwrap())
+}
+
 impl ExtendedItem {
     pub fn parse(header: &ItemHeader, bytes: &[u8], byte_index: &mut BytePosition) -> Self {
         let mut extended_item = ExtendedItem::default();
@@ -259,6 +276,13 @@ impl ExtendedItem {
             warn!("Realm data found, skipping 128 bits.");
             read_bits(&bytes, byte_index, 128).unwrap();
         }
+
+        let armor_row = get_row(&armors(), "code", &header.base[0..3]);
+        let is_armor = !armor_row.is_none();
+
+        let weapon_row = get_row(&weapons(), "code", &header.base[0..3]);
+        let is_weapon = !weapon_row.is_none();
+        warn!("is armor: {0}, is weapon: {1}", is_armor, is_weapon);
 
         warn!("{0:?}", extended_item);
         extended_item

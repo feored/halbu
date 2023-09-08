@@ -1,5 +1,6 @@
 use std::cmp;
 use std::fmt;
+use std::sync::OnceLock;
 
 use log::warn;
 use num_enum::{FromPrimitive, IntoPrimitive};
@@ -8,8 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::bit_manipulation::read_bits;
 use crate::bit_manipulation::write_bits;
 use crate::bit_manipulation::BytePosition;
-use crate::csv::read_csv;
-use crate::csv::Record;
+use crate::csv::{get_row, read_csv, Record};
 use crate::Class;
 
 mod tests;
@@ -19,10 +19,11 @@ const SECTION_TRAILER: u32 = 0x1FF;
 const STAT_HEADER_LENGTH: usize = 9;
 const STAT_NUMBER: usize = 16;
 
+static CHARSTATS: OnceLock<Vec<Record>> = OnceLock::new();
+
 #[derive(IntoPrimitive, FromPrimitive)]
 #[repr(u32)]
 #[derive(Default, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
-
 pub enum StatKey {
     #[default]
     Strength = 0,
@@ -244,8 +245,8 @@ impl Attributes {
 
     pub fn default_class(class: Class) -> Self {
         let mut class_attributes: Attributes = Attributes::default();
-        let charstats: Vec<Record> =
-            read_csv(include_bytes!("../../assets/data/charstats.txt")).unwrap();
+        let charstats = CHARSTATS
+            .get_or_init(|| read_csv(include_bytes!("../../assets/data/charstats.txt")).unwrap());
 
         let class_id_in_csv = match class {
             Class::Amazon => 0,

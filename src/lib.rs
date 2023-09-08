@@ -11,8 +11,8 @@
 )]
 #![allow(non_upper_case_globals)] // https://github.com/rust-lang/rust-analyzer/issues/15344
 
-use bit::BitIndex;
 use log::{debug, warn};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 
 use crate::bit_manipulation::BytePosition;
@@ -256,14 +256,16 @@ impl fmt::Display for Difficulty {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize, Hash)]
 pub enum Act {
     #[default]
-    Act1,
-    Act2,
-    Act3,
-    Act4,
-    Act5,
+    Act1 = 0,
+    Act2 = 1,
+    Act3 = 2,
+    Act4 = 3,
+    Act5 = 4,
 }
 
 impl fmt::Display for Act {
@@ -278,43 +280,18 @@ impl fmt::Display for Act {
     }
 }
 
-impl TryFrom<u8> for Act {
-    type Error = ParseError;
-    fn try_from(byte: u8) -> Result<Act, ParseError> {
-        let mut relevant_bits: u8 = 0;
-        relevant_bits.set_bit_range(0..3, byte.bit_range(0..3));
-        match relevant_bits {
-            0x00 => Ok(Act::Act1),
-            0x01 => Ok(Act::Act2),
-            0x02 => Ok(Act::Act3),
-            0x03 => Ok(Act::Act4),
-            0x04 => Ok(Act::Act5),
-            _ => Err(ParseError { message: format!("Found invalid act: {0:?}.", byte) }),
-        }
-    }
-}
-
-impl From<Act> for u8 {
-    fn from(act: Act) -> u8 {
-        match act {
-            Act::Act1 => 0x00,
-            Act::Act2 => 0x01,
-            Act::Act3 => 0x02,
-            Act::Act4 => 0x03,
-            Act::Act5 => 0x04,
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize, Hash)]
 pub enum Class {
-    Amazon,
-    Sorceress,
-    Necromancer,
-    Paladin,
-    Barbarian,
-    Druid,
-    Assassin,
+    #[default]
+    Amazon = 0,
+    Sorceress = 1,
+    Necromancer = 2,
+    Paladin = 3,
+    Barbarian = 4,
+    Druid = 5,
+    Assassin = 6,
 }
 
 impl fmt::Display for Class {
@@ -329,36 +306,6 @@ impl fmt::Display for Class {
             Class::Assassin => "Assassin",
         };
         write!(f, "{0}", class)
-    }
-}
-
-impl TryFrom<u8> for Class {
-    type Error = ParseError;
-    fn try_from(byte: u8) -> Result<Class, ParseError> {
-        match byte {
-            0x00 => Ok(Class::Amazon),
-            0x01 => Ok(Class::Sorceress),
-            0x02 => Ok(Class::Necromancer),
-            0x03 => Ok(Class::Paladin),
-            0x04 => Ok(Class::Barbarian),
-            0x05 => Ok(Class::Druid),
-            0x06 => Ok(Class::Assassin),
-            _ => Err(ParseError { message: format!("Found invalid class: {0:?}.", byte) }),
-        }
-    }
-}
-
-impl From<Class> for u8 {
-    fn from(class: Class) -> u8 {
-        match class {
-            Class::Amazon => 0x00,
-            Class::Sorceress => 0x01,
-            Class::Necromancer => 0x02,
-            Class::Paladin => 0x03,
-            Class::Barbarian => 0x04,
-            Class::Druid => 0x05,
-            Class::Assassin => 0x06,
-        }
     }
 }
 
