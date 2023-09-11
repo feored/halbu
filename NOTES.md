@@ -276,3 +276,5 @@ A new character will have three waypoints unlocked by default: Rogue encampment 
 ## Items
 
 The JM header at the top of every item has been removed in D2R.
+
+The data is byte aligned after every item. Make sure to skip to the next byte if you are in the middle of the current byte.

@@ -11,11 +11,12 @@
 )]
 #![allow(non_upper_case_globals)] // https://github.com/rust-lang/rust-analyzer/issues/15344
 
+use bit::BitIndex;
 use log::{debug, warn};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 
-use crate::bit_manipulation::BytePosition;
+use crate::bit_manipulation::{ByteIO, BytePosition};
 use std::fmt;
 use std::ops::Range;
 
@@ -177,12 +178,9 @@ impl Save {
         }
         save.npcs = NPCs::parse(&byte_vector[Section::Npcs.range()]);
 
-        let mut byte_position: BytePosition = BytePosition::default();
-        save.attributes = Attributes::parse(
-            &byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()].try_into().unwrap(),
-            &mut byte_position,
-        );
-        let skills_offset = ATTRIBUTES_OFFSET + byte_position.current_byte + 1;
+        let mut reader: ByteIO = ByteIO::new(&byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()]);
+        save.attributes = Attributes::parse(&mut reader);
+        let skills_offset = ATTRIBUTES_OFFSET + reader.position.current_byte + 1;
         save.skills = SkillSet::parse(
             &byte_vector[skills_offset..(skills_offset + 32)],
             save.character.class,
@@ -256,7 +254,7 @@ impl fmt::Display for Difficulty {
     }
 }
 
-#[derive(IntoPrimitive, TryFromPrimitive)]
+#[derive(IntoPrimitive)]
 #[repr(u8)]
 #[derive(Default, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize, Hash)]
 pub enum Act {
@@ -266,6 +264,22 @@ pub enum Act {
     Act3 = 2,
     Act4 = 3,
     Act5 = 4,
+}
+
+impl TryFrom<u8> for Act {
+    type Error = ParseError;
+    fn try_from(byte: u8) -> Result<Act, ParseError> {
+        let mut relevant_bits: u8 = 0;
+        relevant_bits.set_bit_range(0..3, byte.bit_range(0..3));
+        match relevant_bits {
+            0x00 => Ok(Act::Act1),
+            0x01 => Ok(Act::Act2),
+            0x02 => Ok(Act::Act3),
+            0x03 => Ok(Act::Act4),
+            0x04 => Ok(Act::Act5),
+            _ => Err(ParseError { message: format!("Found invalid act: {0:?}.", byte) }),
+        }
+    }
 }
 
 impl fmt::Display for Act {

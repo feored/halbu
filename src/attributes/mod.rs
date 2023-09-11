@@ -6,9 +6,7 @@ use log::warn;
 use num_enum::{FromPrimitive, IntoPrimitive};
 use serde::{Deserialize, Serialize};
 
-use crate::bit_manipulation::read_bits;
-use crate::bit_manipulation::write_bits;
-use crate::bit_manipulation::BytePosition;
+use crate::bit_manipulation::{ByteIO, BytePosition};
 use crate::csv::{get_row, read_csv, Record};
 use crate::Class;
 
@@ -178,21 +176,21 @@ impl Attributes {
     ///
     /// Attributes are stored in a pair format (header:value). Not all attributes are required to be
     /// present. Headers are always 9 bits. Values span different number of bits found in itemstatcost.txt
-    pub fn parse(byte_vector: &Vec<u8>, byte_position: &mut BytePosition) -> Attributes {
-        if byte_vector[0..2] != SECTION_HEADER {
+    pub fn parse(reader: &mut ByteIO) -> Attributes {
+        if reader.data[0..2] != SECTION_HEADER {
             warn!(
                 "Found wrong header for attributes, expected {0:X?} but found {1:X?}",
                 SECTION_HEADER,
-                &byte_vector[0..2]
+                &reader.data[0..2]
             );
         }
-        byte_position.current_byte = 2;
+        reader.position.current_byte = 2;
 
         let mut attributes = Attributes::default();
 
         // In case all stats are written down, parse one more to make sure we parse 0x1FF trailer
         for i in 0..(STAT_NUMBER + 1) {
-            let header: u32 = match read_bits(byte_vector, byte_position, STAT_HEADER_LENGTH) {
+            let header: u32 = match reader.read_bits(STAT_HEADER_LENGTH) {
                 Ok(res) => res,
                 Err(e) => {
                     warn!("Error while parsing attributes header {0}: {1}", i, e.to_string());
@@ -208,7 +206,7 @@ impl Attributes {
             }
             let stat_key: StatKey = StatKey::from(header);
             let bit_length = STAT_BITLENGTH[header as usize];
-            let stat_value = match read_bits(byte_vector, byte_position, bit_length) {
+            let stat_value = match reader.read_bits(bit_length) {
                 Ok(res) => res,
                 Err(e) => {
                     warn!(
@@ -228,19 +226,18 @@ impl Attributes {
 
     /// Get a byte-aligned vector of bytes representing a character's attribute.
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut result: Vec<u8> = Vec::<u8>::new();
-        let mut byte_position: BytePosition = BytePosition::default();
-        result.append(&mut SECTION_HEADER.to_vec());
-        byte_position.current_byte += 2;
+        let mut writer: ByteIO = ByteIO::default();
+        writer.data.append(&mut SECTION_HEADER.to_vec());
+        writer.position.current_byte += 2;
 
         for i in 0..STAT_NUMBER {
-            write_bits(&mut result, &mut byte_position, i as u32, STAT_HEADER_LENGTH);
+            writer.write_bits(i as u32, STAT_HEADER_LENGTH);
             let stat_key = StatKey::from(i as u32);
             let stat = self.get_stat(stat_key);
-            write_bits(&mut result, &mut byte_position, stat.value, stat.bit_length);
+            writer.write_bits(stat.value, stat.bit_length);
         }
-        write_bits(&mut result, &mut byte_position, SECTION_TRAILER, STAT_HEADER_LENGTH);
-        result
+        writer.write_bits(SECTION_TRAILER, STAT_HEADER_LENGTH);
+        writer.data
     }
 
     pub fn default_class(class: Class) -> Self {

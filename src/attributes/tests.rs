@@ -25,8 +25,8 @@ mod tests {
         };
         let result: Vec<u8> = expected_attributes.to_bytes();
 
-        let mut byte_position: BytePosition = BytePosition::default();
-        let parsed_attributes = Attributes::parse(&result, &mut byte_position);
+        let mut reader: ByteIO = ByteIO::new(&result);
+        let parsed_attributes = Attributes::parse(&mut reader);
 
         assert_eq!(parsed_attributes, expected_attributes);
     }
@@ -58,28 +58,27 @@ mod tests {
 
     #[test]
     fn test_write_stats() {
-        let mut result: Vec<u8> = Vec::<u8>::default();
-        let mut byte_position: BytePosition = BytePosition::default();
+        let mut io = ByteIO::default();
         let header: u32 = 0; // strength
         let value: u32 = 30;
 
         //write_u8(&mut result, &mut byte_position, 7, 8);
-        write_bits(&mut result, &mut byte_position, header, 9);
-        write_bits(&mut result, &mut byte_position, value, 10);
-        write_bits(&mut result, &mut byte_position, 1u32, 9);
-        write_bits(&mut result, &mut byte_position, 10u32, 10);
+        io.write_bits(header, 9);
+        io.write_bits(value, 10);
+        io.write_bits(1u32, 9);
+        io.write_bits(10u32, 10);
 
-        assert_eq!([0x00, 0x3C, 0x08, 0xA0, 0x00], result[0..5]);
+        assert_eq!([0x00, 0x3C, 0x08, 0xA0, 0x00], io.data[0..5]);
     }
 
     #[test]
     fn test_read_stats() {
-        let bytes: Vec<u8> = vec![0x00, 0x3C, 0x08, 0x0A0, 0x80, 0x00, 0x0A, 0x06];
-        let mut byte_position = BytePosition::default();
-        let header_result = read_bits(&bytes, &mut byte_position, 9).unwrap();
+        let bytes: [u8; 8] = [0x00, 0x3C, 0x08, 0x0A0, 0x80, 0x00, 0x0A, 0x06];
+        let mut io = ByteIO::new(&bytes);
+        let header_result = io.read_bits(9).unwrap();
         assert_eq!(header_result, 0);
 
-        let value_result = read_bits(&bytes, &mut byte_position, 10).unwrap();
+        let value_result = io.read_bits(10).unwrap();
         assert_eq!(value_result, 30);
     }
 }

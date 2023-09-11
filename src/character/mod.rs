@@ -297,7 +297,11 @@ fn parse_last_act(bytes: &[u8; 3]) -> Result<(Difficulty, Act), ParseError> {
 
     last_act.1 = match Act::try_from(bytes[index]) {
         Ok(res) => res,
-        Err(e) => return Err(ParseError { message: format!("{0}", e.to_string()) }),
+        Err(e) => {
+            return Err(ParseError {
+                message: format!("This is the fucking culprit{0}", e.to_string()),
+            })
+        }
     };
 
     Ok(last_act)
