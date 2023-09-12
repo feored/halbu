@@ -4,6 +4,8 @@ use std::cmp;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+use bit::BitIndex;
+
 mod huffman;
 
 use crate::bit_manipulation::ByteIO;
@@ -40,10 +42,27 @@ fn linked_mods() -> &'static HashMap<usize, Vec<usize>> {
     })
 }
 
+fn armors() -> &'static Vec<Record> {
+    ARMORS.get_or_init(|| read_csv(include_bytes!("../../assets/data/armor.txt")).unwrap())
+}
+
+fn weapons() -> &'static Vec<Record> {
+    WEAPONS.get_or_init(|| read_csv(include_bytes!("../../assets/data/weapons.txt")).unwrap())
+}
+
+fn misc() -> &'static Vec<Record> {
+    MISC.get_or_init(|| read_csv(include_bytes!("../../assets/data/misc.txt")).unwrap())
+}
+
+fn itemstatcost() -> &'static Vec<Record> {
+    ITEMSTATCOST
+        .get_or_init(|| read_csv(include_bytes!("../../assets/data/itemstatcost.txt")).unwrap())
+}
+
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct Mod {
     pub key: u16,
-    pub value: u32,
+    pub value: i32,
     pub name: String,
 }
 
@@ -51,7 +70,7 @@ pub struct Mod {
 pub struct ItemMod {
     pub base: Mod,
     pub linked_mods: Vec<Mod>,
-    pub param: Option<u32>,
+    pub param: Option<i32>,
 }
 
 impl ItemMod {
@@ -65,12 +84,15 @@ impl ItemMod {
             let mut new_mod: ItemMod = ItemMod::default();
             let mod_row: &HashMap<String, String> = &itemstatcost()[key_id];
             let key_bits: usize = mod_row["Save Bits"].parse().unwrap();
-            let save_add = match mod_row["Save Add"].as_str() {
-                "" => 0u32,
-                res => res.parse().unwrap(),
+            let save_add: i32 = match mod_row["Save Add"].as_str() {
+                "" => 0i32,
+                res => {
+                    warn!("Save add value for {1}: {0}", res, key_id);
+                    res.parse().unwrap()
+                }
             };
             new_mod.base.key = key_id as u16;
-            new_mod.base.value = cmp::max(0, reader.read_bits(key_bits).unwrap() - save_add);
+            new_mod.base.value = cmp::max(0, reader.read_bits(key_bits).unwrap() as i32 - save_add);
             new_mod.base.name = mod_row["Stat"].clone();
             match linked_mods().get(&key_id) {
                 Some(res) => {
@@ -79,7 +101,7 @@ impl ItemMod {
                         new_mod.linked_mods.push(Mod {
                             key: *linked_key as u16,
                             name: itemstatcost()[*linked_key]["Stat"].clone(),
-                            value: reader.read_bits(bits).unwrap(),
+                            value: reader.read_bits(bits).unwrap() as i32,
                         });
                     }
                 }
@@ -88,7 +110,8 @@ impl ItemMod {
             if new_mod.linked_mods.len() == 0 {
                 let param_bits = mod_row["Save Param Bits"].clone();
                 if param_bits != "" {
-                    new_mod.param = Some(reader.read_bits(param_bits.parse().unwrap()).unwrap());
+                    new_mod.param =
+                        Some(reader.read_bits(param_bits.parse().unwrap()).unwrap() as i32);
                 }
             }
             mods.push(new_mod);
@@ -258,18 +281,23 @@ pub struct IronGolem {
 pub struct Item {
     pub header: ItemHeader,
     pub data: Option<ExtendedItem>,
+    pub socketed_items: Vec<Item>,
 }
 
 impl Item {
-    pub fn parse(reader: &mut ByteIO) -> Item {
+    pub fn parse(reader: &mut ByteIO) -> Result<Item, ParseError> {
         let mut item = Item::default();
-        item.header = ItemHeader::parse(reader);
+        item.header = ItemHeader::parse(reader)?;
         if item.header.compact {
-            return item;
+            return Ok(item);
         }
-        item.data = Some(ExtendedItem::parse(&item.header, reader));
-
-        item
+        item.data = Some(ExtendedItem::parse(&item.header, reader)?);
+        if item.header.socketed && item.header.socketed_count > 0 {
+            for i in 0..item.header.socketed_count {
+                item.socketed_items.push(Item::parse(reader)?);
+            }
+        }
+        Ok(item)
     }
 }
 
@@ -293,87 +321,74 @@ pub struct ExtendedItem {
     pub mods: Vec<Vec<ItemMod>>,
 }
 
-fn armors() -> &'static Vec<Record> {
-    ARMORS.get_or_init(|| read_csv(include_bytes!("../../assets/data/armor.txt")).unwrap())
-}
-
-fn weapons() -> &'static Vec<Record> {
-    WEAPONS.get_or_init(|| read_csv(include_bytes!("../../assets/data/weapons.txt")).unwrap())
-}
-
-fn misc() -> &'static Vec<Record> {
-    MISC.get_or_init(|| read_csv(include_bytes!("../../assets/data/misc.txt")).unwrap())
-}
-
-fn itemstatcost() -> &'static Vec<Record> {
-    ITEMSTATCOST
-        .get_or_init(|| read_csv(include_bytes!("../../assets/data/itemstatcost.txt")).unwrap())
-}
-
 impl ExtendedItem {
-    fn parse_rare_crafted(&mut self, reader: &mut ByteIO) -> ItemName {
+    fn parse_rare_crafted(&mut self, reader: &mut ByteIO) -> Result<ItemName, ParseError> {
         let mut name = ItemName::default();
-        name.prefix = reader.read_bits(8).unwrap() as u8;
-        name.suffix = reader.read_bits(8).unwrap() as u8;
+        name.prefix = reader.read_bits(8)? as u8;
+        name.suffix = reader.read_bits(8)? as u8;
         for i in 0..3usize {
-            let prefix_present = reader.read_bit().unwrap();
+            let prefix_present = reader.read_bit()?;
             if prefix_present {
-                self.prefixes[i] = reader.read_bits(11).unwrap() as u16;
+                self.prefixes[i] = reader.read_bits(11)? as u16;
             }
 
-            let suffix_present = reader.read_bit().unwrap();
+            let suffix_present = reader.read_bit()?;
             if suffix_present {
-                self.suffixes[i] = reader.read_bits(11).unwrap() as u16;
+                self.suffixes[i] = reader.read_bits(11)? as u16;
             }
         }
-        name
+        Ok(name)
     }
 
-    pub fn parse(header: &ItemHeader, reader: &mut ByteIO) -> Self {
+    pub fn parse(header: &ItemHeader, reader: &mut ByteIO) -> Result<Self, ParseError> {
         let mut extended_item = ExtendedItem::default();
-        extended_item.id = reader.read_bits(32).unwrap();
+        extended_item.id = reader.read_bits(32)?;
 
-        extended_item.level = reader.read_bits(7).unwrap() as u8;
+        extended_item.level = reader.read_bits(7)? as u8;
 
-        extended_item.quality = Quality::try_from(reader.read_bits(4).unwrap() as u8).unwrap();
+        extended_item.quality = Quality::try_from(reader.read_bits(4)? as u8)?;
 
-        let custom_graphics_present = reader.read_bit().unwrap();
+        let custom_graphics_present = reader.read_bit()?;
 
         if custom_graphics_present {
-            extended_item.custom_graphics_id = Some(reader.read_bits(3).unwrap() as u8);
+            extended_item.custom_graphics_id = Some(reader.read_bits(3)? as u8);
         }
 
-        let auto_mod_present = reader.read_bit().unwrap();
+        let auto_mod_present = reader.read_bit()?;
         if auto_mod_present {
-            extended_item.auto_mod = Some(reader.read_bits(11).unwrap() as u16);
+            extended_item.auto_mod = Some(reader.read_bits(11)? as u16);
         }
         extended_item.quality = match extended_item.quality {
             Quality::Inferior(_) => {
-                Quality::Inferior(Inferior::try_from(reader.read_bits(3).unwrap() as u8).unwrap())
+                Quality::Inferior(match Inferior::try_from(reader.read_bits(3)? as u8) {
+                    Ok(res) => res,
+                    Err(e) => return Err(ParseError { message: e.to_string() }),
+                })
             }
             Quality::Normal => Quality::Normal, // TODO: Handle charm case: https://github.com/ThePhrozenKeep/D2MOO/blob/4071d3f4c3cec4a7bb4319b8fe4ff157834fb217/source/D2Common/src/Items/Items.cpp#L5158
-            Quality::Superior(_) => Quality::Superior(reader.read_bits(3).unwrap() as u8),
+            Quality::Superior(_) => Quality::Superior(reader.read_bits(3)? as u8),
             Quality::Magic => {
-                extended_item.prefixes[0] = reader.read_bits(11).unwrap() as u16;
-                extended_item.suffixes[0] = reader.read_bits(11).unwrap() as u16;
+                extended_item.prefixes[0] = reader.read_bits(11)? as u16;
+                extended_item.suffixes[0] = reader.read_bits(11)? as u16;
                 Quality::Magic
             }
-            Quality::Set(_) => Quality::Set(reader.read_bits(12).unwrap() as u16),
-            Quality::Rare(_) => Quality::Rare(extended_item.parse_rare_crafted(reader)),
-            Quality::Unique(_) => Quality::Unique(reader.read_bits(12).unwrap() as u16),
-            Quality::Crafted(_) => Quality::Crafted(extended_item.parse_rare_crafted(reader)),
+            Quality::Set(_) => Quality::Set(reader.read_bits(12)? as u16),
+            Quality::Rare(_) => Quality::Rare(extended_item.parse_rare_crafted(reader)?),
+            Quality::Unique(_) => Quality::Unique(reader.read_bits(12)? as u16),
+            Quality::Crafted(_) => Quality::Crafted(extended_item.parse_rare_crafted(reader)?),
         };
 
+        let mut item_lists = 0u16;
         if header.runeword {
-            extended_item.runeword_id = Some(reader.read_bits(12).unwrap() as u16);
-            warn!("Runeword misc info: {0}", reader.read_bits(4).unwrap());
+            extended_item.runeword_id = Some(reader.read_bits(12)? as u16);
+            item_lists = 1 << (reader.read_bits(4)? + 1);
         }
 
         if header.personalized {
             // Test personalization with i.e japanese name
             let mut name: String = String::default();
             loop {
-                let ch = char::from(reader.read_bits(8).unwrap() as u8);
+                let ch = char::from(reader.read_bits(8)? as u8);
                 if ch == '\0' {
                     break;
                 }
@@ -382,21 +397,21 @@ impl ExtendedItem {
         }
 
         if header.base == ID_BOOK || header.base == TP_BOOK {
-            extended_item.suffixes[0] = reader.read_bits(5).unwrap() as u16;
+            extended_item.suffixes[0] = reader.read_bits(5)? as u16;
             warn!("Spell ID: {0}", extended_item.suffixes[0]);
         }
 
-        let realm_data_present = reader.read_bit().unwrap();
+        let realm_data_present = reader.read_bit()?;
         if realm_data_present {
             warn!("Realm data found, skipping 128 bits.");
-            reader.read_bits(128).unwrap();
+            reader.read_bits(128)?;
         }
 
         let (item_type, item_row) = ItemType::get(&header.base);
         warn!("item type: {0:?}", item_type);
 
         if item_type == ItemType::Armor {
-            let mut defense = reader.read_bits(11).unwrap() as u16;
+            let mut defense = reader.read_bits(11)? as u16;
             warn!("base armor defense: {0}", defense);
             // should defense be signed or unsigned? Signed in itemstatcost.txt is meaningless (durability is also 1 for signed and yet
             // can go up to 255 in game), and yet presence of Save Add would suggest -10 is possible
@@ -413,33 +428,35 @@ impl ExtendedItem {
                 Some(res) => res["Save Add"].parse().unwrap(),
                 None => 0u8,
             };
-            extended_item.durability_max = reader.read_bits(8).unwrap() as u8;
+            extended_item.durability_max = reader.read_bits(8)? as u8;
             if extended_item.durability_max > 0 {
-                extended_item.durability_current = Some(reader.read_bits(9).unwrap() as u16);
+                extended_item.durability_current = Some(reader.read_bits(9)? as u16);
             }
             extended_item.durability_max += max_durability_base;
         }
 
         let stackable = item_row["stackable"] == "1";
-        warn!("item stackable: {0}", stackable);
+
         if stackable {
-            extended_item.quantity = Some(reader.read_bits(9).unwrap() as u16);
+            extended_item.quantity = Some(reader.read_bits(9)? as u16);
         }
         if header.socketed {
-            extended_item.total_sockets = Some(reader.read_bits(4).unwrap() as u8);
+            extended_item.total_sockets = Some(reader.read_bits(4)? as u8);
         }
 
-        let itemLists = 0;
-
+        if let Quality::Set(_) = &extended_item.quality {
+            item_lists = item_lists | reader.read_bits(5)? as u16;
+        }
         extended_item.mods.push(ItemMod::parse(reader));
-
-        if let Quality::Set(x) = &extended_item.quality {
-            warn!("Set mod lists: {0:?}", x);
-            extended_item.mods.push(ItemMod::parse(reader));
+        warn!("Item lists to read: {0}", item_lists);
+        for i in 0..15usize {
+            if item_lists.bit(i) {
+                extended_item.mods.push(ItemMod::parse(reader));
+            }
         }
 
         warn!("{0:?}", extended_item);
-        extended_item
+        Ok(extended_item)
     }
 }
 
@@ -464,7 +481,7 @@ pub struct ItemHeader {
 }
 
 impl ItemHeader {
-    pub fn parse(reader: &mut ByteIO) -> ItemHeader {
+    pub fn parse(reader: &mut ByteIO) -> Result<ItemHeader, ParseError> {
         warn!("Starting new item!");
         // align reader if necessary
         if reader.position.current_bit > 0 {
@@ -473,60 +490,69 @@ impl ItemHeader {
         }
         let starting_index = reader.position.clone();
         let mut header: ItemHeader = ItemHeader::default();
-        reader.read_bits(4).unwrap(); // unknown
+        reader.read_bits(4)?; // unknown
 
-        header.identified = reader.read_bit().unwrap();
+        header.identified = reader.read_bit()?;
 
-        reader.read_bits(3).unwrap(); // unknown
+        reader.read_bits(3)?; // unknown
 
-        header.broken = reader.read_bit().unwrap();
+        header.broken = reader.read_bit()?;
 
-        reader.read_bits(2).unwrap(); // unknown
+        reader.read_bits(2)?; // unknown
 
-        header.socketed = reader.read_bit().unwrap();
+        header.socketed = reader.read_bit()?;
 
-        reader.read_bits(4).unwrap(); // unknown (bit 2 is picked up since last save)
+        reader.read_bits(4)?; // unknown (bit 2 is picked up since last save)
 
-        header.ear = reader.read_bit().unwrap();
+        header.ear = reader.read_bit()?;
 
-        header.starter_gear = reader.read_bit().unwrap();
+        header.starter_gear = reader.read_bit()?;
 
-        reader.read_bits(3).unwrap(); // unknown
+        reader.read_bits(3)?; // unknown
 
-        header.compact = reader.read_bit().unwrap();
+        header.compact = reader.read_bit()?;
 
-        header.ethereal = reader.read_bit().unwrap();
+        header.ethereal = reader.read_bit()?;
 
-        reader.read_bit().unwrap(); // unknown
+        reader.read_bit()?; // unknown
 
-        header.personalized = reader.read_bit().unwrap();
+        header.personalized = reader.read_bit()?;
 
-        reader.read_bit().unwrap();
+        reader.read_bit()?;
 
-        header.runeword = reader.read_bit().unwrap();
+        header.runeword = reader.read_bit()?;
 
-        reader.read_bits(8).unwrap(); // unknown
+        reader.read_bits(8)?; // unknown
 
-        header.status = Status::try_from(reader.read_bits(3).unwrap() as u8).unwrap();
+        header.status = match Status::try_from(reader.read_bits(3)? as u8) {
+            Ok(res) => res,
+            Err(e) => return Err(ParseError { message: e.to_string() }),
+        };
 
         // TODO: Handle ground/dropped cases? https://github.com/ThePhrozenKeep/D2MOO/blob/4071d3f4c3cec4a7bb4319b8fe4ff157834fb217/source/D2Common/src/Items/Items.cpp#L5029
 
-        header.slot = Slot::try_from(reader.read_bits(4).unwrap() as u8).unwrap();
+        header.slot = match Slot::try_from(reader.read_bits(4)? as u8) {
+            Ok(res) => res,
+            Err(e) => return Err(ParseError { message: e.to_string() }),
+        };
 
-        header.column = reader.read_bits(4).unwrap() as u8;
+        header.column = reader.read_bits(4)? as u8;
 
-        header.row = reader.read_bits(4).unwrap() as u8;
+        header.row = reader.read_bits(4)? as u8;
 
-        let raw_storage = reader.read_bits(3).unwrap();
+        let raw_storage = reader.read_bits(3)?;
 
-        header.storage = Storage::try_from(raw_storage as u8).unwrap();
+        header.storage = match Storage::try_from(raw_storage as u8) {
+            Ok(res) => res,
+            Err(e) => return Err(ParseError { message: e.to_string() }),
+        };
 
         let tree = Node::build_huffman_tree();
         let mut base_id: String = String::default();
         for _i in 0..4 {
             let mut base: String = String::default();
             loop {
-                let base_raw = reader.read_bit().unwrap();
+                let base_raw = reader.read_bit()?;
                 base.push_str(if base_raw { "1" } else { "0" });
                 match tree.decode(base.clone()) {
                     Some(c) => {
@@ -539,7 +565,7 @@ impl ItemHeader {
         }
         header.base = base_id;
 
-        header.socketed_count = reader.read_bits(if header.compact { 1 } else { 3 }).unwrap() as u8;
+        header.socketed_count = reader.read_bits(if header.compact { 1 } else { 3 })? as u8;
         warn!(
             "Header done, Total length: {0}",
             reader.position.total_bits() - starting_index.total_bits()
@@ -547,13 +573,13 @@ impl ItemHeader {
 
         warn!("{0:?}", header);
 
-        header
+        Ok(header)
     }
 }
 
 impl Items {
     pub fn parse(bytes: &[u8]) -> Items {
-        let items = Items::default();
+        let mut items = Items::default();
         let mut reader: ByteIO = ByteIO::new(bytes);
         if reader.data[0..2] != HEADER {
             warn!(
@@ -565,13 +591,20 @@ impl Items {
         } else {
             debug!("Found correct header: {0:X?}", &reader.data[0..2]);
         }
-
-        debug!("Found item count: {0}", u16_from(&reader.data[2..4], "Items Count"));
+        items.count = u16_from(&reader.data[2..4], "Items Count");
+        debug!("Found item count: {0}", items.count);
 
         reader.position.current_byte = 4;
-        loop {
+        for i in 0..items.count {
             let start_index = reader.position.clone();
             let item = Item::parse(&mut reader);
+
+            match item {
+                Ok(_) => {
+                    warn!("Parsed item #{0}", i)
+                }
+                Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),
+            }
             warn!(
                 "Total item size in bits: {0}, end index: {1:?}",
                 (reader.position.total_bits() - start_index.total_bits()),
