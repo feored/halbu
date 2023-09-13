@@ -16,7 +16,7 @@ use log::{debug, warn};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 
-use crate::bit_manipulation::{ByteIO, BytePosition};
+use crate::bit_manipulation::ByteIO;
 use std::fmt;
 use std::ops::Range;
 
@@ -85,6 +85,7 @@ pub struct Save {
     pub npcs: npcs::Placeholder,
     pub attributes: Attributes,
     pub skills: SkillSet,
+    pub items: Items,
 }
 
 impl Default for Save {
@@ -97,6 +98,7 @@ impl Default for Save {
             npcs: NPCs::default(),
             attributes: Attributes::default(),
             skills: SkillSet::default(),
+            items: Items::default(),
         }
     }
 }
@@ -187,8 +189,13 @@ impl Save {
         );
         let items_offset = skills_offset + 32;
 
-        Items::parse(&byte_vector[items_offset..byte_vector.len()]);
-
+        save.items = Items::parse(
+            &byte_vector[items_offset..byte_vector.len()],
+            save.character.status.expansion,
+            save.character.mercenary.is_hired(),
+        );
+        warn!("{0}", save);
+        warn!("{0:?}", save.items);
         save
     }
     pub fn to_bytes(&self) -> Vec<u8> {

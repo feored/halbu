@@ -6,8 +6,8 @@ use log::warn;
 use num_enum::{FromPrimitive, IntoPrimitive};
 use serde::{Deserialize, Serialize};
 
-use crate::bit_manipulation::{ByteIO, BytePosition};
-use crate::csv::{get_row, read_csv, Record};
+use crate::bit_manipulation::ByteIO;
+use crate::csv::{read_csv, Record};
 use crate::Class;
 
 mod tests;

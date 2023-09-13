@@ -309,10 +309,10 @@ fn parse_last_act(bytes: &[u8; 3]) -> Result<(Difficulty, Act), ParseError> {
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Status {
-    ladder: bool,
-    expansion: bool,
-    hardcore: bool,
-    died: bool,
+    pub ladder: bool,
+    pub expansion: bool,
+    pub hardcore: bool,
+    pub died: bool,
 }
 
 impl fmt::Display for Status {

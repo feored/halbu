@@ -249,32 +249,162 @@ pub enum Slot {
 pub struct Items {
     pub count: u16,
     pub items: Vec<Item>,
+    pub corpse: Corpse,
+    pub mercenary: MercenaryItems,
+    pub iron_golem: IronGolem,
 }
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct Corpse {
     pub exists: bool,
-    pub corpses: Vec<CorpseItems>,
-}
-
-#[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
-pub struct CorpseItems {
     pub x: u32,
     pub y: u32,
-    pub count: u16,
+    pub item_count: u16,
     pub items: Vec<Item>,
+}
+
+impl Corpse {
+    fn parse(reader: &mut ByteIO) -> Result<Corpse, ParseError> {
+        reader.align();
+        let mut corpse = Corpse::default();
+        if reader.len_left() < 4 {
+            return Err(ParseError{message:format!("Corpse section is shorter than the required 4 bytes. Length: {0}. Returning defaults from this point on.", reader.data.len())});
+        }
+        let mut header = (reader.read_bits(16)? as u16).to_le_bytes();
+        if header != HEADER {
+            return Err(ParseError{message:format!("Corpse section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, HEADER)});
+        }
+        corpse.exists = reader.read_bits(16)?.bit(0);
+        if !corpse.exists {
+            return Ok(corpse);
+        }
+        reader.read_bits(32)?; // Unknown
+        corpse.x = reader.read_bits(32)?;
+        corpse.y = reader.read_bits(32)?;
+
+        header = (reader.read_bits(16)? as u16).to_le_bytes();
+        if header != HEADER {
+            return Err(ParseError{message:format!("Corpse section has invalid second header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, HEADER)});
+        }
+
+        corpse.item_count = reader.read_bits(16)? as u16;
+        for i in 0..corpse.item_count {
+            let item = Item::parse(reader);
+
+            match item {
+                Ok(res) => {
+                    warn!("Parsed item #{0}", i);
+                    corpse.items.push(res);
+                }
+                Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),
+            }
+        }
+        Ok(corpse)
+    }
 }
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct MercenaryItems {
-    pub count: u16,
+    pub items_count: u16,
     pub items: Vec<Item>,
+    pub id: u32, // TODO CHECK ACTUAL LENGTH
+}
+
+impl MercenaryItems {
+    fn parse(reader: &mut ByteIO, expansion: bool, hired: bool) -> Result<Self, ParseError> {
+        reader.align();
+        if reader.len_left() < 2 {
+            return Err(ParseError{message:format!("Mercenary items section is shorter than the required 4 bytes. Length: {0}. Returning defaults from this point on.", reader.data.len())});
+        }
+        let header = (reader.read_bits(16)? as u16).to_le_bytes();
+        if header != MERCENARY_HEADER {
+            return Err(ParseError{message:format!("Mercenary items section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, MERCENARY_HEADER)});
+        }
+        if !hired {
+            return Ok(MercenaryItems::default());
+        }
+        if expansion {
+            return Ok(MercenaryItems::parse_expansion(reader)?);
+        } else {
+            return Ok(MercenaryItems::parse_classic(reader)?);
+        }
+    }
+    fn parse_expansion(reader: &mut ByteIO) -> Result<Self, ParseError> {
+        let mut merc = MercenaryItems::default();
+
+        let header = (reader.read_bits(16)? as u16).to_le_bytes();
+        if header != HEADER {
+            return Err(ParseError{message:format!("Mercenary items section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, HEADER)});
+        }
+
+        merc.items_count = reader.read_bits(16)? as u16;
+
+        for i in 0..merc.items_count {
+            let item = Item::parse(reader);
+
+            match item {
+                Ok(res) => {
+                    merc.items.push(res);
+                    warn!("Parsed item #{0}", i)
+                }
+                Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),
+            }
+        }
+
+        Ok(merc)
+    }
+    // TODO TEST ON CLASSIC
+    fn parse_classic(reader: &mut ByteIO) -> Result<Self, ParseError> {
+        if reader.len_left() < 10 {
+            return Err(ParseError{message:format!("Mercenary items section is shorter than the required 10 bytes. Length: {0}. Returning defaults from this point on.", reader.data.len())});
+        }
+        let header = (reader.read_bits(16)? as u16).to_le_bytes();
+        if header != HEADER {
+            return Err(ParseError{message:format!("Mercenary items section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, HEADER)});
+        }
+        let mut merc = MercenaryItems::default();
+
+        merc.id = reader.read_bits(32)?;
+
+        Ok(merc)
+    }
 }
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct IronGolem {
-    pub exists: bool,
-    pub item: Item,
+    pub item: Option<Item>,
+}
+
+impl IronGolem {
+    fn parse(reader: &mut ByteIO) -> Result<IronGolem, ParseError> {
+        reader.align();
+        if reader.len_left() < 3 {
+            return Err(ParseError{message:format!("Iron Golem section is shorter than the required 3 bytes. Length: {0}. Returning defaults from this point on.", reader.data.len())});
+        }
+        let header = (reader.read_bits(16)? as u16).to_le_bytes();
+        if header != IRON_GOLEM_HEADER {
+            return Err(ParseError{message:format!("Iron Golem section section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, IRON_GOLEM_HEADER)});
+        }
+        let mut iron_golem = IronGolem::default();
+        let exists = reader.read_bits(8)?.bit(0);
+        if !exists {
+            return Ok(iron_golem);
+        }
+        iron_golem.item = Some(Item::parse(reader)?);
+        Ok(iron_golem)
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut data = IRON_GOLEM_HEADER.to_vec();
+        match &self.item {
+            Some(x) => {
+                data.push(1u8);
+                // TODO ADD ITEM
+            }
+            None => data.push(0u8),
+        }
+        data
+    }
 }
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
@@ -293,7 +423,7 @@ impl Item {
         }
         item.data = Some(ExtendedItem::parse(&item.header, reader)?);
         if item.header.socketed && item.header.socketed_count > 0 {
-            for i in 0..item.header.socketed_count {
+            for _i in 0..item.header.socketed_count {
                 item.socketed_items.push(Item::parse(reader)?);
             }
         }
@@ -377,6 +507,8 @@ impl ExtendedItem {
             Quality::Unique(_) => Quality::Unique(reader.read_bits(12)? as u16),
             Quality::Crafted(_) => Quality::Crafted(extended_item.parse_rare_crafted(reader)?),
         };
+
+        // TODO: Handle ear
 
         let mut item_lists = 0u16;
         if header.runeword {
@@ -481,13 +613,9 @@ pub struct ItemHeader {
 }
 
 impl ItemHeader {
-    pub fn parse(reader: &mut ByteIO) -> Result<ItemHeader, ParseError> {
+    fn parse(reader: &mut ByteIO) -> Result<ItemHeader, ParseError> {
         warn!("Starting new item!");
-        // align reader if necessary
-        if reader.position.current_bit > 0 {
-            reader.position.current_byte += 1;
-            reader.position.current_bit = 0;
-        }
+        reader.align();
         let starting_index = reader.position.clone();
         let mut header: ItemHeader = ItemHeader::default();
         reader.read_bits(4)?; // unknown
@@ -578,7 +706,7 @@ impl ItemHeader {
 }
 
 impl Items {
-    pub fn parse(bytes: &[u8]) -> Items {
+    pub fn parse(bytes: &[u8], expansion: bool, hired: bool) -> Items {
         let mut items = Items::default();
         let mut reader: ByteIO = ByteIO::new(bytes);
         if reader.data[0..2] != HEADER {
@@ -595,36 +723,44 @@ impl Items {
         debug!("Found item count: {0}", items.count);
 
         reader.position.current_byte = 4;
+
         for i in 0..items.count {
-            let start_index = reader.position.clone();
             let item = Item::parse(&mut reader);
 
             match item {
-                Ok(_) => {
+                Ok(res) => {
+                    items.items.push(res);
                     warn!("Parsed item #{0}", i)
                 }
                 Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),
             }
-            warn!(
-                "Total item size in bits: {0}, end index: {1:?}",
-                (reader.position.total_bits() - start_index.total_bits()),
-                reader.position
-            );
-
-            debug!(
-                "Last bytes: {0:#04x}, {1:#04x}, {2:#04x} (bit #{3:})",
-                reader.data[reader.position.current_byte - 2],
-                reader.data[reader.position.current_byte - 1],
-                reader.data[reader.position.current_byte],
-                reader.position.current_bit
-            )
         }
-        // loop {
-        //     if bytes.len() - byte.index.current_byte < 2 {
-        //         break;
-        //     }
-        //     bits =
-        // }
+
+        items.corpse = match Corpse::parse(&mut reader) {
+            Ok(res) => res,
+            Err(e) => {
+                warn!("Corpse parsing failed:  {0}", e.to_string());
+                Corpse::default()
+            }
+        };
+
+        items.mercenary = match MercenaryItems::parse(&mut reader, expansion, hired) {
+            Ok(res) => res,
+            Err(e) => {
+                warn!("Mercenary items parsing failed: {0}", e.to_string());
+                MercenaryItems::default()
+            }
+        };
+
+        items.iron_golem = match IronGolem::parse(&mut reader) {
+            Ok(res) => res,
+            Err(e) => {
+                warn!("Iron Golem parsing failed: {0}", e.to_string());
+                IronGolem::default()
+            }
+        };
+
+        //warn!("{0:?}", items);
         items
     }
 }

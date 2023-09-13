@@ -21,6 +21,15 @@ pub struct ByteIO {
 }
 
 impl ByteIO {
+    pub(crate) fn len_left(&self) -> usize {
+        cmp::max(0, self.data.len() - self.position.current_byte)
+    }
+    pub(crate) fn align(&mut self) {
+        if self.position.current_bit > 0 {
+            self.position.current_byte += 1;
+            self.position.current_bit = 0;
+        }
+    }
     pub(crate) fn new(from_data: &[u8]) -> Self {
         ByteIO { data: from_data.to_vec(), position: BytePosition::default() }
     }
@@ -79,6 +88,10 @@ impl ByteIO {
             bits_left_to_write -= bits_can_write;
             byte_source_current += 1;
         }
+    }
+
+    pub(crate) fn write_bit(&mut self, value: bool) {
+        self.write_bits(u8::from(value), 1);
     }
 
     /// Read a certain number of bits in a vector of bytes, starting at a given byte and bit index, and return a u32 with the value.
