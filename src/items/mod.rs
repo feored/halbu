@@ -1,16 +1,18 @@
-use huffman::Node;
+use huffman::{encode_char, Node};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::cmp;
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::OnceLock;
 
 use bit::BitIndex;
 
 mod huffman;
+mod tests;
 
 use crate::bit_manipulation::ByteIO;
 use crate::csv::{get_row, read_csv, Record};
-use crate::{convert::u16_from, ParseError};
+use crate::{convert::u16_from, CustomError, D2SError, FileCutOffError, WrongHeaderError};
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 
@@ -66,30 +68,80 @@ pub struct Mod {
     pub name: String,
 }
 
+impl fmt::Display for Mod {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({0}) {1}: {2}", self.key, self.name, self.value)
+    }
+}
+
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct ItemMod {
     pub base: Mod,
     pub linked_mods: Vec<Mod>,
-    pub param: Option<i32>,
+    pub param: Option<u32>,
 }
 
+impl fmt::Display for ItemMod {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let param = match self.param {
+            Some(i) => i.to_string(),
+            None => String::default(),
+        };
+        let mut linked_mods = String::default();
+        for m in &self.linked_mods {
+            linked_mods.push_str(&format!("{0}\t", m));
+        }
+        write!(f, "{0} [{1} {2}]", self.base, linked_mods, param)
+    }
+}
 impl ItemMod {
-    pub fn parse(reader: &mut ByteIO) -> Vec<ItemMod> {
+    // pub fn to_bytes(mods: &Vec<ItemMod>) -> Vec<u8> {
+    //     let mut mod_list = ByteIO::default();
+    //     for m in mods {
+    //         let mod_row: &HashMap<String, String> = &itemstatcost()[m.base.key as usize];
+    //         let key_bits: usize = mod_row["Save Bits"].parse().unwrap();
+    //         let save_add: i32 = match mod_row["Save Add"].as_str() {
+    //             "" => 0i32,
+    //             res => res.parse().unwrap(),
+    //         };
+
+    //         mod_list.write_bits(m.base.key, 9);
+    //         mod_list.write_bits(m.base.value as u64, key_bits);
+
+    //         for linked_mod in m.linked_mods {
+    //             let linked_key_bits: usize = itemstatcost()[linked_mod.key as usize]["Save Bits"].parse().unwrap();
+    //             // Should linked mod also use save add?
+    //             mod_list.write_bits(linked_mod.value as u64, linked_key_bits);
+    //         }
+
+    //         if let Some(p) = m.param {
+    //             let param_bits = match mod_row["Save Param Bits"]{
+    //                 S
+    //             }
+
+    //         }
+    //     }
+    //     mod_list.write_bits(MOD_TRAILER, 9);
+    //     mod_list.data
+    // }
+    pub fn parse(reader: &mut ByteIO) -> Result<Vec<ItemMod>, D2SError> {
         let mut mods = Vec::<ItemMod>::new();
         loop {
-            let key_id = reader.read_bits(9).unwrap() as usize;
+            let key_id = reader.read_bits(9)? as usize;
             if key_id as u16 == MOD_TRAILER {
                 break;
             }
             let mut new_mod: ItemMod = ItemMod::default();
+            if key_id > itemstatcost().len() {
+                return Err(D2SError::Custom(CustomError {
+                    message: format!("Key {0} does not exist in itemstatcost.", key_id),
+                }));
+            }
             let mod_row: &HashMap<String, String> = &itemstatcost()[key_id];
-            let key_bits: usize = mod_row["Save Bits"].parse().unwrap();
+            let key_bits: usize = mod_row["Save Bits"].parse()?;
             let save_add: i32 = match mod_row["Save Add"].as_str() {
                 "" => 0i32,
-                res => {
-                    warn!("Save add value for {1}: {0}", res, key_id);
-                    res.parse().unwrap()
-                }
+                res => res.parse()?,
             };
             new_mod.base.key = key_id as u16;
             new_mod.base.value = cmp::max(0, reader.read_bits(key_bits).unwrap() as i32 - save_add);
@@ -111,12 +163,12 @@ impl ItemMod {
                 let param_bits = mod_row["Save Param Bits"].clone();
                 if param_bits != "" {
                     new_mod.param =
-                        Some(reader.read_bits(param_bits.parse().unwrap()).unwrap() as i32);
+                        Some(reader.read_bits(param_bits.parse().unwrap()).unwrap() as u32);
                 }
             }
             mods.push(new_mod);
         }
-        mods
+        Ok(mods)
     }
 }
 
@@ -166,7 +218,7 @@ pub struct ItemName {
 pub enum Quality {
     Inferior(Inferior) = 1,
     #[default]
-    Normal = 2,
+    Normal = 2, // TODO: add value in case of normal charms (12 bits)
     Superior(u8) = 3,
     Magic = 4,
     Set(u16) = 5,
@@ -175,9 +227,24 @@ pub enum Quality {
     Crafted(ItemName) = 8,
 }
 
+impl From<&Quality> for u8 {
+    fn from(value: &Quality) -> u8 {
+        match value {
+            Quality::Inferior(_) => 1,
+            Quality::Normal => 2,
+            Quality::Superior(_) => 3,
+            Quality::Magic => 4,
+            Quality::Set(_) => 5,
+            Quality::Rare(_) => 6,
+            Quality::Unique(_) => 7,
+            Quality::Crafted(_) => 8,
+        }
+    }
+}
+
 impl TryFrom<u8> for Quality {
-    type Error = ParseError;
-    fn try_from(value: u8) -> Result<Self, ParseError> {
+    type Error = D2SError;
+    fn try_from(value: u8) -> Result<Self, D2SError> {
         let result = match value {
             1 => Quality::Inferior(Inferior::default()),
             2 => Quality::Normal,
@@ -188,12 +255,12 @@ impl TryFrom<u8> for Quality {
             7 => Quality::Unique(0),
             8 => Quality::Crafted(ItemName::default()),
             _ => {
-                return Err(ParseError {
+                return Err(D2SError::Custom(CustomError {
                     message: format!(
-                        "Failed to convert quality value {0} to enum to quality enum.",
+                        "Failed to convert quality value {0} to quality enum (values 1-8 valid).",
                         value
                     ),
-                })
+                }))
             }
         };
         Ok(result)
@@ -264,15 +331,17 @@ pub struct Corpse {
 }
 
 impl Corpse {
-    fn parse(reader: &mut ByteIO) -> Result<Corpse, ParseError> {
-        reader.align();
+    fn parse(reader: &mut ByteIO) -> Result<Corpse, D2SError> {
+        reader.align_position();
         let mut corpse = Corpse::default();
-        if reader.len_left() < 4 {
-            return Err(ParseError{message:format!("Corpse section is shorter than the required 4 bytes. Length: {0}. Returning defaults from this point on.", reader.data.len())});
-        }
         let mut header = (reader.read_bits(16)? as u16).to_le_bytes();
         if header != HEADER {
-            return Err(ParseError{message:format!("Corpse section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, HEADER)});
+            return Err(D2SError::WrongHeader(WrongHeaderError {
+                section: String::from("Corpse"),
+                reader: reader.clone(),
+                expected: HEADER.to_vec(),
+                actual: header.to_vec(),
+            }));
         }
         corpse.exists = reader.read_bits(16)?.bit(0);
         if !corpse.exists {
@@ -284,7 +353,12 @@ impl Corpse {
 
         header = (reader.read_bits(16)? as u16).to_le_bytes();
         if header != HEADER {
-            return Err(ParseError{message:format!("Corpse section has invalid second header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, HEADER)});
+            return Err(D2SError::WrongHeader(WrongHeaderError {
+                section: String::from("Corpse"),
+                reader: reader.clone(),
+                expected: HEADER.to_vec(),
+                actual: header.to_vec(),
+            }));
         }
 
         corpse.item_count = reader.read_bits(16)? as u16;
@@ -294,6 +368,7 @@ impl Corpse {
             match item {
                 Ok(res) => {
                     warn!("Parsed item #{0}", i);
+
                     corpse.items.push(res);
                 }
                 Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),
@@ -311,14 +386,17 @@ pub struct MercenaryItems {
 }
 
 impl MercenaryItems {
-    fn parse(reader: &mut ByteIO, expansion: bool, hired: bool) -> Result<Self, ParseError> {
-        reader.align();
-        if reader.len_left() < 2 {
-            return Err(ParseError{message:format!("Mercenary items section is shorter than the required 4 bytes. Length: {0}. Returning defaults from this point on.", reader.data.len())});
-        }
+    fn parse(reader: &mut ByteIO, expansion: bool, hired: bool) -> Result<Self, D2SError> {
+        reader.align_position();
+
         let header = (reader.read_bits(16)? as u16).to_le_bytes();
         if header != MERCENARY_HEADER {
-            return Err(ParseError{message:format!("Mercenary items section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, MERCENARY_HEADER)});
+            return Err(D2SError::WrongHeader(WrongHeaderError {
+                section: String::from("Items Mercenary"),
+                reader: reader.clone(),
+                expected: MERCENARY_HEADER.to_vec(),
+                actual: header.to_vec(),
+            }));
         }
         if !hired {
             return Ok(MercenaryItems::default());
@@ -329,12 +407,18 @@ impl MercenaryItems {
             return Ok(MercenaryItems::parse_classic(reader)?);
         }
     }
-    fn parse_expansion(reader: &mut ByteIO) -> Result<Self, ParseError> {
+
+    fn parse_expansion(reader: &mut ByteIO) -> Result<Self, D2SError> {
         let mut merc = MercenaryItems::default();
 
         let header = (reader.read_bits(16)? as u16).to_le_bytes();
         if header != HEADER {
-            return Err(ParseError{message:format!("Mercenary items section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, HEADER)});
+            return Err(D2SError::WrongHeader(WrongHeaderError {
+                section: String::from("Items Mercenary Expansion"),
+                reader: reader.clone(),
+                expected: HEADER.to_vec(),
+                actual: header.to_vec(),
+            }));
         }
 
         merc.items_count = reader.read_bits(16)? as u16;
@@ -354,13 +438,15 @@ impl MercenaryItems {
         Ok(merc)
     }
     // TODO TEST ON CLASSIC
-    fn parse_classic(reader: &mut ByteIO) -> Result<Self, ParseError> {
-        if reader.len_left() < 10 {
-            return Err(ParseError{message:format!("Mercenary items section is shorter than the required 10 bytes. Length: {0}. Returning defaults from this point on.", reader.data.len())});
-        }
+    fn parse_classic(reader: &mut ByteIO) -> Result<Self, D2SError> {
         let header = (reader.read_bits(16)? as u16).to_le_bytes();
         if header != HEADER {
-            return Err(ParseError{message:format!("Mercenary items section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, HEADER)});
+            return Err(D2SError::WrongHeader(WrongHeaderError {
+                section: String::from("Items Mercenary Classic"),
+                reader: reader.clone(),
+                expected: MERCENARY_HEADER.to_vec(),
+                actual: header.to_vec(),
+            }));
         }
         let mut merc = MercenaryItems::default();
 
@@ -376,14 +462,17 @@ pub struct IronGolem {
 }
 
 impl IronGolem {
-    fn parse(reader: &mut ByteIO) -> Result<IronGolem, ParseError> {
-        reader.align();
-        if reader.len_left() < 3 {
-            return Err(ParseError{message:format!("Iron Golem section is shorter than the required 3 bytes. Length: {0}. Returning defaults from this point on.", reader.data.len())});
-        }
+    fn parse(reader: &mut ByteIO) -> Result<IronGolem, D2SError> {
+        reader.align_position();
+
         let header = (reader.read_bits(16)? as u16).to_le_bytes();
         if header != IRON_GOLEM_HEADER {
-            return Err(ParseError{message:format!("Iron Golem section section has invalid header, found {0:X?} instead of {1:X?}. Returning defaults from this point on.", header, IRON_GOLEM_HEADER)});
+            return Err(D2SError::WrongHeader(WrongHeaderError {
+                section: String::from("Items Iron Golem"),
+                reader: reader.clone(),
+                expected: IRON_GOLEM_HEADER.to_vec(),
+                actual: header.to_vec(),
+            }));
         }
         let mut iron_golem = IronGolem::default();
         let exists = reader.read_bits(8)?.bit(0);
@@ -409,15 +498,15 @@ impl IronGolem {
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct Item {
-    pub header: ItemHeader,
+    pub header: Header,
     pub data: Option<ExtendedItem>,
     pub socketed_items: Vec<Item>,
 }
 
 impl Item {
-    pub fn parse(reader: &mut ByteIO) -> Result<Item, ParseError> {
+    pub fn parse(reader: &mut ByteIO) -> Result<Item, D2SError> {
         let mut item = Item::default();
-        item.header = ItemHeader::parse(reader)?;
+        item.header = Header::parse(reader)?;
         if item.header.compact {
             return Ok(item);
         }
@@ -442,17 +531,20 @@ pub struct ExtendedItem {
     pub name_suffix: Option<u8>,
     pub prefixes: [u16; 3],
     pub suffixes: [u16; 3],
+    pub personalized_name: Option<String>,
     pub runeword_id: Option<u16>,
+    pub realm_data: Option<Vec<u8>>,
     pub defense: Option<u16>,
     pub durability_max: u8,
     pub durability_current: Option<u16>,
     pub quantity: Option<u16>,
     pub total_sockets: Option<u8>,
     pub mods: Vec<Vec<ItemMod>>,
+    pub set_item_mask: u8,
 }
 
 impl ExtendedItem {
-    fn parse_rare_crafted(&mut self, reader: &mut ByteIO) -> Result<ItemName, ParseError> {
+    fn parse_rare_crafted(&mut self, reader: &mut ByteIO) -> Result<ItemName, D2SError> {
         let mut name = ItemName::default();
         name.prefix = reader.read_bits(8)? as u8;
         name.suffix = reader.read_bits(8)? as u8;
@@ -470,12 +562,150 @@ impl ExtendedItem {
         Ok(name)
     }
 
-    pub fn parse(header: &ItemHeader, reader: &mut ByteIO) -> Result<Self, ParseError> {
+    fn to_bytes(&self, header: &Header) -> Vec<u8> {
+        let mut extended = ByteIO::default();
+        extended.write_bits(self.id, 32);
+        extended.write_bits(self.level, 7);
+        extended.write_bits(u8::from(&self.quality), 4);
+
+        if let Some(gfx) = self.custom_graphics_id {
+            extended.write_bit(true);
+            extended.write_bits(gfx, 3);
+        } else {
+            extended.write_bit(false);
+        }
+
+        if let Some(auto_mod) = self.auto_mod {
+            extended.write_bit(true);
+            extended.write_bits(auto_mod, 11);
+        } else {
+            extended.write_bit(false);
+        }
+
+        match &self.quality {
+            Quality::Inferior(inferior_state) => extended.write_bits(*inferior_state as u8, 3),
+            Quality::Normal => (),
+            Quality::Superior(res) => extended.write_bits(*res, 3),
+            Quality::Magic => {
+                extended.write_bits(self.prefixes[0], 11);
+                extended.write_bits(self.suffixes[0], 11);
+            }
+            Quality::Set(set_id) => extended.write_bits(*set_id, 12),
+            Quality::Rare(res) | Quality::Crafted(res) => {
+                extended.write_bits(res.prefix, 8);
+                extended.write_bits(res.suffix, 8);
+                for i in 0..3usize {
+                    if self.prefixes[i] != 0 {
+                        extended.write_bit(true);
+                        extended.write_bits(self.prefixes[i], 11);
+                    } else {
+                        extended.write_bit(false);
+                    }
+
+                    if self.suffixes[i] != 0 {
+                        extended.write_bit(true);
+                        extended.write_bits(self.suffixes[i], 11);
+                    } else {
+                        extended.write_bit(false);
+                    }
+                }
+            }
+            Quality::Unique(unique_id) => extended.write_bits(*unique_id, 12),
+        }
+
+        // TODO: Handle ear
+        let mut item_lists = 0u8;
+        if let Some(runeword_id) = self.runeword_id {
+            extended.write_bits(runeword_id, 12);
+            item_lists = 1 << 6;
+            extended.write_bits(5u8, 4);
+        }
+
+        if let Some(name) = &self.personalized_name {
+            for c in name.chars() {
+                extended.write_bits(c as u8, 8);
+            }
+            extended.write_bits(0u8, 8);
+        }
+
+        if header.base == ID_BOOK || header.base == TP_BOOK {
+            extended.write_bits(self.suffixes[0], 5);
+        }
+
+        if let Some(realm_data) = &self.realm_data {
+            extended.write_bit(true);
+            for byte in realm_data {
+                extended.write_bits(*byte, 8);
+            }
+        } else {
+            extended.write_bit(false);
+        }
+
+        let (item_type, _item_csv_row) = ItemType::get(&header.base);
+
+        if item_type == ItemType::Armor {
+            let def_row = get_row(&itemstatcost(), "Stat", "armorclass").unwrap();
+
+            let def_real = match self.defense {
+                Some(d) => d,
+                None => 0,
+            };
+
+            let def_saved: u16 = def_real + def_row["Save Add"].parse::<u16>().unwrap();
+            let def_bits = def_row["Save Bits"].parse().unwrap();
+
+            extended.write_bits(def_saved, def_bits);
+        }
+
+        if item_type == ItemType::Armor || item_type == ItemType::Weapon {
+            let max_durability_row = get_row(&itemstatcost(), "Stat", "maxdurability").unwrap();
+            let max_durability_bits = max_durability_row["Save Bits"].parse().unwrap();
+            let max_durability: u8 =
+                self.durability_max + max_durability_row["Save Add"].parse::<u8>().unwrap();
+            extended.write_bits(max_durability, max_durability_bits);
+
+            if let Some(durability_value) = self.durability_current {
+                let durability_row = get_row(&itemstatcost(), "Stat", "durability").unwrap();
+                let durability: u16 =
+                    durability_value + durability_row["Save Add"].parse::<u16>().unwrap();
+                let durability_bits = durability_row["Save Bits"].parse().unwrap();
+                extended.write_bits(durability, durability_bits);
+            }
+        }
+
+        if let Some(qty) = &self.quantity {
+            extended.write_bits(*qty, 9);
+        }
+
+        if let Some(sockets_num) = self.total_sockets {
+            extended.write_bits(sockets_num, 4);
+        }
+
+        // Credit to https://github.com/dschu012/D2SLib/ for figuring out all the item_list masking bits
+        if let Quality::Set(_) = self.quality {
+            item_lists = item_lists | self.set_item_mask;
+            extended.write_bits(self.set_item_mask, 5);
+        }
+
+        // extended_item.mods.push(ItemMod::parse(reader));
+        // warn!("Item lists to read: {0}", item_lists);
+        // for i in 0..15usize {
+        //     if item_lists.bit(i) {
+        //         extended_item.mods.push(ItemMod::parse(reader));
+        //     }
+        // }
+
+        // warn!("{0:?}", extended_item);
+
+        extended.data
+    }
+
+    pub fn parse(header: &Header, reader: &mut ByteIO) -> Result<Self, D2SError> {
         let mut extended_item = ExtendedItem::default();
+        warn!("{0:?}", header);
+
         extended_item.id = reader.read_bits(32)?;
-
         extended_item.level = reader.read_bits(7)? as u8;
-
         extended_item.quality = Quality::try_from(reader.read_bits(4)? as u8)?;
 
         let custom_graphics_present = reader.read_bit()?;
@@ -492,7 +722,7 @@ impl ExtendedItem {
             Quality::Inferior(_) => {
                 Quality::Inferior(match Inferior::try_from(reader.read_bits(3)? as u8) {
                     Ok(res) => res,
-                    Err(e) => return Err(ParseError { message: e.to_string() }),
+                    Err(e) => return Err(D2SError::Custom(CustomError { message: e.to_string() })),
                 })
             }
             Quality::Normal => Quality::Normal, // TODO: Handle charm case: https://github.com/ThePhrozenKeep/D2MOO/blob/4071d3f4c3cec4a7bb4319b8fe4ff157834fb217/source/D2Common/src/Items/Items.cpp#L5158
@@ -510,7 +740,7 @@ impl ExtendedItem {
 
         // TODO: Handle ear
 
-        let mut item_lists = 0u16;
+        let mut item_lists = 0u8;
         if header.runeword {
             extended_item.runeword_id = Some(reader.read_bits(12)? as u16);
             item_lists = 1 << (reader.read_bits(4)? + 1);
@@ -526,25 +756,26 @@ impl ExtendedItem {
                 }
                 name.push(ch);
             }
+            extended_item.personalized_name = Some(name);
         }
 
         if header.base == ID_BOOK || header.base == TP_BOOK {
             extended_item.suffixes[0] = reader.read_bits(5)? as u16;
-            warn!("Spell ID: {0}", extended_item.suffixes[0]);
         }
 
         let realm_data_present = reader.read_bit()?;
         if realm_data_present {
-            warn!("Realm data found, skipping 128 bits.");
-            reader.read_bits(128)?;
+            let mut realm_data = Vec::<u8>::new();
+            for _i in 0..16usize {
+                realm_data.push(reader.read_bits(8)? as u8);
+            }
+            extended_item.realm_data = Some(realm_data);
         }
 
         let (item_type, item_row) = ItemType::get(&header.base);
-        warn!("item type: {0:?}", item_type);
 
         if item_type == ItemType::Armor {
             let mut defense = reader.read_bits(11)? as u16;
-            warn!("base armor defense: {0}", defense);
             // should defense be signed or unsigned? Signed in itemstatcost.txt is meaningless (durability is also 1 for signed and yet
             // can go up to 255 in game), and yet presence of Save Add would suggest -10 is possible
             defense -= match get_row(&itemstatcost(), "Stat", "armorclass") {
@@ -552,7 +783,6 @@ impl ExtendedItem {
                 None => 0,
             };
             extended_item.defense = Some(cmp::max(defense, 0));
-            warn!("armor defense: {0}", defense);
         }
 
         if item_type == ItemType::Armor || item_type == ItemType::Weapon {
@@ -577,23 +807,22 @@ impl ExtendedItem {
         }
 
         if let Quality::Set(_) = &extended_item.quality {
-            item_lists = item_lists | reader.read_bits(5)? as u16;
+            extended_item.set_item_mask = reader.read_bits(5)? as u8;
+            item_lists = item_lists | extended_item.set_item_mask;
         }
-        extended_item.mods.push(ItemMod::parse(reader));
-        warn!("Item lists to read: {0}", item_lists);
-        for i in 0..15usize {
+        extended_item.mods.push(ItemMod::parse(reader)?);
+        for i in 0..8usize {
             if item_lists.bit(i) {
-                extended_item.mods.push(ItemMod::parse(reader));
+                extended_item.mods.push(ItemMod::parse(reader)?);
             }
         }
 
-        warn!("{0:?}", extended_item);
         Ok(extended_item)
     }
 }
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
-pub struct ItemHeader {
+pub struct Header {
     pub identified: bool,
     pub broken: bool,
     pub socketed: bool,
@@ -612,67 +841,48 @@ pub struct ItemHeader {
     pub socketed_count: u8,
 }
 
-impl ItemHeader {
-    fn parse(reader: &mut ByteIO) -> Result<ItemHeader, ParseError> {
-        warn!("Starting new item!");
-        reader.align();
-        let starting_index = reader.position.clone();
-        let mut header: ItemHeader = ItemHeader::default();
+impl Header {
+    fn parse(reader: &mut ByteIO) -> Result<Header, D2SError> {
+        reader.align_position();
+        let mut header: Header = Header::default();
+
         reader.read_bits(4)?; // unknown
-
         header.identified = reader.read_bit()?;
-
         reader.read_bits(3)?; // unknown
-
         header.broken = reader.read_bit()?;
-
         reader.read_bits(2)?; // unknown
-
         header.socketed = reader.read_bit()?;
-
         reader.read_bits(4)?; // unknown (bit 2 is picked up since last save)
-
         header.ear = reader.read_bit()?;
-
         header.starter_gear = reader.read_bit()?;
-
         reader.read_bits(3)?; // unknown
-
         header.compact = reader.read_bit()?;
-
         header.ethereal = reader.read_bit()?;
-
         reader.read_bit()?; // unknown
-
         header.personalized = reader.read_bit()?;
-
         reader.read_bit()?;
-
         header.runeword = reader.read_bit()?;
-
         reader.read_bits(8)?; // unknown
 
         header.status = match Status::try_from(reader.read_bits(3)? as u8) {
             Ok(res) => res,
-            Err(e) => return Err(ParseError { message: e.to_string() }),
+            Err(e) => return Err(D2SError::Custom(CustomError { message: e.to_string() })),
         };
 
         // TODO: Handle ground/dropped cases? https://github.com/ThePhrozenKeep/D2MOO/blob/4071d3f4c3cec4a7bb4319b8fe4ff157834fb217/source/D2Common/src/Items/Items.cpp#L5029
-
         header.slot = match Slot::try_from(reader.read_bits(4)? as u8) {
             Ok(res) => res,
-            Err(e) => return Err(ParseError { message: e.to_string() }),
+            Err(e) => return Err(D2SError::Custom(CustomError { message: e.to_string() })),
         };
 
         header.column = reader.read_bits(4)? as u8;
-
         header.row = reader.read_bits(4)? as u8;
 
         let raw_storage = reader.read_bits(3)?;
 
         header.storage = match Storage::try_from(raw_storage as u8) {
             Ok(res) => res,
-            Err(e) => return Err(ParseError { message: e.to_string() }),
+            Err(e) => return Err(D2SError::Custom(CustomError { message: e.to_string() })),
         };
 
         let tree = Node::build_huffman_tree();
@@ -692,16 +902,45 @@ impl ItemHeader {
             }
         }
         header.base = base_id;
-
         header.socketed_count = reader.read_bits(if header.compact { 1 } else { 3 })? as u8;
-        warn!(
-            "Header done, Total length: {0}",
-            reader.position.total_bits() - starting_index.total_bits()
-        );
-
-        warn!("{0:?}", header);
 
         Ok(header)
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut header = ByteIO::default();
+
+        header.write_bits(0u8, 4); // unknown
+        header.write_bit(self.identified);
+        header.write_bits(0u8, 3); // unknown
+        header.write_bit(self.broken);
+        header.write_bits(0u8, 2); // unknown
+        header.write_bit(self.socketed);
+        header.write_bits(0u8, 4); // unknown (bit 2 is picked up since last save)
+        header.write_bit(self.ear);
+        header.write_bit(self.starter_gear);
+        header.write_bits(0u8, 3); // unknown
+        header.write_bit(self.compact);
+        header.write_bit(self.ethereal);
+        header.write_bit(true); //unknown
+        header.write_bit(self.personalized);
+        header.write_bit(false); //unknown
+        header.write_bit(self.runeword); //unknown
+        header.write_bits(0u8, 8); //unknown
+        header.write_bits(self.status as u8, 3);
+        header.write_bits(self.slot as u8, 4);
+        header.write_bits(self.column, 4);
+        header.write_bits(self.row, 4);
+        header.write_bits(self.storage as u8, 3);
+
+        for c in self.base.chars() {
+            for str_bit in encode_char(c).chars() {
+                header.write_bit(if str_bit == '1' { true } else { false });
+            }
+        }
+        header.write_bits(self.socketed_count, if self.compact { 1 } else { 3 });
+
+        header.data
     }
 }
 
@@ -729,7 +968,9 @@ impl Items {
 
             match item {
                 Ok(res) => {
+                    warn!("Item: {0:?}", res);
                     items.items.push(res);
+
                     warn!("Parsed item #{0}", i)
                 }
                 Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),

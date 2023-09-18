@@ -1,4 +1,4 @@
-use crate::ParseError;
+use crate::{D2SError, FileCutOffError};
 use bit::BitIndex;
 use std::cmp;
 
@@ -24,10 +24,15 @@ impl ByteIO {
     pub(crate) fn len_left(&self) -> usize {
         cmp::max(0, self.data.len() - self.position.current_byte)
     }
-    pub(crate) fn align(&mut self) {
+    pub(crate) fn align_position(&mut self) {
         if self.position.current_bit > 0 {
             self.position.current_byte += 1;
             self.position.current_bit = 0;
+        }
+    }
+    pub(crate) fn align_write(&mut self) {
+        if self.position.current_bit > 0 {
+            self.write_bits(0u8, 8 - self.position.current_bit);
         }
     }
     pub(crate) fn new(from_data: &[u8]) -> Self {
@@ -77,7 +82,8 @@ impl ByteIO {
     /// This is a wrapper around write_bits_by_byte to easily write ie u32
     pub(crate) fn write_bits<T: Into<u32>>(&mut self, bits_source: T, bits_count: usize) {
         let mut bits_left_to_write: usize = bits_count;
-        let byte_source = bits_source.into().to_le_bytes();
+        let byte_source_converted: u32 = bits_source.into();
+        let byte_source = byte_source_converted.to_le_bytes();
         let mut byte_source_current = 0;
         loop {
             if bits_left_to_write == 0 {
@@ -94,11 +100,8 @@ impl ByteIO {
         self.write_bits(u8::from(value), 1);
     }
 
-    /// Read a certain number of bits in a vector of bytes, starting at a given byte and bit index, and return a u32 with the value.
-    ///
-    /// The attributes are stored in a packed struct with non-aligned bytes.
-    /// Headers for instance contain 9 bits, so they must be read over multiple bytes.
-    pub(crate) fn read_bits(&mut self, num: usize) -> Result<u32, ParseError> {
+    /// Read a number of bits in a vector of bytes, starting at a given byte and bit index, and return a u32 with the value read.
+    pub(crate) fn read_bits(&mut self, num: usize) -> Result<u32, D2SError> {
         let mut bits_left_to_read: usize = num;
         let mut buffer: u32 = 0;
         let mut buffer_bit_position: usize = 0;
@@ -111,13 +114,7 @@ impl ByteIO {
                 self.position.current_bit = 0;
             }
             if self.position.current_byte >= self.data.len() {
-                return Err(ParseError {
-                    message: format!(
-                        "Tried to read byte at position {0}, but only {1} left in the file.",
-                        self.position.current_byte,
-                        self.data.len()
-                    ),
-                });
+                return Err(D2SError::FileCutOff(FileCutOffError { reader: self.clone() }));
             }
             let bits_parsing_count = cmp::min(8 - self.position.current_bit, bits_left_to_read);
             let bits_parsed: u8 = self.data[self.position.current_byte].bit_range(
@@ -135,7 +132,7 @@ impl ByteIO {
         Ok(buffer)
     }
 
-    pub(crate) fn read_bit(&mut self) -> Result<bool, ParseError> {
+    pub(crate) fn read_bit(&mut self) -> Result<bool, D2SError> {
         Ok(self.read_bits(1)?.bit(0))
     }
 }

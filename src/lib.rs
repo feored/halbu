@@ -17,7 +17,9 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 
 use crate::bit_manipulation::ByteIO;
+use std::error::Error;
 use std::fmt;
+use std::num;
 use std::ops::Range;
 
 use attributes::Attributes;
@@ -44,6 +46,115 @@ pub mod waypoints;
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 const ATTRIBUTES_OFFSET: usize = 765;
 const DEFAULT_VERSION: u32 = 99;
+
+#[derive(Debug)]
+pub struct FileCutOffError {
+    reader: ByteIO,
+}
+
+#[derive(Debug)]
+pub struct WrongHeaderError {
+    section: String,
+    reader: ByteIO,
+    expected: Vec<u8>,
+    actual: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub struct CustomError {
+    message: String,
+}
+
+impl fmt::Display for FileCutOffError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut cur_byte = self.reader.position.current_byte;
+        let cur_bit = match self.reader.position.current_bit {
+            8 => {
+                cur_byte += 1;
+                0
+            }
+            any => any,
+        };
+        write!(
+            f,
+            "Error: Tried to read at byte:{0} bit:{1}, but byte array size \
+            is: {2}.\n Array: {3:X?}",
+            cur_byte,
+            cur_bit,
+            self.reader.data.len(),
+            self.reader.data,
+        )
+    }
+}
+
+impl fmt::Display for WrongHeaderError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut cur_byte = self.reader.position.current_byte;
+        let cur_bit = match self.reader.position.current_bit {
+            8 => {
+                cur_byte += 1;
+                0
+            }
+            any => any,
+        };
+        write!(
+            f,
+            "Error: In section {5}, Expected to read header {0:X?} at byte: {1} bit:{2}, but found {3:X?}.\
+            \n Array: {4:X?}",
+            self.expected,
+            cur_byte,
+            cur_bit,
+            self.actual,
+            self.reader.data,
+            self.section
+        )
+    }
+}
+
+impl fmt::Display for CustomError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{0}", self.message)
+    }
+}
+
+#[derive(Debug)]
+pub enum D2SError {
+    Parse(num::ParseIntError),
+    FileCutOff(FileCutOffError),
+    WrongHeader(WrongHeaderError),
+    Custom(CustomError),
+}
+
+impl fmt::Display for D2SError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            D2SError::Parse(ref err) => err.fmt(f),
+            D2SError::FileCutOff(ref err) => err.fmt(f),
+            D2SError::WrongHeader(ref err) => err.fmt(f),
+            D2SError::Custom(ref err) => err.fmt(f),
+        }
+    }
+}
+
+impl Error for D2SError {}
+
+impl From<WrongHeaderError> for D2SError {
+    fn from(value: WrongHeaderError) -> Self {
+        D2SError::WrongHeader(value)
+    }
+}
+
+impl From<FileCutOffError> for D2SError {
+    fn from(value: FileCutOffError) -> Self {
+        D2SError::FileCutOff(value)
+    }
+}
+
+impl From<num::ParseIntError> for D2SError {
+    fn from(err: num::ParseIntError) -> D2SError {
+        D2SError::Parse(err)
+    }
+}
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 enum Section {

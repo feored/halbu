@@ -1,6 +1,8 @@
+use log::warn;
+
 const REFERENCE_CODE: [&'static str; 37] = [
-    "11111011",
     "10",
+    "11111011",
     "1111100",
     "001100",
     "1101101",
@@ -38,21 +40,25 @@ const REFERENCE_CODE: [&'static str; 37] = [
     "11011000",
 ];
 const REFERENCE_STR: [char; 37] = [
-    '0', ' ', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+    ' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
     'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 ];
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Default, PartialEq, Eq, Debug, Clone)]
 pub(crate) struct Node {
     left: Option<Box<Node>>,
     right: Option<Box<Node>>,
     character: Option<char>,
 }
 
-impl Default for Node {
-    fn default() -> Node {
-        Node { left: None, right: None, character: None }
+pub(crate) fn encode_char(c: char) -> &'static str {
+    for (index, cref) in REFERENCE_STR.iter().enumerate() {
+        if *cref == c {
+            return REFERENCE_CODE[index];
+        }
     }
+    warn!("Failed to encode char: {0}. Using default (space) instead.", c);
+    REFERENCE_CODE[0]
 }
 
 impl Node {

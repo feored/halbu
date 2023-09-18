@@ -201,7 +201,7 @@ impl Attributes {
             if header == SECTION_TRAILER {
                 break;
             } else if header as usize >= STAT_NUMBER {
-                warn!("Error while parsing attributes header {0}: {1}, using default values for all following attributes.", i, header);
+                warn!("Error while parsing attributes header {0}: {1} is >= stat number, using default values for all following attributes.", i, header);
                 break;
             }
             let stat_key: StatKey = StatKey::from(header);
