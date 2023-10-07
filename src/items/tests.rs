@@ -145,13 +145,9 @@ mod tests {
         };
 
         let parsed_result = Item::parse(&mut byte_data).unwrap();
-        assert_eq!(example_item, parsed_result);
-        // println!("item_complete_test:{0:?}", parsed_result);
         let generated_result = Item::to_bytes(&parsed_result);
         let other_generated_result = example_item.to_bytes();
-        println!("item_complete_test:{0:?}", other_generated_result);
-        //let new_parsed = Item::parse(&mut ByteIO::new(&generated_result)).unwrap();
-        //assert_eq!(parsed_result, new_parsed);
+        assert_eq!(other_generated_result, bytes.to_vec());
         assert_eq!(bytes.to_vec(), generated_result);
     }
 }

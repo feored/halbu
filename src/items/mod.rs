@@ -97,7 +97,6 @@ impl fmt::Display for ItemMod {
 impl ItemMod {
     // TODO: decompose param into useful parts
     pub fn to_bytes(mods: &Vec<ItemMod>) -> ByteIO {
-        println!("Now writing mods: {0:?}", mods);
         let mut mod_list = ByteIO::default();
         for m in mods {
             let mod_row: &HashMap<String, String> = &itemstatcost()[m.base.key as usize];
@@ -125,7 +124,6 @@ impl ItemMod {
                 mod_list.write_bits(linked_mod.value as u32, linked_key_bits);
             }
         }
-        println!("Now writing trailer: {0:?}", mod_list.data);
         mod_list.write_bits(MOD_TRAILER, 9);
         mod_list
     }
@@ -172,7 +170,6 @@ impl ItemMod {
 
             mods.push(new_mod);
         }
-        println!("Parsed mods: {0:?}", mods);
         Ok(mods)
     }
 }
@@ -526,9 +523,8 @@ impl Item {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut writer = self.header.to_bytes();
-        println!("Header: {0:?}", writer.data);
         if let Some(extended_item) = &self.data {
-            writer.concat_unaligned(&ByteIO::new(extended_item.to_bytes(&self.header).as_slice()));
+            writer.concat_unaligned(&extended_item.to_bytes(&self.header));
         }
         if self.header.socketed && self.header.socketed_count > 0 {
             for item in &self.socketed_items {
@@ -581,7 +577,7 @@ impl ExtendedItem {
         Ok(name)
     }
 
-    fn to_bytes(&self, header: &Header) -> Vec<u8> {
+    fn to_bytes(&self, header: &Header) -> ByteIO {
         let mut extended = ByteIO::default();
         extended.write_bits(self.id, 32);
         extended.write_bits(self.level, 7);
@@ -713,28 +709,13 @@ impl ExtendedItem {
             }
             let mut total_so_far = header.clone().to_bytes();
             total_so_far.concat_unaligned(&extended);
-
-            // println!(
-            //     "extended so far: {0:?}",
-            //     &extended.data[0..extended.position.current_byte + 1]
-            // );
-            println!("total so far: {0:?}", total_so_far);
         }
         let mut actual_total_so_far = header.clone().to_bytes();
         actual_total_so_far.concat_unaligned(&extended);
-        println!("actual returned: {0:?}", actual_total_so_far.data);
-        extended.data
+        extended
     }
 
     pub fn parse(header: &Header, reader: &mut ByteIO) -> Result<Self, D2SError> {
-        fn report_status(current: &mut ByteIO, text: &'static str) {
-            println!(
-                "HAS READ at point {1}: {0:?}",
-                &current.data[0..current.position.current_byte + 1],
-                text
-            );
-        }
-
         let mut extended_item = ExtendedItem::default();
 
         extended_item.id = reader.read_bits(32)?;
@@ -770,8 +751,6 @@ impl ExtendedItem {
             Quality::Unique(_) => Quality::Unique(reader.read_bits(12)? as u16),
             Quality::Crafted(_) => Quality::Crafted(extended_item.parse_rare_crafted(reader)?),
         };
-
-        report_status(reader, "After Quality");
 
         // TODO: Handle ear
 
@@ -845,15 +824,12 @@ impl ExtendedItem {
             extended_item.set_item_mask = reader.read_bits(5)? as u8;
             item_lists = item_lists | extended_item.set_item_mask;
         }
-        report_status(reader, "Before parsing mods");
         extended_item.mods.push(ItemMod::parse(reader)?);
         for i in 0..8usize {
             if item_lists.bit(i) {
                 extended_item.mods.push(ItemMod::parse(reader)?);
             }
-            report_status(reader, "right after parsing mod");
         }
-        report_status(reader, "Before return");
 
         Ok(extended_item)
     }
@@ -904,17 +880,11 @@ impl Header {
         reader.read_bit()?;
         header.runeword = reader.read_bit()?;
         reader.read_bits(8)?; // unknown
-        if reader.position.current_byte < 7 {
-            println!("Reader so far: {0:?}", &reader.data[0..reader.position.current_byte + 1]);
-        }
 
         header.status = match Status::try_from(reader.read_bits(3)? as u8) {
             Ok(res) => res,
             Err(e) => return Err(D2SError::Custom(CustomError { message: e.to_string() })),
         };
-        if reader.position.current_byte < 7 {
-            println!("Reader so far: {0:?}", &reader.data[0..reader.position.current_byte + 1]);
-        }
         // TODO: Handle ground/dropped cases? https://github.com/ThePhrozenKeep/D2MOO/blob/4071d3f4c3cec4a7bb4319b8fe4ff157834fb217/source/D2Common/src/Items/Items.cpp#L5029
         header.slot = match Slot::try_from(reader.read_bits(4)? as u8) {
             Ok(res) => res,

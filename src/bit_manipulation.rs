@@ -21,28 +21,20 @@ pub struct ByteIO {
 }
 
 impl ByteIO {
-    pub(crate) fn len_left(&self) -> usize {
-        cmp::max(0, self.data.len() - self.position.current_byte)
-    }
     pub(crate) fn align_position(&mut self) {
         if self.position.current_bit > 0 {
             self.position.current_byte += 1;
             self.position.current_bit = 0;
         }
     }
-    pub(crate) fn align_write(&mut self) {
-        if self.position.current_bit > 0 {
-            self.write_bits(0u8, 8 - self.position.current_bit);
-        }
-    }
     pub(crate) fn new(from_data: &[u8]) -> Self {
         ByteIO { data: from_data.to_vec(), position: BytePosition::default() }
     }
     pub(crate) fn concat_unaligned(&mut self, other: &ByteIO) {
-        for i in 0..other.data.len() - 1 {
+        for i in 0..other.position.current_byte {
             self.write_bits(other.data[i], 8);
         }
-        self.write_bits(other.data[other.data.len() - 1], other.position.current_bit);
+        self.write_bits(other.data[other.position.current_byte], other.position.current_bit);
     }
     /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
     pub(crate) fn write_bits_by_byte(&mut self, bits_source: u8, bits_count: usize) {
