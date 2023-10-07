@@ -38,8 +38,11 @@ impl ByteIO {
     pub(crate) fn new(from_data: &[u8]) -> Self {
         ByteIO { data: from_data.to_vec(), position: BytePosition::default() }
     }
-    pub(crate) fn new_with_position(from_data: &[u8], from_position: &BytePosition) -> Self {
-        ByteIO { data: from_data.to_vec(), position: *from_position }
+    pub(crate) fn concat_unaligned(&mut self, other: &ByteIO) {
+        for i in 0..other.data.len() - 1 {
+            self.write_bits(other.data[i], 8);
+        }
+        self.write_bits(other.data[other.data.len() - 1], other.position.current_bit);
     }
     /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
     pub(crate) fn write_bits_by_byte(&mut self, bits_source: u8, bits_count: usize) {
@@ -77,11 +80,11 @@ impl ByteIO {
             bits_left_to_write -= bits_can_write_in_byte;
         }
     }
-
-    /// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes..
+    /// Write bits_count number of bits from bits_source into a vector of bytes..
     /// This is a wrapper around write_bits_by_byte to easily write ie u32
     pub(crate) fn write_bits<T: Into<u32>>(&mut self, bits_source: T, bits_count: usize) {
         let mut bits_left_to_write: usize = bits_count;
+
         let byte_source_converted: u32 = bits_source.into();
         let byte_source = byte_source_converted.to_le_bytes();
         let mut byte_source_current = 0;

@@ -95,35 +95,40 @@ impl fmt::Display for ItemMod {
     }
 }
 impl ItemMod {
-    // pub fn to_bytes(mods: &Vec<ItemMod>) -> Vec<u8> {
-    //     let mut mod_list = ByteIO::default();
-    //     for m in mods {
-    //         let mod_row: &HashMap<String, String> = &itemstatcost()[m.base.key as usize];
-    //         let key_bits: usize = mod_row["Save Bits"].parse().unwrap();
-    //         let save_add: i32 = match mod_row["Save Add"].as_str() {
-    //             "" => 0i32,
-    //             res => res.parse().unwrap(),
-    //         };
+    // TODO: decompose param into useful parts
+    pub fn to_bytes(mods: &Vec<ItemMod>) -> ByteIO {
+        println!("Now writing mods: {0:?}", mods);
+        let mut mod_list = ByteIO::default();
+        for m in mods {
+            let mod_row: &HashMap<String, String> = &itemstatcost()[m.base.key as usize];
+            let key_bits: usize = mod_row["Save Bits"].parse().unwrap();
+            let save_add: i32 = match mod_row["Save Add"].as_str() {
+                "" => 0i32,
+                res => res.parse().unwrap(),
+            };
 
-    //         mod_list.write_bits(m.base.key, 9);
-    //         mod_list.write_bits(m.base.value as u64, key_bits);
-
-    //         for linked_mod in m.linked_mods {
-    //             let linked_key_bits: usize = itemstatcost()[linked_mod.key as usize]["Save Bits"].parse().unwrap();
-    //             // Should linked mod also use save add?
-    //             mod_list.write_bits(linked_mod.value as u64, linked_key_bits);
-    //         }
-
-    //         if let Some(p) = m.param {
-    //             let param_bits = match mod_row["Save Param Bits"]{
-    //                 S
-    //             }
-
-    //         }
-    //     }
-    //     mod_list.write_bits(MOD_TRAILER, 9);
-    //     mod_list.data
-    // }
+            mod_list.write_bits(m.base.key, 9);
+            if let Some(p) = m.param {
+                let param_bits = match mod_row["Save Param Bits"].as_str() {
+                    "" => 0,
+                    any => any.parse().unwrap(),
+                };
+                if param_bits > 0 {
+                    mod_list.write_bits(p, param_bits);
+                }
+            }
+            mod_list.write_bits((m.base.value + save_add) as u32, key_bits);
+            for linked_mod in &m.linked_mods {
+                let linked_key_bits: usize =
+                    itemstatcost()[linked_mod.key as usize]["Save Bits"].parse().unwrap();
+                // Should linked mod also use save add?
+                mod_list.write_bits(linked_mod.value as u32, linked_key_bits);
+            }
+        }
+        println!("Now writing trailer: {0:?}", mod_list.data);
+        mod_list.write_bits(MOD_TRAILER, 9);
+        mod_list
+    }
     pub fn parse(reader: &mut ByteIO) -> Result<Vec<ItemMod>, D2SError> {
         let mut mods = Vec::<ItemMod>::new();
         loop {
@@ -144,7 +149,12 @@ impl ItemMod {
                 res => res.parse()?,
             };
             new_mod.base.key = key_id as u16;
-            new_mod.base.value = cmp::max(0, reader.read_bits(key_bits).unwrap() as i32 - save_add);
+            let param_bits = mod_row["Save Param Bits"].clone();
+            if param_bits != "" {
+                new_mod.param = Some(reader.read_bits(param_bits.parse().unwrap()).unwrap());
+            }
+            let value = reader.read_bits(key_bits).unwrap();
+            new_mod.base.value = value as i32 - save_add;
             new_mod.base.name = mod_row["Stat"].clone();
             match linked_mods().get(&key_id) {
                 Some(res) => {
@@ -159,15 +169,10 @@ impl ItemMod {
                 }
                 None => (),
             }
-            if new_mod.linked_mods.len() == 0 {
-                let param_bits = mod_row["Save Param Bits"].clone();
-                if param_bits != "" {
-                    new_mod.param =
-                        Some(reader.read_bits(param_bits.parse().unwrap()).unwrap() as u32);
-                }
-            }
+
             mods.push(new_mod);
         }
+        println!("Parsed mods: {0:?}", mods);
         Ok(mods)
     }
 }
@@ -518,6 +523,20 @@ impl Item {
         }
         Ok(item)
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut writer = self.header.to_bytes();
+        println!("Header: {0:?}", writer.data);
+        if let Some(extended_item) = &self.data {
+            writer.concat_unaligned(&ByteIO::new(extended_item.to_bytes(&self.header).as_slice()));
+        }
+        if self.header.socketed && self.header.socketed_count > 0 {
+            for item in &self.socketed_items {
+                writer.data.append(&mut item.to_bytes()); // align
+            }
+        }
+        writer.data
+    }
 }
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
@@ -686,23 +705,37 @@ impl ExtendedItem {
             item_lists = item_lists | self.set_item_mask;
             extended.write_bits(self.set_item_mask, 5);
         }
+        let mod_bytes = ItemMod::to_bytes(&self.mods[0]);
+        extended.concat_unaligned(&mod_bytes);
+        for i in 0..8usize {
+            if item_lists.bit(i) {
+                extended.concat_unaligned(&ItemMod::to_bytes(&self.mods[i + 1]));
+            }
+            let mut total_so_far = header.clone().to_bytes();
+            total_so_far.concat_unaligned(&extended);
 
-        // extended_item.mods.push(ItemMod::parse(reader));
-        // warn!("Item lists to read: {0}", item_lists);
-        // for i in 0..15usize {
-        //     if item_lists.bit(i) {
-        //         extended_item.mods.push(ItemMod::parse(reader));
-        //     }
-        // }
-
-        // warn!("{0:?}", extended_item);
-
+            // println!(
+            //     "extended so far: {0:?}",
+            //     &extended.data[0..extended.position.current_byte + 1]
+            // );
+            println!("total so far: {0:?}", total_so_far);
+        }
+        let mut actual_total_so_far = header.clone().to_bytes();
+        actual_total_so_far.concat_unaligned(&extended);
+        println!("actual returned: {0:?}", actual_total_so_far.data);
         extended.data
     }
 
     pub fn parse(header: &Header, reader: &mut ByteIO) -> Result<Self, D2SError> {
+        fn report_status(current: &mut ByteIO, text: &'static str) {
+            println!(
+                "HAS READ at point {1}: {0:?}",
+                &current.data[0..current.position.current_byte + 1],
+                text
+            );
+        }
+
         let mut extended_item = ExtendedItem::default();
-        warn!("{0:?}", header);
 
         extended_item.id = reader.read_bits(32)?;
         extended_item.level = reader.read_bits(7)? as u8;
@@ -737,6 +770,8 @@ impl ExtendedItem {
             Quality::Unique(_) => Quality::Unique(reader.read_bits(12)? as u16),
             Quality::Crafted(_) => Quality::Crafted(extended_item.parse_rare_crafted(reader)?),
         };
+
+        report_status(reader, "After Quality");
 
         // TODO: Handle ear
 
@@ -810,12 +845,15 @@ impl ExtendedItem {
             extended_item.set_item_mask = reader.read_bits(5)? as u8;
             item_lists = item_lists | extended_item.set_item_mask;
         }
+        report_status(reader, "Before parsing mods");
         extended_item.mods.push(ItemMod::parse(reader)?);
         for i in 0..8usize {
             if item_lists.bit(i) {
                 extended_item.mods.push(ItemMod::parse(reader)?);
             }
+            report_status(reader, "right after parsing mod");
         }
+        report_status(reader, "Before return");
 
         Ok(extended_item)
     }
@@ -839,10 +877,11 @@ pub struct Header {
     pub storage: Storage,
     pub base: String,
     pub socketed_count: u8,
+    pub picked_up_since_last_save: bool,
 }
 
 impl Header {
-    fn parse(reader: &mut ByteIO) -> Result<Header, D2SError> {
+    pub fn parse(reader: &mut ByteIO) -> Result<Header, D2SError> {
         reader.align_position();
         let mut header: Header = Header::default();
 
@@ -852,7 +891,9 @@ impl Header {
         header.broken = reader.read_bit()?;
         reader.read_bits(2)?; // unknown
         header.socketed = reader.read_bit()?;
-        reader.read_bits(4)?; // unknown (bit 2 is picked up since last save)
+        reader.read_bit()?; // unknown
+        header.picked_up_since_last_save = reader.read_bit()?;
+        reader.read_bits(2)?; // unknown
         header.ear = reader.read_bit()?;
         header.starter_gear = reader.read_bit()?;
         reader.read_bits(3)?; // unknown
@@ -863,12 +904,17 @@ impl Header {
         reader.read_bit()?;
         header.runeword = reader.read_bit()?;
         reader.read_bits(8)?; // unknown
+        if reader.position.current_byte < 7 {
+            println!("Reader so far: {0:?}", &reader.data[0..reader.position.current_byte + 1]);
+        }
 
         header.status = match Status::try_from(reader.read_bits(3)? as u8) {
             Ok(res) => res,
             Err(e) => return Err(D2SError::Custom(CustomError { message: e.to_string() })),
         };
-
+        if reader.position.current_byte < 7 {
+            println!("Reader so far: {0:?}", &reader.data[0..reader.position.current_byte + 1]);
+        }
         // TODO: Handle ground/dropped cases? https://github.com/ThePhrozenKeep/D2MOO/blob/4071d3f4c3cec4a7bb4319b8fe4ff157834fb217/source/D2Common/src/Items/Items.cpp#L5029
         header.slot = match Slot::try_from(reader.read_bits(4)? as u8) {
             Ok(res) => res,
@@ -907,16 +953,17 @@ impl Header {
         Ok(header)
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> ByteIO {
         let mut header = ByteIO::default();
-
         header.write_bits(0u8, 4); // unknown
         header.write_bit(self.identified);
         header.write_bits(0u8, 3); // unknown
         header.write_bit(self.broken);
         header.write_bits(0u8, 2); // unknown
         header.write_bit(self.socketed);
-        header.write_bits(0u8, 4); // unknown (bit 2 is picked up since last save)
+        header.write_bit(self.socketed); // unknown
+        header.write_bit(self.picked_up_since_last_save);
+        header.write_bits(0u8, 2); // unknown (bit 2)
         header.write_bit(self.ear);
         header.write_bit(self.starter_gear);
         header.write_bits(0u8, 3); // unknown
@@ -940,7 +987,7 @@ impl Header {
         }
         header.write_bits(self.socketed_count, if self.compact { 1 } else { 3 });
 
-        header.data
+        header
     }
 }
 
@@ -964,14 +1011,22 @@ impl Items {
         reader.position.current_byte = 4;
 
         for i in 0..items.count {
+            let pos = reader.position.clone();
+            warn!("{0:?}", pos);
             let item = Item::parse(&mut reader);
+            warn!("{0:?}", item);
+            warn!("{0:?}", reader.position);
+
+            if pos.current_bit == 8 {
+                warn!(
+                    "{0:?}",
+                    &reader.data[pos.current_byte + 1..reader.position.current_byte + 1]
+                );
+            }
 
             match item {
                 Ok(res) => {
-                    warn!("Item: {0:?}", res);
                     items.items.push(res);
-
-                    warn!("Parsed item #{0}", i)
                 }
                 Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),
             }

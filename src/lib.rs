@@ -305,8 +305,8 @@ impl Save {
             save.character.status.expansion,
             save.character.mercenary.is_hired(),
         );
-        warn!("{0}", save);
-        warn!("{0:?}", save.items);
+        //warn!("{0}", save);
+        //warn!("{0:?}", save.items);
         save
     }
     pub fn to_bytes(&self) -> Vec<u8> {
