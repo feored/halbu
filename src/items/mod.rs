@@ -333,8 +333,24 @@ pub struct Corpse {
 }
 
 impl Corpse {
-    fn parse(reader: &mut ByteIO) -> Result<Corpse, D2SError> {
+    pub fn to_bytes(&self) -> ByteIO {
+        let mut writer = ByteIO::new(&HEADER.to_vec(), true);
+        writer.write_bits(self.exists as u16, 16);
+        writer.write_bits(0u32, 32); // Unknown
+        writer.write_bits(self.x, 32);
+        println!("Writer so far: {0:?}", &writer.data);
+        writer.write_bits(self.y, 32);
+        writer.write_bits(HEADER[0], 8);
+        writer.write_bits(HEADER[1], 8);
+        writer.write_bits(self.item_count, 16);
+        for i in 0..self.item_count {
+            writer.concat(&self.items[i as usize].to_bytes());
+        }
+        writer
+    }
+    pub fn parse(reader: &mut ByteIO) -> Result<Corpse, D2SError> {
         reader.align_position();
+        let reader_start = reader.clone();
         let mut corpse = Corpse::default();
         let mut header = (reader.read_bits(16)? as u16).to_le_bytes();
         if header != HEADER {
@@ -376,6 +392,11 @@ impl Corpse {
                 Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),
             }
         }
+        warn!(
+            "Corpse data: {0:?} (is: {1:?}))",
+            &reader.data[reader_start.position.current_byte..reader.position.current_byte + 1],
+            corpse
+        );
         Ok(corpse)
     }
 }
@@ -521,17 +542,17 @@ impl Item {
         Ok(item)
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> ByteIO {
         let mut writer = self.header.to_bytes();
         if let Some(extended_item) = &self.data {
             writer.concat_unaligned(&extended_item.to_bytes(&self.header));
         }
         if self.header.socketed && self.header.socketed_count > 0 {
             for item in &self.socketed_items {
-                writer.data.append(&mut item.to_bytes()); // align
+                writer.data.extend_from_slice(&item.to_bytes().data); // align
             }
         }
-        writer.data
+        writer
     }
 }
 
@@ -962,9 +983,19 @@ impl Header {
 }
 
 impl Items {
+    pub fn to_bytes(&self, expansion: bool, hired: bool) -> ByteIO {
+        let mut writer = ByteIO::new(&HEADER, true);
+        writer.write_bits(self.count, 16);
+        for i in 0..self.count {
+            writer.concat(&self.items[i as usize].to_bytes());
+        }
+
+        writer
+    }
+
     pub fn parse(bytes: &[u8], expansion: bool, hired: bool) -> Items {
         let mut items = Items::default();
-        let mut reader: ByteIO = ByteIO::new(bytes);
+        let mut reader: ByteIO = ByteIO::new(bytes, false);
         if reader.data[0..2] != HEADER {
             warn!(
                 "Found invalid header in items section: Expected {0:X?}, found {1:X?}. Returning empty items list.",

@@ -27,8 +27,25 @@ impl ByteIO {
             self.position.current_bit = 0;
         }
     }
-    pub(crate) fn new(from_data: &[u8]) -> Self {
-        ByteIO { data: from_data.to_vec(), position: BytePosition::default() }
+    pub(crate) fn align_writer(&mut self) {
+        if self.position.current_bit > 0 {
+            self.write_bits(0u8, 8 - self.position.current_bit);
+        }
+    }
+    pub(crate) fn new(from_data: &[u8], seek_end: bool) -> Self {
+        ByteIO {
+            data: from_data.to_vec(),
+            position: BytePosition {
+                current_byte: if seek_end { from_data.len() } else { 0 },
+                current_bit: 0,
+            },
+        }
+    }
+    pub(crate) fn concat(&mut self, other: &ByteIO) {
+        self.align_writer();
+        self.data.extend_from_slice(&other.data);
+        self.position.current_byte += other.position.current_byte;
+        self.position.current_bit = other.position.current_bit;
     }
     pub(crate) fn concat_unaligned(&mut self, other: &ByteIO) {
         for i in 0..other.position.current_byte {

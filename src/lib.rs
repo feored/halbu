@@ -291,7 +291,8 @@ impl Save {
         }
         save.npcs = NPCs::parse(&byte_vector[Section::Npcs.range()]);
 
-        let mut reader: ByteIO = ByteIO::new(&byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()]);
+        let mut reader: ByteIO =
+            ByteIO::new(&byte_vector[ATTRIBUTES_OFFSET..byte_vector.len()], false);
         save.attributes = Attributes::parse(&mut reader);
         let skills_offset = ATTRIBUTES_OFFSET + reader.position.current_byte + 1;
         save.skills = SkillSet::parse(

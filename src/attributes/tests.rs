@@ -25,7 +25,7 @@ mod tests {
         };
         let result: Vec<u8> = expected_attributes.to_bytes();
 
-        let mut reader: ByteIO = ByteIO::new(&result);
+        let mut reader: ByteIO = ByteIO::new(&result, false);
         let parsed_attributes = Attributes::parse(&mut reader);
 
         assert_eq!(parsed_attributes, expected_attributes);
@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_read_stats() {
         let bytes: [u8; 8] = [0x00, 0x3C, 0x08, 0x0A0, 0x80, 0x00, 0x0A, 0x06];
-        let mut io = ByteIO::new(&bytes);
+        let mut io = ByteIO::new(&bytes, false);
         let header_result = io.read_bits(9).unwrap();
         assert_eq!(header_result, 0);
 
