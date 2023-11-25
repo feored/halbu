@@ -1,5 +1,7 @@
 ## Halbu
 
+**See also: [Halbu Editor](https://github.com/feored/halbu-editor)**
+
 A .d2s file parsing library written in Rust.
 
 ⚠ NPCs and Items section are not yet supported.
