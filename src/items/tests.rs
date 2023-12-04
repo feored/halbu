@@ -96,7 +96,7 @@ mod tests {
         };
         let parsed_result = Corpse::parse(&mut byte_data).unwrap();
         assert_eq!(parsed_result, expected_result);
-        let generated_result = parsed_result.to_bytes().data;
+        //let generated_result = parsed_result.to_bytes().data;
         //assert_eq!(generated_result, byte_data.data);
         // Not the same because of unknown bits in item header/data
     }

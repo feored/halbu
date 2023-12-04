@@ -194,10 +194,28 @@ pub enum Inferior {
     LowQuality = 3,
 }
 
+impl Display for Inferior {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let result = match self {
+            Inferior::Crude => "Crude",
+            Inferior::Cracked => "Cracked",
+            Inferior::Damaged => "Damaged",
+            Inferior::LowQuality => "Low Quality",
+        };
+        write!(f, "{}", result)
+    }
+}
+
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct ItemName {
     pub prefix: u8,
     pub suffix: u8,
+}
+
+impl Display for ItemName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Prefix: {0}, Suffix: {1}", self.prefix, self.suffix)
+    }
 }
 
 #[repr(u8)]
@@ -212,6 +230,21 @@ pub enum Quality {
     Rare(ItemName) = 6,
     Unique(u16) = 7,
     Crafted(ItemName) = 8,
+}
+
+impl Display for Quality {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        return match self {
+            Quality::Inferior(res) => write!(f, "{0} (Inferior)", res),
+            Quality::Normal => write!(f, "Normal"),
+            Quality::Superior(_) => write!(f, "Superior"),
+            Quality::Magic => write!(f, "Magic"),
+            Quality::Set(res) => write!(f, "Set ({0})", res),
+            Quality::Rare(res) => write!(f, "Rare ({0})", res),
+            Quality::Unique(res) => write!(f, "Unique ({0})", res),
+            Quality::Crafted(res) => write!(f, "Crafted ({0})", res),
+        };
+    }
 }
 
 impl From<&Quality> for u8 {
@@ -359,6 +392,22 @@ pub struct Item {
     pub header: Header,
     pub data: Option<ExtendedItem>,
     pub socketed_items: Vec<Item>,
+}
+
+impl Display for Item {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut result = format!("Header:\n{0}\n", self.header);
+        if let Some(data) = &self.data {
+            result.push_str(&format!("Data:\n{0}\n", data));
+        }
+        if self.header.socketed && self.header.socketed_count > 0 {
+            result.push_str("Socketed Items:\n");
+            for item in &self.socketed_items {
+                result.push_str(&format!("{0}\n", item));
+            }
+        }
+        write!(f, "{}", result)
+    }
 }
 
 impl Item {
@@ -548,6 +597,52 @@ pub struct ExtendedItem {
     pub total_sockets: Option<u8>,
     pub mods: Vec<Vec<ItemMod>>,
     pub set_item_mask: u8,
+}
+
+impl Display for ExtendedItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let result = format!(
+			"ID: {0}\n Level: {1}\n Quality: {2}\n Custom Graphics ID: {3}\n Auto Mod: {4}\n Name Prefix: {5}\n Name Suffix: {6}\n Prefixes: {7}\n Suffixes: {8}\n Personalized Name: {9}\n Runeword ID: {10}\n Realm Data: {11}\n Defense: {12}\n Durability Max: {13}\n Durability Current: {14}\n Quantity: {15}\n Total Sockets: {16}\n Mods: {17}\n Set Item Mask: {18}",
+			self.id, self.level, self.quality, match self.custom_graphics_id {
+				Some(res) => res.to_string(),
+				None => String::default(),
+			}, match self.auto_mod {
+				Some(res) => res.to_string(),
+				None => String::default(),
+			}, match self.name_prefix {
+				Some(res) => res.to_string(),
+				None => String::default(),
+			}, match self.name_suffix {
+				Some(res) => res.to_string(),
+				None => String::default(),
+			},
+			self.prefixes.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "),
+			self.suffixes.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "),
+			match &self.personalized_name {
+				Some(res) => res.clone(),
+				None => String::default(),
+			}, match self.runeword_id {
+				Some(res) => res.to_string(),
+				None => String::default(),
+			}, match &self.realm_data {
+				Some(res) => res.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "),
+				None => String::default(),
+			}, match self.defense {
+				Some(res) => res.to_string(),
+				None => String::default(),
+			}, self.durability_max, match self.durability_current {
+				Some(res) => res.to_string(),
+				None => String::default(),
+			}, match self.quantity {
+				Some(res) => res.to_string(),
+				None => String::default(),
+			}, match self.total_sockets {
+				Some(res) => res.to_string(),
+				None => String::default(),
+			}, self.mods.iter().map(|x| x.iter().map(|y| y.to_string()).collect::<Vec<String>>().join(", ")).collect::<Vec<String>>().join(", "), self.set_item_mask);
+
+        write!(f, "{}", result)
+    }
 }
 
 impl ExtendedItem {

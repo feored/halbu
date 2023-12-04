@@ -41,7 +41,7 @@ impl ByteIO {
             },
         }
     }
-    pub(crate) fn concat(&mut self, other: &ByteIO) {
+    pub(crate) fn concat_aligned(&mut self, other: &ByteIO) {
         self.align_writer();
         self.data.extend_from_slice(&other.data);
         self.position.current_byte += other.position.current_byte;
@@ -105,6 +105,16 @@ impl ByteIO {
             self.write_bits_by_byte(byte_source[byte_source_current], bits_can_write);
             bits_left_to_write -= bits_can_write;
             byte_source_current += 1;
+        }
+    }
+
+    pub(crate) fn write_byte(&mut self, byte: u8) {
+        self.write_bits(byte, 8);
+    }
+
+    pub(crate) fn write_bytes(&mut self, bytes: &[u8]) {
+        for byte in bytes {
+            self.write_byte(*byte);
         }
     }
 

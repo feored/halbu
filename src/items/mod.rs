@@ -15,7 +15,6 @@ pub mod item;
 const HEADER: [u8; 2] = [0x4A, 0x4D];
 const MERCENARY_HEADER: [u8; 2] = [0x6A, 0x66];
 const IRON_GOLEM_HEADER: [u8; 2] = [0x6B, 0x66];
-const MOD_TRAILER: u16 = 0x1FF;
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct Items {
@@ -24,6 +23,16 @@ pub struct Items {
     pub corpse: Corpse,
     pub mercenary: MercenaryItems,
     pub iron_golem: IronGolem,
+}
+
+impl Display for Items {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut str_items = String::new();
+        for i in 0..self.count {
+            str_items.push_str(&format!("Item #{0}\n{1}\n", i, self.items[i as usize]));
+        }
+        write!(f, "{0} items\nItems:\n{1}", self.count, str_items)
+    }
 }
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Hash)]
@@ -50,17 +59,20 @@ pub struct IronGolem {
 
 impl Corpse {
     pub fn to_bytes(&self) -> ByteIO {
-        let mut writer = ByteIO::new(&HEADER.to_vec(), true);
+        let mut writer = ByteIO::default();
+        writer.write_bytes(&HEADER);
         writer.write_bits(self.exists as u16, 16);
+        if !self.exists {
+            return writer;
+        }
         writer.write_bits(self.unknown_0, 32); // Unknown
         writer.write_bits(self.x, 32);
-        println!("Writer so far: {0:?}", &writer.data);
         writer.write_bits(self.y, 32);
         writer.write_bits(HEADER[0], 8);
         writer.write_bits(HEADER[1], 8);
         writer.write_bits(self.item_count, 16);
         for i in 0..self.item_count {
-            writer.concat(&self.items[i as usize].to_bytes());
+            writer.concat_aligned(&self.items[i as usize].to_bytes());
         }
         writer
     }
@@ -101,23 +113,41 @@ impl Corpse {
 
             match item {
                 Ok(res) => {
-                    warn!("Parsed item #{0}", i);
-
                     corpse.items.push(res);
                 }
                 Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),
             }
         }
-        warn!(
-            "Corpse data: {0:?} (is: {1:?}))",
-            &reader.data[reader_start.position.current_byte..reader.position.current_byte + 1],
-            corpse
-        );
+        // warn!(
+        //     "Corpse data: {0:?} (is: {1:?}))",
+        //     &reader.data[reader_start.position.current_byte..reader.position.current_byte + 1],
+        //     corpse
+        // );
         Ok(corpse)
     }
 }
 
 impl MercenaryItems {
+    fn to_bytes(&self, expansion: bool, hired: bool) -> ByteIO {
+        let mut writer = ByteIO::default();
+        writer.write_bytes(&MERCENARY_HEADER);
+        if !hired {
+            return writer;
+        }
+
+        if !expansion {
+            writer.write_bytes(&HEADER);
+            return writer;
+        }
+
+        writer.write_bits(self.items_count, 16);
+        for i in 0..self.items_count {
+            writer.concat_aligned(&self.items[i as usize].to_bytes());
+        }
+
+        writer
+    }
+
     fn parse(reader: &mut ByteIO, expansion: bool, hired: bool) -> Result<Self, D2SError> {
         reader.align_position();
 
@@ -161,7 +191,7 @@ impl MercenaryItems {
             match item {
                 Ok(res) => {
                     merc.items.push(res);
-                    warn!("Parsed item #{0}", i)
+                    //warn!("Parsed item #{0}", i)
                 }
                 Err(res) => warn!("Skipping item, because of error: {0}", res.to_string()),
             }
@@ -210,16 +240,17 @@ impl IronGolem {
         Ok(iron_golem)
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
-        let mut data = IRON_GOLEM_HEADER.to_vec();
-        match &self.item {
-            Some(x) => {
-                data.push(1u8);
-                // TODO ADD ITEM
-            }
-            None => data.push(0u8),
+    fn to_bytes(&self) -> ByteIO {
+        let mut writer = ByteIO::default();
+        writer.write_bytes(&IRON_GOLEM_HEADER);
+        if let Some(item) = &self.item {
+            writer.write_byte(1u8);
+            writer.concat_aligned(&item.to_bytes());
+        } else {
+            writer.write_byte(0u8);
         }
-        data
+
+        writer
     }
 }
 
@@ -228,8 +259,11 @@ impl Items {
         let mut writer = ByteIO::new(&HEADER, true);
         writer.write_bits(self.count, 16);
         for i in 0..self.count {
-            writer.concat(&self.items[i as usize].to_bytes());
+            writer.concat_aligned(&self.items[i as usize].to_bytes());
         }
+        writer.concat_aligned(&self.corpse.to_bytes());
+        writer.concat_aligned(&self.mercenary.to_bytes(expansion, hired));
+        writer.concat_aligned(&self.iron_golem.to_bytes());
 
         writer
     }
@@ -246,23 +280,12 @@ impl Items {
             return items;
         }
         items.count = u16_from(&reader.data[2..4], "Items Count");
-        debug!("Found item count: {0}", items.count);
 
         reader.position.current_byte = 4;
 
-        for i in 0..items.count {
+        for _i in 0..items.count {
             let pos = reader.position.clone();
-            warn!("{0:?}", pos);
             let item = Item::parse(&mut reader);
-            warn!("{0:?}", item);
-            warn!("{0:?}", reader.position);
-
-            if pos.current_bit == 8 {
-                warn!(
-                    "{0:?}",
-                    &reader.data[pos.current_byte + 1..reader.position.current_byte + 1]
-                );
-            }
 
             match item {
                 Ok(res) => {
@@ -279,6 +302,10 @@ impl Items {
                 Corpse::default()
             }
         };
+
+        if !expansion {
+            return items;
+        }
 
         items.mercenary = match MercenaryItems::parse(&mut reader, expansion, hired) {
             Ok(res) => res,

@@ -223,7 +223,7 @@ impl fmt::Display for Save {
         //final_string.push_str(&format!("NPCs:\n {0:?}\n", self.npcs));
         final_string.push_str(&format!("Attributes:\n{0}\n", self.attributes));
         final_string.push_str(&format!("Skills:\n{0}\n", self.skills));
-        //final_string.push_str(&format!("Items:\n {0:?}\n", self.items));
+        final_string.push_str(&format!("Items:\n {0}\n", self.items));
         write!(f, "{0}", final_string)
     }
 }
@@ -306,8 +306,6 @@ impl Save {
             save.character.status.expansion,
             save.character.mercenary.is_hired(),
         );
-        //warn!("{0}", save);
-        //warn!("{0:?}", save.items);
         save
     }
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -323,7 +321,12 @@ impl Save {
         result[Section::Npcs.range()].copy_from_slice(&self.npcs.to_bytes());
         result.append(&mut self.attributes.to_bytes());
         result.append(&mut self.skills.to_bytes());
-        //result.append(&mut items::generate(&self.items, self.character.mercenary.is_hired()));
+        result.append(
+            &mut self
+                .items
+                .to_bytes(self.character.status.expansion, self.character.mercenary.is_hired())
+                .data,
+        );
 
         let length = result.len() as u32;
         result[Section::FileSize.range()].copy_from_slice(&u32::to_le_bytes(length));
@@ -458,9 +461,9 @@ pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::csv::*;
-    use std::{path::Path, time::Duration};
-
+    // use crate::csv::*;
+    use std::path::Path;
+    // use std::time::Duration;
     #[test]
     fn test_parse_save() {
         let path: &Path = Path::new("assets/test/Joe.d2s");
