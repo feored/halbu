@@ -564,7 +564,6 @@ impl Header {
         header.write_bits(self.column, 4);
         header.write_bits(self.row, 4);
         header.write_bits(self.storage as u8, 3);
-
         for c in self.base.chars() {
             for str_bit in encode_char(c).chars() {
                 header.write_bit(if str_bit == '1' { true } else { false });

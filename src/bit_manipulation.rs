@@ -44,8 +44,9 @@ impl ByteIO {
     pub(crate) fn concat_aligned(&mut self, other: &ByteIO) {
         self.align_writer();
         self.data.extend_from_slice(&other.data);
-        self.position.current_byte += other.position.current_byte;
-        self.position.current_bit = other.position.current_bit;
+        self.position.current_byte += other.position.current_byte
+            + (other.position.current_bit + self.position.current_bit) / 8;
+        self.position.current_bit = (self.position.current_bit + other.position.current_bit) % 8;
     }
     pub(crate) fn concat_unaligned(&mut self, other: &ByteIO) {
         for i in 0..other.position.current_byte {
@@ -89,6 +90,7 @@ impl ByteIO {
             bits_left_to_write -= bits_can_write_in_byte;
         }
     }
+
     /// Write bits_count number of bits from bits_source into a vector of bytes..
     /// This is a wrapper around write_bits_by_byte to easily write ie u32
     pub(crate) fn write_bits<T: Into<u32>>(&mut self, bits_source: T, bits_count: usize) {
