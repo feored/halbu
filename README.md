@@ -8,7 +8,7 @@ A .d2s file parsing library written in Rust.
 
 ⚠ Neither are hardcore mode and non-expansion characters ⚠ 
 
-**[Notes](https://github.com/feored/halbu/blob/main/notes.md)** regarding D2R with some useful information regarding quests in particular.
+**[Notes](https://github.com/feored/halbu/blob/main/NOTES.md)** regarding D2R with some useful information regarding quests in particular.
 
 This library uses the [log](https://docs.rs/log/latest/log/) crate to log parsing errors.
 
