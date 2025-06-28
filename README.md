@@ -4,7 +4,8 @@
 
 A .d2s file parsing library written in Rust.
 
-⚠ NPCs and Items section are not yet supported.
+⚠ NPCs and Items section are not yet supported. ⚠ 
+⚠ Neither are hardcore mode and non-expansion characters ⚠ 
 
 **[Notes](https://github.com/feored/halbu/blob/main/notes.md)** regarding D2R with some useful information regarding quests in particular.
 
