@@ -1,10 +1,14 @@
 ## Halbu
 
+**See also: [Halbu Editor](https://github.com/feored/halbu-editor)**
+
 A .d2s file parsing library for Diablo II: Resurrected written in Rust.
 
-⚠ NPCs/Greeting section (offset 713-765) and Items section are not yet supported.
+⚠ NPCs and Items section are not yet supported. ⚠ 
 
-**[Notes](https://github.com/feored/halbu/blob/main/notes.md)** regarding D2R with some useful information regarding quests in particular.
+⚠ Neither are hardcore mode and non-expansion characters ⚠ 
+
+**[Notes](https://github.com/feored/halbu/blob/main/NOTES.md)** regarding D2R with some useful information regarding quests in particular.
 
 This library uses the [log](https://docs.rs/log/latest/log/) crate to log parsing errors.
 
