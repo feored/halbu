@@ -1,50 +1,26 @@
 #[cfg(test)]
 mod tests {
-    use crate::skills::*;
+    use crate::skills::{SkillPoints, SKILLS_SECTION_LENGTH};
 
     #[test]
     fn test_parse_and_write() {
-        let byte_vector = [
+        let bytes = [
             0x69, 0x66, 0x00, 0x01, 0x00, 0x14, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x14, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x14,
         ];
 
-        let skills = SkillSet::parse(&byte_vector, Class::Sorceress);
-        // Teleport
-        assert_eq!(
-            skills.0[18],
-            Skill {
-                name: String::from("Teleport"),
-                skilldesc: String::from("teleport"),
-                id: 54,
-                points: 1
-            }
-        );
-
-        let result = skills.to_bytes();
-
-        assert_eq!(result, byte_vector);
+        let skill_points = SkillPoints::parse(&bytes).expect("skills should parse");
+        assert_eq!(skill_points.points.len(), SKILLS_SECTION_LENGTH - 2);
+        assert_eq!(skill_points.points[0], 0x00);
+        assert_eq!(skill_points.points[3], 0x14);
+        assert_eq!(skill_points.to_bytes(), bytes);
     }
 
     #[test]
-    fn test_parse() {
-        let byte_vector = [
-            0x69, 0x66, 0x00, 0x01, 0x00, 0x14, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x14, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x14,
-        ];
-
-        let skills = SkillSet::parse(&byte_vector, Class::Sorceress);
-        // Ice blast
-        assert_eq!(
-            skills.0[9],
-            Skill {
-                points: 17,
-                name: String::from("Ice Blast"),
-                id: 45,
-                skilldesc: String::from("ice blast")
-            }
-        );
+    fn test_set_get() {
+        let mut skill_points = SkillPoints::default();
+        skill_points.set(5, 42);
+        assert_eq!(skill_points.get(5), 42);
     }
 }

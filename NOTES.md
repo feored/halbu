@@ -276,3 +276,7 @@ A new character will have three waypoints unlocked by default: Rogue encampment 
 ## Items
 
 The JM header at the top of every item has been removed in D2R.
+
+## ROTW
+
+Character section offset 232 (absolute file offset 248) now contains information for whether the character is in classic (1), expansion (2) or ROTW (3) mode.

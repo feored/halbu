@@ -1,73 +1,34 @@
 use std::fmt;
-use std::ops::Range;
-use std::str;
 
 use bit::BitIndex;
-use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
 
 use crate::utils::get_sys_time_in_secs;
-use crate::utils::u32_from;
-use crate::utils::u8_from;
-
 use crate::Act;
 use crate::Class;
 use crate::Difficulty;
-use crate::ParseError;
+use crate::ParseHardError;
 
 use mercenary::Mercenary;
 
+pub mod codec;
+pub mod common;
 pub mod mercenary;
+#[cfg(test)]
 mod tests;
+pub mod v105;
+pub mod v99;
+
+pub use codec::decode_for_format;
+pub use codec::encode_for_format;
+pub use codec::expected_length_for_format;
+pub use codec::CharacterCodec;
+pub use v105::CharacterCodecV105;
+pub use v99::CharacterCodecV99;
 
 pub const DEFAULT_CLASS: Class = Class::Amazon;
-pub const DEFAULT_NAME: &'static str = "default";
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-enum Section {
-    WeaponSet,
-    Status,
-    Progression,
-    Class,
-    Level,
-    LastPlayed,
-    AssignedSkills,
-    LeftMouseSkill,
-    RightMouseSkill,
-    LeftMouseSwitchSkill,
-    RightMouseSwitchSkill,
-    MenuAppearance,
-    Difficulty,
-    MapSeed,
-    Mercenary,
-    ResurrectedMenuAppearance,
-    Name,
-}
-
-impl Section {
-    const fn range(self) -> Range<usize> {
-        match self {
-            Section::WeaponSet => 0..4,
-            Section::Status => 20..21,
-            Section::Progression => 21..22,
-            Section::Class => 24..25,
-            Section::Level => 27..28,
-            Section::LastPlayed => 32..36,
-            Section::AssignedSkills => 40..104,
-            Section::LeftMouseSkill => 104..108,
-            Section::RightMouseSkill => 108..112,
-            Section::LeftMouseSwitchSkill => 112..116,
-            Section::RightMouseSwitchSkill => 116..120,
-            Section::MenuAppearance => 120..152,
-            Section::Difficulty => 152..155,
-            Section::MapSeed => 155..159,
-            Section::Mercenary => 161..175,
-            Section::ResurrectedMenuAppearance => 203..251,
-            Section::Name => 251..299,
-        }
-    }
-}
+pub const DEFAULT_NAME: &str = "default";
 
 #[serde_as]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +52,9 @@ pub struct Character {
     #[serde_as(as = "Bytes")]
     pub resurrected_menu_appearance: [u8; 48],
     pub name: String,
+    #[serde(default)]
+    #[serde_as(as = "Bytes")]
+    pub raw_section: Vec<u8>,
 }
 
 impl fmt::Display for Character {
@@ -130,176 +94,45 @@ impl Default for Character {
             mercenary: Mercenary::default(),
             resurrected_menu_appearance: [0x00; 48],
             name: String::from(DEFAULT_NAME),
+            raw_section: Vec::new(),
         }
     }
 }
 
 impl Character {
-    pub fn parse(bytes: &[u8]) -> Character {
-        let mut character: Character = Character::default();
-        character.weapon_switch =
-            u32_from(&bytes[Section::WeaponSet.range()], "character.weapon_switch") != 0;
-
-        character.status = Status::from(u8_from(&bytes[Section::Status.range()]));
-
-        character.progression = u8_from(&bytes[Section::Progression.range()]);
-
-        character.class = match Class::try_from(u8_from(&bytes[Section::Class.range()])) {
-            Ok(res) => res,
-            Err(e) => {
-                warn!(
-                    "{0}\nFailed to get class, using default: {1}.",
-                    e.to_string(),
-                    DEFAULT_CLASS
-                );
-                DEFAULT_CLASS
-            }
-        };
-
-        character.level = u8_from(&bytes[Section::Level.range()]);
-
-        character.last_played =
-            u32_from(&bytes[Section::LastPlayed.range()], "character.last_played");
-        let assigned_skills: &[u8] = &bytes[Section::AssignedSkills.range()];
-        for i in 0..16 {
-            let start = i * 4;
-            let assigned_skill =
-                u32_from(&assigned_skills[start..start + 4], "character/assigned_skill");
-            character.assigned_skills[i] = assigned_skill;
-        }
-
-        character.left_mouse_skill =
-            u32_from(&bytes[Section::LeftMouseSkill.range()], "character.left_mouse_skill");
-        character.right_mouse_skill =
-            u32_from(&bytes[Section::RightMouseSkill.range()], "character.right_mouse_skill");
-        character.left_mouse_switch_skill = u32_from(
-            &bytes[Section::LeftMouseSwitchSkill.range()],
-            "character.left_mouse_switch_skill",
-        );
-        character.right_mouse_switch_skill = u32_from(
-            &bytes[Section::RightMouseSwitchSkill.range()],
-            "character.right_mouse_switch_skill",
-        );
-
-        character.menu_appearance.clone_from_slice(&bytes[Section::MenuAppearance.range()]);
-
-        let last_act = parse_last_act(&bytes[Section::Difficulty.range()].try_into().unwrap());
-
-        match last_act {
-            Ok(last_act) => {
-                character.difficulty = last_act.0;
-                character.act = last_act.1;
-            }
-            Err(e) => {
-                {
-                    warn!(
-                        "{0}\nFailed to get last difficulty and act, using default: {1} {2}.",
-                        e.to_string(),
-                        Act::Act1,
-                        Difficulty::Normal
-                    );
-                }
-                character.difficulty = Difficulty::Normal;
-                character.act = Act::Act1;
-            }
-        };
-
-        character.map_seed = u32_from(&bytes[Section::MapSeed.range()], "Character Map Seed");
-        // Mercenary size is contained within character size, so no need to check length
-        character.mercenary =
-            Mercenary::parse(&bytes[Section::Mercenary.range()].try_into().unwrap());
-
-        character
-            .resurrected_menu_appearance
-            .clone_from_slice(&bytes[Section::ResurrectedMenuAppearance.range()]);
-
-        let utf8name = match str::from_utf8(&bytes[Section::Name.range()]) {
-            Ok(res) => res.trim_matches(char::from(0)),
-            Err(e) => {
-                warn!(
-                    "Found invalid utf-8 for character name: {0}, using default: {1}",
-                    e.to_string(),
-                    DEFAULT_NAME
-                );
-                DEFAULT_NAME
-            }
-        };
-        character.name = String::from(utf8name);
-
-        character
-    }
-
-    pub fn to_bytes(&self) -> [u8; 319] {
-        let mut bytes: [u8; 319] = [0x00; 319];
-
-        bytes[Section::WeaponSet.range()]
-            .copy_from_slice(&u32::to_le_bytes(u32::from(self.weapon_switch)));
-        bytes[Section::Status.range().start] = u8::from(self.status);
-        bytes[Section::Progression.range().start] = self.progression;
-        bytes[Section::Class.range().start] = u8::from(self.class);
-        bytes[Section::Level.range().start] = self.level;
-        bytes[Section::LastPlayed.range()].copy_from_slice(&u32::to_le_bytes(self.last_played));
-
-        let mut assigned_skills: [u8; 64] = [0x00; 64];
-        for i in 0..16 {
-            assigned_skills[(i * 4)..((i * 4) + 4)]
-                .copy_from_slice(&u32::to_le_bytes(self.assigned_skills[i]));
-        }
-        bytes[Section::AssignedSkills.range()].copy_from_slice(&assigned_skills);
-        bytes[Section::LeftMouseSkill.range()]
-            .copy_from_slice(&u32::to_le_bytes(self.left_mouse_skill));
-        bytes[Section::RightMouseSkill.range()]
-            .copy_from_slice(&u32::to_le_bytes(self.right_mouse_skill));
-        bytes[Section::LeftMouseSwitchSkill.range()]
-            .copy_from_slice(&u32::to_le_bytes(self.left_mouse_switch_skill));
-        bytes[Section::RightMouseSwitchSkill.range()]
-            .copy_from_slice(&u32::to_le_bytes(self.right_mouse_switch_skill));
-        bytes[Section::MenuAppearance.range()].copy_from_slice(&self.menu_appearance);
-        bytes[Section::Difficulty.range()]
-            .copy_from_slice(&write_last_act(self.difficulty, self.act));
-        bytes[Section::MapSeed.range()].copy_from_slice(&u32::to_le_bytes(self.map_seed));
-        bytes[Section::Mercenary.range()].copy_from_slice(&self.mercenary.write());
-        bytes[Section::ResurrectedMenuAppearance.range()]
-            .copy_from_slice(&self.resurrected_menu_appearance);
-        let mut name: [u8; 48] = [0x00; 48];
-        let name_as_bytes = self.name.as_bytes();
-        name[0..name_as_bytes.len()].clone_from_slice(name_as_bytes);
-        bytes[Section::Name.range()].copy_from_slice(&name);
-
-        // Add padding, unknown bytes, etc
-        bytes[25] = 0x10;
-        bytes[26] = 0x1E;
-        bytes[36..40].copy_from_slice(&[0xFF, 0xFF, 0xFF, 0xFF]);
-
-        bytes
-    }
     pub fn default_class(class: Class) -> Self {
-        let default_character: Character =
-            Character { level: 1, class: class, ..Default::default() };
-        default_character
+        Character { level: 1, class, ..Default::default() }
     }
 }
 
-fn parse_last_act(bytes: &[u8; 3]) -> Result<(Difficulty, Act), ParseError> {
+pub(crate) fn parse_last_act(bytes: &[u8; 3]) -> Result<(Difficulty, Act), ParseHardError> {
     let mut last_act = (Difficulty::Normal, Act::Act1);
-    let mut index = 0;
+    let mut difficulty_index = 0;
     if bytes[0] != 0x00 {
         last_act.0 = Difficulty::Normal;
     } else if bytes[1] != 0x00 {
         last_act.0 = Difficulty::Nightmare;
-        index = 1;
+        difficulty_index = 1;
     } else if bytes[2] != 0x00 {
         last_act.0 = Difficulty::Hell;
-        index = 2;
+        difficulty_index = 2;
     } else {
-        return Err(ParseError {
-            message: String::from("Couldn't read current difficulty, all 0."),
-        });
+        return Ok((Difficulty::Normal, Act::Act1));
     }
 
-    last_act.1 = Act::try_from(bytes[index])?;
+    last_act.1 = Act::try_from(bytes[difficulty_index])?;
 
     Ok(last_act)
+}
+
+pub(crate) fn write_last_act(difficulty: Difficulty, act: Act) -> [u8; 3] {
+    let mut active_byte = u8::from(act);
+    active_byte.set_bit(7, true);
+    match difficulty {
+        Difficulty::Normal => [active_byte, 0x00, 0x00],
+        Difficulty::Nightmare => [0x00, active_byte, 0x00],
+        Difficulty::Hell => [0x00, 0x00, active_byte],
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
@@ -317,16 +150,6 @@ impl fmt::Display for Status {
             "Ladder: {0}, Expansion: {1}, Hardcore: {2}, Has died: {3}",
             self.ladder, self.expansion, self.hardcore, self.died
         )
-    }
-}
-
-fn write_last_act(difficulty: Difficulty, act: Act) -> [u8; 3] {
-    let mut active_byte = u8::from(act);
-    active_byte.set_bit(7, true);
-    match difficulty {
-        Difficulty::Normal => [active_byte, 0x00, 0x00],
-        Difficulty::Nightmare => [0x00, active_byte, 0x00],
-        Difficulty::Hell => [0x00, 0x00, active_byte],
     }
 }
 
@@ -354,7 +177,6 @@ impl From<Status> for u8 {
         result.set_bit(3, status.died);
         result.set_bit(5, status.expansion);
         result.set_bit(6, status.ladder);
-        //println!("Converted status: {0:#010b}", result);
         result
     }
 }
