@@ -1,5 +1,6 @@
 use crate::utils::u16_from;
 use crate::utils::u32_from;
+use crate::ParseHardError;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Range;
@@ -60,18 +61,28 @@ impl Mercenary {
         bytes
     }
 
-    pub fn parse(data: &[u8; 14]) -> Mercenary {
+    pub fn parse(data: &[u8]) -> Result<Mercenary, ParseHardError> {
+        if data.len() < 14 {
+            return Err(ParseHardError {
+                message: format!(
+                    "Mercenary section is truncated: expected 14 bytes, found {}.",
+                    data.len()
+                ),
+            });
+        }
+
         let mut mercenary: Mercenary = Mercenary::default();
-        if u16_from(&data[Section::IsDead.range()], "mercenary.is_dead") != 0 {
+        if u16_from(&data[Section::IsDead.range()], "mercenary.is_dead")? != 0 {
             mercenary.is_dead = true;
         }
 
-        mercenary.id = u32_from(&data[Section::Id.range()], "mercenary.id");
-        mercenary.variant_id = u16_from(&data[Section::VariantId.range()], "mercenary.variant_id");
-        mercenary.name_id = u16_from(&data[Section::NameId.range()], "mercenary.name_id");
-        mercenary.experience = u32_from(&data[Section::Experience.range()], "mercenary.experience");
+        mercenary.id = u32_from(&data[Section::Id.range()], "mercenary.id")?;
+        mercenary.variant_id = u16_from(&data[Section::VariantId.range()], "mercenary.variant_id")?;
+        mercenary.name_id = u16_from(&data[Section::NameId.range()], "mercenary.name_id")?;
+        mercenary.experience =
+            u32_from(&data[Section::Experience.range()], "mercenary.experience")?;
 
-        mercenary
+        Ok(mercenary)
     }
 
     pub fn is_hired(&self) -> bool {

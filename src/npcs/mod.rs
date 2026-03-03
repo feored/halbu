@@ -1,4 +1,4 @@
-use log::warn;
+use crate::ParseHardError;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
 
@@ -20,18 +20,28 @@ impl Default for Placeholder {
 }
 
 impl Placeholder {
-    pub fn parse(bytes: &[u8]) -> Placeholder {
+    pub fn parse(bytes: &[u8]) -> Result<Placeholder, ParseHardError> {
+        if bytes.len() < 52 {
+            return Err(ParseHardError {
+                message: format!(
+                    "NPC section is truncated: expected 52 bytes, found {}.",
+                    bytes.len()
+                ),
+            });
+        }
+
         if bytes[0..4] != SECTION_HEADER {
-            warn!(
-                "Found wrong header for NPC section, expected {0:X?} but found {1:X?}",
-                SECTION_HEADER,
-                &bytes[0..4]
-            );
+            return Err(ParseHardError {
+                message: format!(
+                    "Found wrong header for NPC section, expected {SECTION_HEADER:X?} but found {:X?}.",
+                    &bytes[0..4]
+                ),
+            });
         }
         let mut placeholder: Placeholder = Placeholder { data: [0x00; 52] };
-        placeholder.data.copy_from_slice(bytes);
+        placeholder.data.copy_from_slice(&bytes[0..52]);
 
-        placeholder
+        Ok(placeholder)
     }
 
     pub fn to_bytes(&self) -> [u8; 52] {

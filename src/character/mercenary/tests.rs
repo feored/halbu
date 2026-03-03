@@ -13,7 +13,7 @@ mod tests {
         };
         let bytes: [u8; 14] =
             [0x00, 0x00, 0x2F, 0xD2, 0x34, 0x00, 0x03, 0x00, 0x01, 0x00, 0xEA, 0xF8, 0x00, 0x00];
-        let parsed_result: Mercenary = Mercenary::parse(&bytes);
+        let parsed_result: Mercenary = Mercenary::parse(&bytes).expect("mercenary should parse");
         assert_eq!(parsed_result, expected_result);
     }
 

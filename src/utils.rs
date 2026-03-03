@@ -1,24 +1,11 @@
 use std::cmp;
-use std::collections::HashMap;
-use std::error::Error;
 use std::time::SystemTime;
 
-use crate::ParseError;
+use crate::ParseHardError;
 use bit::BitIndex;
-use csv;
-use log::error;
 
-pub type Record = HashMap<String, String>;
-
-pub fn read_csv(csv_file: &[u8]) -> Result<Vec<Record>, Box<dyn Error>> {
-    let mut records: Vec<Record> = Vec::<Record>::new();
-    let mut rdr = csv::ReaderBuilder::new().delimiter(b'\t').from_reader(csv_file);
-    for result in rdr.deserialize() {
-        let record: Record = result?;
-        records.push(record)
-    }
-    Ok(records)
-}
+const BITS_PER_BYTE: usize = 8;
+const MAX_U32_BIT_WIDTH: usize = 32;
 
 pub fn get_sys_time_in_secs() -> u32 {
     match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -27,38 +14,125 @@ pub fn get_sys_time_in_secs() -> u32 {
     }
 }
 
-pub fn u32_from(slice: &[u8], name: &'static str) -> u32 {
-    u32::from_le_bytes(match slice.try_into() {
-        Ok(res) => res,
-        Err(e) => {
-            error!(
-                "Reference: {0}:{1} (Failed to coerce [u8;4] from bytes: {2:?})",
-                name,
-                e.to_string(),
-                slice
-            );
-            [0; 4]
-        }
+fn parse_fixed_array<const ARRAY_LENGTH: usize>(
+    slice: &[u8],
+    field_name: &str,
+) -> Result<[u8; ARRAY_LENGTH], ParseHardError> {
+    slice.try_into().map_err(|_| ParseHardError {
+        message: format!(
+            "Expected {ARRAY_LENGTH} bytes for {field_name}, found {} bytes.",
+            slice.len()
+        ),
     })
 }
 
-pub fn u16_from(slice: &[u8], name: &'static str) -> u16 {
-    u16::from_le_bytes(match slice.try_into() {
-        Ok(res) => res,
-        Err(e) => {
-            error!(
-                "Reference: {0}: {1} (Failed to coerce [u8;2] from bytes: {2:?})",
-                name,
-                e.to_string(),
-                slice
-            );
-            [0; 2]
-        }
-    })
+fn normalize_position(byte_position: &mut BytePosition) -> Result<(), ParseHardError> {
+    if byte_position.current_bit < BITS_PER_BYTE {
+        return Ok(());
+    }
+
+    let extra_full_bytes = byte_position.current_bit / BITS_PER_BYTE;
+    byte_position.current_byte =
+        byte_position.current_byte.checked_add(extra_full_bytes).ok_or_else(|| ParseHardError {
+            message: "Byte position overflow while normalizing cursor.".to_string(),
+        })?;
+    byte_position.current_bit %= BITS_PER_BYTE;
+    Ok(())
 }
 
-pub fn u8_from(slice: &[u8]) -> u8 {
-    slice[0]
+fn absolute_bit_offset(byte_position: &BytePosition) -> Result<usize, ParseHardError> {
+    byte_position
+        .current_byte
+        .checked_mul(BITS_PER_BYTE)
+        .and_then(|offset| offset.checked_add(byte_position.current_bit))
+        .ok_or_else(|| ParseHardError {
+            message: "Bit offset overflow while computing cursor position.".to_string(),
+        })
+}
+
+fn validate_u32_bit_width(bits_count: usize, context: &str) -> Result<(), ParseHardError> {
+    if bits_count > MAX_U32_BIT_WIDTH {
+        return Err(ParseHardError {
+            message: format!(
+                "{context} supports at most {MAX_U32_BIT_WIDTH} bits, received {bits_count}."
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn advance_bits(byte_position: &mut BytePosition, bits_count: usize) -> Result<(), ParseHardError> {
+    let combined_bits = byte_position.current_bit.checked_add(bits_count).ok_or_else(|| {
+        ParseHardError { message: "Bit offset overflow while advancing cursor.".to_string() }
+    })?;
+
+    let full_bytes = combined_bits / BITS_PER_BYTE;
+    byte_position.current_byte =
+        byte_position.current_byte.checked_add(full_bytes).ok_or_else(|| ParseHardError {
+            message: "Byte offset overflow while advancing cursor.".to_string(),
+        })?;
+    byte_position.current_bit = combined_bits % BITS_PER_BYTE;
+    Ok(())
+}
+
+fn ensure_bits_available(
+    byte_slice: &[u8],
+    byte_position: &BytePosition,
+    bits_needed: usize,
+    context: &str,
+) -> Result<(), ParseHardError> {
+    let total_bits_available =
+        byte_slice.len().checked_mul(BITS_PER_BYTE).ok_or_else(|| ParseHardError {
+            message: "Bit capacity overflow while checking available input bits.".to_string(),
+        })?;
+    let current_bit_offset = absolute_bit_offset(byte_position)?;
+    if current_bit_offset > total_bits_available {
+        return Err(ParseHardError {
+            message: format!(
+                "{context} cursor is out of bounds: bit offset {current_bit_offset}, total bits {total_bits_available}."
+            ),
+        });
+    }
+    let remaining_bits = total_bits_available - current_bit_offset;
+    if bits_needed > remaining_bits {
+        return Err(ParseHardError {
+            message: format!(
+                "{context} needs {bits_needed} bits but only {remaining_bits} remain from bit offset {current_bit_offset}."
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn ensure_writable_byte(
+    byte_vector: &mut Vec<u8>,
+    byte_index: usize,
+) -> Result<(), ParseHardError> {
+    if byte_index < byte_vector.len() {
+        return Ok(());
+    }
+
+    let required_length = byte_index.checked_add(1).ok_or_else(|| ParseHardError {
+        message: "Byte vector length overflow while expanding output buffer.".to_string(),
+    })?;
+    byte_vector.resize(required_length, 0);
+    Ok(())
+}
+
+pub fn u32_from(slice: &[u8], name: &'static str) -> Result<u32, ParseHardError> {
+    let parsed_bytes = parse_fixed_array::<4>(slice, name)?;
+    Ok(u32::from_le_bytes(parsed_bytes))
+}
+
+pub fn u16_from(slice: &[u8], name: &'static str) -> Result<u16, ParseHardError> {
+    let parsed_bytes = parse_fixed_array::<2>(slice, name)?;
+    Ok(u16::from_le_bytes(parsed_bytes))
+}
+
+pub fn u8_from(slice: &[u8], name: &'static str) -> Result<u8, ParseHardError> {
+    slice.first().copied().ok_or_else(|| ParseHardError {
+        message: format!("Expected 1 byte for {name}, found 0 bytes."),
+    })
 }
 
 #[derive(Default, PartialEq, Eq, Debug)]
@@ -73,37 +147,51 @@ pub fn write_byte(
     byte_position: &mut BytePosition,
     bits_source: u8,
     bits_count: usize,
-) {
+) -> Result<(), ParseHardError> {
+    if bits_count > BITS_PER_BYTE {
+        return Err(ParseHardError {
+            message: format!(
+                "write_byte supports at most {BITS_PER_BYTE} bits, received {bits_count}."
+            ),
+        });
+    }
+    if bits_count == 0 {
+        return Ok(());
+    }
+    if bits_count < BITS_PER_BYTE && (bits_source >> bits_count) != 0 {
+        return Err(ParseHardError {
+            message: format!(
+                "write_byte source {bits_source:#010b} does not fit in {bits_count} bits."
+            ),
+        });
+    }
+
+    normalize_position(byte_position)?;
     let mut bits_left_to_write: usize = bits_count;
-    let mut bit_index = 0;
+    let mut source_bit_index = 0;
     loop {
         if bits_left_to_write == 0 {
-            return;
-        }
-        if byte_vector.len() == byte_position.current_byte {
-            byte_vector.push(0);
+            return Ok(());
         }
 
-        if byte_position.current_bit == 8 {
-            byte_vector.push(0);
-            byte_position.current_byte += 1;
-            byte_position.current_bit = 0;
-        }
+        normalize_position(byte_position)?;
+        ensure_writable_byte(byte_vector, byte_position.current_byte)?;
 
-        let bits_can_write_in_byte = cmp::min(bits_left_to_write, 8 - byte_position.current_bit);
+        let bits_can_write_in_byte =
+            cmp::min(bits_left_to_write, BITS_PER_BYTE - byte_position.current_bit);
+        let bits_from_source =
+            bits_source.bit_range(source_bit_index..(source_bit_index + bits_can_write_in_byte));
 
-        if bits_can_write_in_byte == 8 {
-            // Special case because the bit library seems to fail when trying to set an entire byte using set_bit_range
-            // e.g 0x00.set_bit_range(0..8, 0xFF)
-            byte_vector[byte_position.current_byte] = bits_source;
+        if bits_can_write_in_byte == BITS_PER_BYTE && byte_position.current_bit == 0 {
+            byte_vector[byte_position.current_byte] = bits_from_source;
         } else {
             byte_vector[byte_position.current_byte].set_bit_range(
                 byte_position.current_bit..(byte_position.current_bit + bits_can_write_in_byte),
-                bits_source.bit_range(bit_index..(bit_index + bits_can_write_in_byte)),
+                bits_from_source,
             );
-            bit_index += bits_can_write_in_byte;
         }
-        byte_position.current_bit += bits_can_write_in_byte;
+        source_bit_index += bits_can_write_in_byte;
+        advance_bits(byte_position, bits_can_write_in_byte)?;
         bits_left_to_write -= bits_can_write_in_byte;
     }
 }
@@ -114,18 +202,31 @@ pub fn write_bits<T: Into<u32>>(
     byte_position: &mut BytePosition,
     bits_source: T,
     bits_count: usize,
-) {
+) -> Result<(), ParseHardError> {
+    validate_u32_bit_width(bits_count, "write_bits")?;
+    if bits_count == 0 {
+        return Ok(());
+    }
+
+    let source_value = bits_source.into();
+    if bits_count < MAX_U32_BIT_WIDTH && (source_value >> bits_count) != 0 {
+        return Err(ParseHardError {
+            message: format!("Value {source_value} does not fit in {bits_count} bits."),
+        });
+    }
+
     let mut bits_left_to_write: usize = bits_count;
-    let byte_source = bits_source.into().to_le_bytes();
-    let mut byte_source_current = 0;
+    let mut bits_written = 0;
     loop {
         if bits_left_to_write == 0 {
-            return;
+            return Ok(());
         }
-        let bits_can_write = cmp::min(bits_left_to_write, 8);
-        write_byte(byte_vector, byte_position, byte_source[byte_source_current], bits_can_write);
+
+        let bits_can_write = cmp::min(bits_left_to_write, BITS_PER_BYTE);
+        let source_byte = ((source_value >> bits_written) & 0xFF) as u8;
+        write_byte(byte_vector, byte_position, source_byte, bits_can_write)?;
         bits_left_to_write -= bits_can_write;
-        byte_source_current += 1;
+        bits_written += bits_can_write;
     }
 }
 
@@ -137,28 +238,25 @@ pub fn read_bits(
     byte_slice: &[u8],
     byte_position: &mut BytePosition,
     bits_to_read: usize,
-) -> Result<u32, ParseError> {
+) -> Result<u32, ParseHardError> {
+    validate_u32_bit_width(bits_to_read, "read_bits")?;
+    if bits_to_read == 0 {
+        return Ok(0);
+    }
+
+    normalize_position(byte_position)?;
+    ensure_bits_available(byte_slice, byte_position, bits_to_read, "read_bits")?;
+
     let mut bits_left_to_read: usize = bits_to_read;
     let mut buffer: u32 = 0;
     let mut buffer_bit_position: usize = 0;
     loop {
         if bits_left_to_read == 0 {
-            break;
+            return Ok(buffer);
         }
-        if byte_position.current_bit > 7 {
-            byte_position.current_byte += 1;
-            byte_position.current_bit = 0;
-        }
-        if byte_position.current_byte >= byte_slice.len() {
-            return Err(ParseError {
-                message: format!(
-                    "Tried to read byte at position {0}, but only {1} bytes given go read.",
-                    byte_position.current_byte,
-                    byte_slice.len()
-                ),
-            });
-        }
-        let bits_parsing_count = cmp::min(8 - byte_position.current_bit, bits_left_to_read);
+
+        let bits_parsing_count =
+            cmp::min(BITS_PER_BYTE - byte_position.current_bit, bits_left_to_read);
         let bits_parsed: u8 = byte_slice[byte_position.current_byte]
             .bit_range(byte_position.current_bit..(byte_position.current_bit + bits_parsing_count));
 
@@ -168,7 +266,6 @@ pub fn read_bits(
         );
         buffer_bit_position += bits_parsing_count;
         bits_left_to_read -= bits_parsing_count;
-        byte_position.current_bit += bits_parsing_count;
+        advance_bits(byte_position, bits_parsing_count)?;
     }
-    Ok(buffer)
 }

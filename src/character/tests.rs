@@ -65,8 +65,9 @@ mod tests {
                 0, 0, 0, 0, 0,
             ],
             name: String::from("Nyahallo"),
+            raw_section: bytes.to_vec(),
         };
-        let parsed_result = Character::parse(&bytes);
+        let parsed_result = CharacterCodecV99::decode(&bytes).expect("character should parse");
         assert_eq!(parsed_result, expected_result);
     }
 
@@ -133,9 +134,11 @@ mod tests {
                 0, 0, 0, 0, 0,
             ],
             name: String::from("Nyahallo"),
+            raw_section: expected_result.to_vec(),
         };
-        let generated_result = character.to_bytes();
+        let generated_result =
+            CharacterCodecV99::encode(&character).expect("character should encode");
 
-        assert_eq!(expected_result, generated_result);
+        assert_eq!(expected_result.to_vec(), generated_result);
     }
 }

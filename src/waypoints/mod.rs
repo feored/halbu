@@ -2,11 +2,10 @@ use std::fmt;
 use std::ops::Range;
 
 use bit::BitIndex;
-use log::warn;
 use serde::{Deserialize, Serialize};
 
 use crate::Act;
-use crate::ParseError;
+use crate::ParseHardError;
 
 pub mod consts;
 use consts::*;
@@ -103,27 +102,29 @@ impl Act4Waypoints {
         }
     }
     /// Set whether single waypoint is acquired
-    pub fn set_num(&mut self, index: usize, acquired: bool) {
+    pub fn set_num(&mut self, index: usize, acquired: bool) -> Result<(), ParseHardError> {
         if index >= self.0.len() {
-            panic!(
-                "Current act has only {0} waypoints but tried to set {1} on waypoint {2}",
-                self.0.len(),
-                acquired,
-                index
-            );
+            return Err(ParseHardError {
+                message: format!(
+                    "Current act has only {} waypoints but tried to set waypoint {index}.",
+                    self.0.len()
+                ),
+            });
         }
         self.0[index].acquired = acquired;
+        Ok(())
     }
     /// Get whether a single waypoint is acquired
-    pub fn get_num(&self, index: usize) -> bool {
+    pub fn get_num(&self, index: usize) -> Result<bool, ParseHardError> {
         if index >= self.0.len() {
-            panic!(
-                "Current act has only {0} waypoints but tried to get value of waypoint {1}",
-                self.0.len(),
-                index
-            );
+            return Err(ParseHardError {
+                message: format!(
+                    "Current act has only {} waypoints but tried to read waypoint {index}.",
+                    self.0.len()
+                ),
+            });
         }
-        self.0[index].acquired
+        Ok(self.0[index].acquired)
     }
 }
 
@@ -153,27 +154,29 @@ impl ActWaypoints {
     }
 
     /// Set whether single waypoint is acquired
-    pub fn set_num(&mut self, index: usize, acquired: bool) {
+    pub fn set_num(&mut self, index: usize, acquired: bool) -> Result<(), ParseHardError> {
         if index >= self.0.len() {
-            panic!(
-                "Current act has only {0} waypoints but tried to set {1} on waypoint {2}",
-                self.0.len(),
-                acquired,
-                index
-            );
+            return Err(ParseHardError {
+                message: format!(
+                    "Current act has only {} waypoints but tried to set waypoint {index}.",
+                    self.0.len()
+                ),
+            });
         }
         self.0[index].acquired = acquired;
+        Ok(())
     }
     /// Get whether a single waypoint is acquired
-    pub fn get_num(&self, index: usize) -> bool {
+    pub fn get_num(&self, index: usize) -> Result<bool, ParseHardError> {
         if index >= self.0.len() {
-            panic!(
-                "Current act has only {0} waypoints but tried to get value of waypoint {1}",
-                self.0.len(),
-                index
-            );
+            return Err(ParseHardError {
+                message: format!(
+                    "Current act has only {} waypoints but tried to read waypoint {index}.",
+                    self.0.len()
+                ),
+            });
         }
-        self.0[index].acquired
+        Ok(self.0[index].acquired)
     }
 }
 
@@ -233,10 +236,8 @@ impl Default for DifficultyWaypoints {
                     Act::Act4 => 27,
                     Act::Act5 => 30,
                 };
-                default_waypoints[i].id = match Waypoint::try_from(absolute_id) {
-                    Ok(res) => res,
-                    Err(e) => panic!("Error getting default difficulty waypoint: {e}"),
-                };
+                default_waypoints[i].id =
+                    Waypoint::try_from(absolute_id).unwrap_or(Waypoint::RogueEncampment);
                 default_waypoints[i].acquired = false
             }
             if act == Act::Act1 {
@@ -253,10 +254,8 @@ impl Default for DifficultyWaypoints {
                 for i in 0..3 {
                     default_waypoints[i].act = Act::Act4;
                     default_waypoints[i].name = String::from(NAMES_ACT4[i]);
-                    default_waypoints[i].id = match Waypoint::try_from(27 + i) {
-                        Ok(res) => res,
-                        Err(e) => panic!("Error getting default difficulty waypoint: {e}"),
-                    };
+                    default_waypoints[i].id =
+                        Waypoint::try_from(27 + i).unwrap_or(Waypoint::PandemoniumFortress);
                     default_waypoints[i].acquired = false;
                 }
                 Act4Waypoints(default_waypoints)
@@ -324,8 +323,8 @@ impl From<Waypoint> for Act {
 }
 
 impl TryFrom<usize> for Waypoint {
-    type Error = ParseError;
-    fn try_from(id: usize) -> Result<Waypoint, ParseError> {
+    type Error = ParseHardError;
+    fn try_from(id: usize) -> Result<Waypoint, ParseHardError> {
         match id {
             0 => Ok(Waypoint::RogueEncampment),
             1 => Ok(Waypoint::ColdPlains),
@@ -366,43 +365,65 @@ impl TryFrom<usize> for Waypoint {
             36 => Ok(Waypoint::FrozenTundra),
             37 => Ok(Waypoint::TheAncientsWay),
             38 => Ok(Waypoint::WorldstoneKeep),
-            _ => Err(ParseError { message: format!("Cannot convert ID > 8 to waypoint: {id:?}") }),
+            _ => Err(ParseHardError {
+                message: format!("Cannot convert ID > 8 to waypoint: {id:?}"),
+            }),
         }
     }
 }
 
 impl Waypoints {
-    pub fn parse(bytes: &[u8]) -> Waypoints {
+    pub fn parse(bytes: &[u8]) -> Result<Waypoints, ParseHardError> {
         let mut waypoints = Waypoints::default();
 
-        if bytes[Section::Header.range()] != SECTION_HEADER {
-            warn!(
-                "Found wrong waypoints header: {0:X?} (Expected: {1:X?}",
-                &bytes[Section::Header.range()],
-                SECTION_HEADER
-            );
+        if bytes.len() < Section::Hell.range().end {
+            return Err(ParseHardError {
+                message: format!(
+                    "Waypoints section is truncated: expected {} bytes, found {}.",
+                    Section::Hell.range().end,
+                    bytes.len()
+                ),
+            });
         }
-        waypoints.normal =
-            Waypoints::parse_difficulty(&bytes[Section::Normal.range()].try_into().unwrap());
-        waypoints.nightmare =
-            Waypoints::parse_difficulty(&bytes[Section::Nightmare.range()].try_into().unwrap());
-        waypoints.hell =
-            Waypoints::parse_difficulty(&bytes[Section::Hell.range()].try_into().unwrap());
-        waypoints
+
+        if bytes[Section::Header.range()] != SECTION_HEADER {
+            return Err(ParseHardError {
+                message: format!(
+                    "Found wrong waypoints header: {:X?} (Expected: {SECTION_HEADER:X?})",
+                    &bytes[Section::Header.range()]
+                ),
+            });
+        }
+        waypoints.normal = Waypoints::parse_difficulty(&bytes[Section::Normal.range()])?;
+        waypoints.nightmare = Waypoints::parse_difficulty(&bytes[Section::Nightmare.range()])?;
+        waypoints.hell = Waypoints::parse_difficulty(&bytes[Section::Hell.range()])?;
+        Ok(waypoints)
     }
 
-    fn parse_difficulty(bytes: &[u8; 24]) -> DifficultyWaypoints {
+    fn parse_difficulty(bytes: &[u8]) -> Result<DifficultyWaypoints, ParseHardError> {
+        if bytes.len() < 24 {
+            return Err(ParseHardError {
+                message: format!(
+                    "Waypoint difficulty section is truncated: expected 24 bytes, found {}.",
+                    bytes.len()
+                ),
+            });
+        }
+
         let mut waypoints: DifficultyWaypoints = DifficultyWaypoints::default();
         if bytes[Section::DifficultyHeader.range()] != DIFFICULTY_HEADER {
-            warn!(
-                "Found wrong waypoint difficulty header: {0:X?} (Expected: {1:X?}",
-                &bytes[0..2],
-                DIFFICULTY_HEADER
-            );
+            return Err(ParseHardError {
+                message: format!(
+                    "Found wrong waypoint difficulty header: {:X?} (Expected: {DIFFICULTY_HEADER:X?})",
+                    &bytes[0..2]
+                ),
+            });
         }
         for id in 0..39 {
             let current_byte = bytes[2 + id / 8];
-            let waypoint = Waypoint::try_from(id).unwrap();
+            let waypoint = Waypoint::try_from(id).map_err(|error| ParseHardError {
+                message: format!("Failed to decode waypoint ID {id}: {error}"),
+            })?;
             match Act::from(waypoint) {
                 Act::Act1 => {
                     waypoints.act1.0[id] = WaypointInfo {
@@ -446,7 +467,7 @@ impl Waypoints {
                 }
             }
         }
-        waypoints
+        Ok(waypoints)
     }
 
     pub fn to_bytes(&self) -> [u8; 80] {

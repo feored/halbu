@@ -2,7 +2,6 @@
 mod tests {
     use crate::attributes::*;
     use crate::utils::*;
-    use crate::Class;
 
     #[test]
     fn test_write_and_read_attributes() {
@@ -39,37 +38,13 @@ mod tests {
             gold: Stat { id: 14, name: String::from("gold"), value: 0, bit_length: 25 },
             goldbank: Stat { id: 15, name: String::from("goldbank"), value: 45964, bit_length: 25 },
         };
-        let result: Vec<u8> = expected_attributes.to_bytes();
+        let result: Vec<u8> = expected_attributes.to_bytes().expect("attributes should serialize");
 
         let mut byte_position: BytePosition = BytePosition::default();
-        let parsed_attributes = Attributes::parse(&result, &mut byte_position);
+        let parsed_attributes =
+            Attributes::parse(&result, &mut byte_position).expect("attributes should parse");
 
         assert_eq!(parsed_attributes, expected_attributes);
-    }
-
-    #[test]
-    fn test_attributes_class_default() {
-        let mut expected_attributes = Attributes::default();
-
-        expected_attributes.level.value = 1;
-
-        expected_attributes.strength.value = 15;
-        expected_attributes.dexterity.value = 25;
-        expected_attributes.vitality.value = 15;
-        expected_attributes.energy.value = 25;
-
-        expected_attributes.maxhp.value = 45 * 256;
-        expected_attributes.hitpoints.value = expected_attributes.maxhp.value;
-
-        expected_attributes.maxmana.value = 25 * 256;
-        expected_attributes.mana.value = expected_attributes.maxmana.value;
-
-        expected_attributes.maxstamina.value = 79 * 256;
-        expected_attributes.stamina.value = expected_attributes.maxstamina.value;
-
-        let generated_result = Attributes::default_class(Class::Necromancer);
-
-        assert_eq!(generated_result, expected_attributes);
     }
 
     #[test]
@@ -80,10 +55,10 @@ mod tests {
         let value: u32 = 30;
 
         //write_u8(&mut result, &mut byte_position, 7, 8);
-        write_bits(&mut result, &mut byte_position, header, 9);
-        write_bits(&mut result, &mut byte_position, value, 10);
-        write_bits(&mut result, &mut byte_position, 1u32, 9);
-        write_bits(&mut result, &mut byte_position, 10u32, 10);
+        write_bits(&mut result, &mut byte_position, header, 9).expect("header should write");
+        write_bits(&mut result, &mut byte_position, value, 10).expect("value should write");
+        write_bits(&mut result, &mut byte_position, 1u32, 9).expect("header should write");
+        write_bits(&mut result, &mut byte_position, 10u32, 10).expect("value should write");
 
         assert_eq!([0x00, 0x3C, 0x08, 0xA0, 0x00], result[0..5]);
     }
