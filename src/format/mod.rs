@@ -721,3 +721,6 @@ pub fn encode(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
 
     Ok(encoded_bytes)
 }
+
+#[cfg(test)]
+mod tests;
