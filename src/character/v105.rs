@@ -205,11 +205,8 @@ impl CharacterCodec for CharacterCodecV105 {
             0x1E,
             "reserved_version_marker_two",
         )?;
-        let mode_marker = character
-            .raw_section
-            .get(OFFSET_MODE_MARKER)
-            .copied()
-            .unwrap_or(MODE_ROTW);
+        let mode_marker =
+            character.raw_section.get(OFFSET_MODE_MARKER).copied().unwrap_or(MODE_ROTW);
         write_u8_at(&mut encoded_bytes, OFFSET_MODE_MARKER, mode_marker, "mode_marker")?;
         write_exact_bytes(
             &mut encoded_bytes,

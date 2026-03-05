@@ -1,3 +1,8 @@
+//! Items section placeholder support.
+//!
+//! The project currently stores raw item bytes and can emit known "empty inventory"
+//! trailers for supported layouts. Full item decoding is not yet supported.
+
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
 
@@ -26,12 +31,17 @@ const NO_ITEMS_ROTW_MERC: [u8; 23] = [
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmptyLayout {
+    /// Legacy D2R expansion empty-item trailer.
     LegacyExpansion,
+    /// V105 classic empty-item trailer.
     V105Classic,
+    /// V105 expansion empty-item trailer.
     V105Expansion,
+    /// V105 ROTW empty-item trailer.
     V105Rotw,
 }
 
+/// Raw items-section payload placeholder.
 #[serde_as]
 #[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Placeholder {
@@ -39,6 +49,7 @@ pub struct Placeholder {
     data: Vec<u8>,
 }
 
+/// Store raw item bytes without interpreting them.
 pub fn parse(byte_vector: &[u8]) -> Placeholder {
     let mut placeholder: Placeholder = Placeholder { data: Vec::<u8>::new() };
     placeholder.data.extend_from_slice(byte_vector);
@@ -46,6 +57,10 @@ pub fn parse(byte_vector: &[u8]) -> Placeholder {
     placeholder
 }
 
+/// Generate item bytes.
+///
+/// If `placeholder` contains raw bytes, they are returned unchanged.
+/// Otherwise, a known empty-item layout trailer is emitted.
 pub fn generate(
     placeholder: &Placeholder,
     empty_layout: EmptyLayout,

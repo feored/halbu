@@ -1,3 +1,8 @@
+//! Character section model and format-specific codecs.
+//!
+//! Note: [`title_for_progression_d2r`] and [`Character::title_d2r`] are convenience helpers
+//!   for default D2R title mapping only.
+
 use std::fmt;
 
 use bit::BitIndex;
@@ -27,34 +32,110 @@ pub use codec::CharacterCodec;
 pub use v105::CharacterCodecV105;
 pub use v99::CharacterCodecV99;
 
+/// Default class used when constructing a blank [`Character`].
 pub const DEFAULT_CLASS: Class = Class::Amazon;
+/// Default placeholder name used when constructing a blank [`Character`].
 pub const DEFAULT_NAME: &str = "default";
 
+/// In-memory representation of the character section.
 #[serde_as]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Character {
+    /// Current weapon tab selection in the UI.
     pub weapon_switch: bool,
+    /// Character status flags stored as bit fields in save bytes.
     pub status: Status,
+    /// Character progression score.
+    ///
+    /// In default D2R this roughly tracks act-boss completion across difficulties.
     pub progression: u8,
+    /// Character class id.
     pub class: Class,
+    /// Character level mirrored by `attributes.level`.
     pub level: u8,
+    /// Last-played timestamp as stored in the save.
     pub last_played: u32,
+    /// Assigned skill ids in the skill bar/hotkeys area.
     pub assigned_skills: [u32; 16],
     pub left_mouse_skill: u32,
     pub right_mouse_skill: u32,
     pub left_mouse_switch_skill: u32,
     pub right_mouse_switch_skill: u32,
+    /// Legacy menu appearance bytes.
     pub menu_appearance: [u8; 32],
     pub difficulty: Difficulty,
     pub act: Act,
     pub map_seed: u32,
     pub mercenary: Mercenary,
+    /// Resurrected preview appearance bytes.
     #[serde_as(as = "Bytes")]
     pub resurrected_menu_appearance: [u8; 48],
+    /// Character name string encoded in the character section.
     pub name: String,
+    /// Raw encoded character section bytes used to preserve unknown regions on write.
     #[serde(default)]
     #[serde_as(as = "Bytes")]
     pub raw_section: Vec<u8>,
+}
+
+/// Optional convenience helper for default D2R title mapping.
+///
+/// This helper intentionally does not try to model modded title systems.
+pub fn title_for_progression_d2r(
+    progression: u8,
+    class: Class,
+    is_expansion: bool,
+    is_hardcore: bool,
+) -> Option<&'static str> {
+    if is_expansion {
+        return match progression {
+            0..=3 => None,
+            5..=8 => Some(if is_hardcore { "Destroyer" } else { "Slayer" }),
+            10..=13 => Some(if is_hardcore { "Conqueror" } else { "Champion" }),
+            15 => Some(if is_hardcore {
+                "Guardian"
+            } else {
+                gendered_title_d2r(class, "Patriarch", "Matriarch")
+            }),
+            _ => None,
+        };
+    }
+
+    match progression {
+        0..=3 => None,
+        4..=7 => Some(if is_hardcore {
+            gendered_title_d2r(class, "Count", "Countess")
+        } else {
+            gendered_title_d2r(class, "Sir", "Dame")
+        }),
+        8..=11 => Some(if is_hardcore {
+            gendered_title_d2r(class, "Duke", "Duchess")
+        } else {
+            gendered_title_d2r(class, "Lord", "Lady")
+        }),
+        12 => Some(if is_hardcore {
+            gendered_title_d2r(class, "King", "Queen")
+        } else {
+            gendered_title_d2r(class, "Baron", "Baroness")
+        }),
+        _ => None,
+    }
+}
+
+fn gendered_title_d2r(
+    class: Class,
+    male_title: &'static str,
+    female_title: &'static str,
+) -> &'static str {
+    match class {
+        Class::Amazon | Class::Sorceress | Class::Assassin => female_title,
+        Class::Necromancer
+        | Class::Paladin
+        | Class::Barbarian
+        | Class::Druid
+        | Class::Warlock
+        | Class::Unknown(_) => male_title,
+    }
 }
 
 impl fmt::Display for Character {
@@ -100,8 +181,20 @@ impl Default for Character {
 }
 
 impl Character {
+    /// Build a default character for a chosen class.
     pub fn default_class(class: Class) -> Self {
         Character { level: 1, class, ..Default::default() }
+    }
+
+    /// Optional convenience helper for default D2R title mapping.
+    /// Mods may override title rules.
+    pub fn title_d2r(&self) -> Option<&'static str> {
+        title_for_progression_d2r(
+            self.progression,
+            self.class,
+            self.status.expansion,
+            self.status.hardcore,
+        )
     }
 }
 
@@ -135,11 +228,22 @@ pub(crate) fn write_last_act(difficulty: Difficulty, act: Act) -> [u8; 3] {
     }
 }
 
+/// Status bitfield for the character section.
+///
+/// Bit mapping in save bytes:
+/// - `bit 2`: hardcore
+/// - `bit 3`: has died
+/// - `bit 5`: expansion
+/// - `bit 6`: ladder
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Status {
+    /// Ladder status bit.
     ladder: bool,
+    /// Expansion status bit.
     expansion: bool,
+    /// Hardcore status bit.
     hardcore: bool,
+    /// "Has died" status bit.
     died: bool,
 }
 

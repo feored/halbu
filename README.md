@@ -1,118 +1,84 @@
-## Halbu
+# Halbu
 
-**See also: [Halbu Editor](https://github.com/feored/halbu-editor)**
+A Rust library for reading and modifying Diablo II: Resurrected `.d2s` save files.
 
-A .d2s file parsing library for Diablo II: Resurrected written in Rust.
+This library also serves as the backend for  **[Halbu Editor](https://github.com/feored/halbu-editor)**.
 
-⚠ NPCs and Items section are not yet supported. ⚠ 
+---
 
-⚠ Neither are hardcore mode and non-expansion characters ⚠ 
+## Features
 
-**[Notes](https://github.com/feored/halbu/blob/main/NOTES.md)** regarding D2R with some useful information regarding quests in particular.
+- Parse and modify character saves
+- Support both D2R (v99) and ROTW (v105) save files
+- Edit:
+  - character data
+  - attributes
+  - skills
+  - quests
+  - waypoints
+  - mercenary information
+- Preserve unknown bytes where possible to avoid corrupting saves
+- Strict or tolerant parsing modes
 
-This library uses the [log](https://docs.rs/log/latest/log/) crate to log parsing errors.
+## Limitations
 
-### Installation
+Some sections of the save format are not yet modeled and are currently stored as raw data:
 
-```cargo add halbu```
+- Items
+- NPC section
 
-### Usage
+These sections are preserved during round-trip encoding.
 
-```rs
-use halbu::{quests::QuestFlag, waypoints::Waypoint, Class, Save};
 
-fn main() {
-    // Open a save file
-    let save_file = std::fs::read("C:\\Users\\Example\\Saved Games\\Diablo II Resurrected\\Jamella.d2s").unwrap();
+## Installation
 
-    let mut save = Save::parse(&save_file);
-
-    // Alternatively, create a new save
-    save = Save::default_class(Class::Necromancer);
-
-    // Change class, name, etc
-    save.character.class = Class::Paladin;
-    save.character.name = String::from("Halbu");
-    // Warning: save.character.level and save.attributes.level must
-    // be the same or the game won't load!
-    save.character.level = 47;
-    save.attributes.level.value = 47;
-    
-
-    // Change mercenary stats
-    // Refer to notes.md for a table with name/variant ID
-    save.character.mercenary.name_id = 3;
-    save.character.mercenary.variant_id = 34;
-
-    // Set an attribute
-    save.attributes.strength.value = 156;
-
-    // Attribute names are taken from itemstatcosts.txt
-    save.attributes.newskills.value = 5;
-
-    // Some attributes are stored as fixed point numbers in 21 bits,
-    // where the first 13 bits are the integer part and the last 8 the decimal
-    // For those attributes (Current/Max HP, Mana & Stamina), you must multiply
-    // the value by 256 to get the value displayed in game.
-    save.attributes.maxmana.value = 200 * 256;
-    println!(
-        "Max mana: {}",
-        save.attributes.maxmana.value as f64 / 256f64
-    );
-
-    // Acquire all waypoints in an act
-    save.waypoints.normal.act1.set_all(true);
-
-    // Set all waypoints in a difficulty
-    save.waypoints.hell.set_all(true);
-
-    // Get/set whether a specific waypoint is acquired
-    // Waypoints are a numbered 0-8 (0-2 for Act IV)
-    save.waypoints.hell.act4.set_num(1, true);
-    println!("Hell Act IV WP 1: {}", save.waypoints.hell.act4.get_num(1));
-
-    save.waypoints.hell.act4.set(Waypoint::CityOfTheDamned, false);
-    println!(
-        "Hell Act IV WP 1: {}",
-        save.waypoints.hell.act4.get(Waypoint::CityOfTheDamned)
-    );
-
-    // Set all skills to 20
-    save.skills.set_all(20);
-    println!("{}", save.skills);
-
-    // Set the skill points of a given skill to 0
-    save.skills.set(17, 0);
-    println!("Skillpoints: {}", save.skills.get(17));
-
-    // A quest is a struct with a single member State which is a hashset
-    // containing all the flags currently active for that quest.
-
-    // Clear all flags
-    // Warning: The quest numbers may not be what you think it is! Refer to NOTES.md.
-    save.quests.hell.act1.q1.state.clear();
-    println!("Hell Act I Q1 State: {}", save.quests.hell.act1.q1);
-
-    // The flag names are from D2MOO. Refer to NOTES.md for a flagname <> bit # table.
-    save.quests.hell.act1.q1.state.insert(QuestFlag::RewardGranted);
-    println!(
-        "Hell Act I Q1 Completed: {}",
-        save.quests.hell.act1.q1.state.contains(&QuestFlag::RewardGranted)
-    );
-    // Save the file
-    // Warning: The file name must match the character's name!
-    std::fs::write("C:\\Users\\Example\\Saved Games\\Diablo II Resurrected\\Halbu.d2s", save.to_bytes()).unwrap();
-}
-
+```bash
+cargo add halbu
 ```
-For more information, please check the [documentation](https://docs.rs/halbu/0.1.0/halbu/).
 
-### Resources
+## Quick start
 
-These resources have helped me understand the .d2s format. Many thanks to their authors, they are the ones who have done all the hard work.
+```rust
+use halbu::{Class, Save, Strictness};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let bytes = std::fs::read("Hero.d2s")?;
+
+    let parsed = Save::parse(&bytes, Strictness::Strict)?;
+    let mut save = parsed.save;
+
+    save.character.name = "Halbu".to_string();
+    save.skills.set_all(20);
+
+    std::fs::write("Halbu.d2s", save.to_bytes()?)?;
+
+    Ok(())
+}
+```
+
+More examples can be found in `examples/`.
+
+## Documentation
+
+API documentation is available on docs.rs:
+
+https://docs.rs/halbu
+ 
+## Notes
+
+Additional notes about the format, quest flags, etc as well as general reverse-engineering notes can be found in:
+
+NOTES.md
+
+The library packs several example .d2s files used in tests to verify that parsing end round-trip encoding work correctly.
+
+
+## References
+
+These resources have helped me understand the .d2s format. Many thanks to their authors.
 
 * http://user.xmission.com/~trevin/DiabloIIv1.09_File_Format.shtml
-* https://github.com/dschu012/D2SLib (Unless you specifically need a rust library, you should probably use this.)
+* https://github.com/dschu012/D2SLib
 * https://github.com/d07RiV/d07riv.github.io/blob/master/d2r.html
 * https://github.com/oaken-source/pyd2s
 * https://github.com/WalterCouto/D2CE/blob/main/d2s_File_Format.md

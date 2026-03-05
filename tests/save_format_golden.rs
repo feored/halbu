@@ -4,28 +4,15 @@ use halbu::{Save, Strictness};
 fn goldens() -> [(&'static str, &'static [u8], FormatId); 2] {
     [
         ("Joe_v99", &include_bytes!("../assets/test/Joe.d2s")[..], FormatId::V99),
-        (
-            "Warlock_v105",
-            &include_bytes!("../assets/test/Warlock_v105.d2s")[..],
-            FormatId::V105,
-        ),
+        ("Warlock_v105", &include_bytes!("../assets/test/Warlock_v105.d2s")[..], FormatId::V105),
     ]
 }
 
 fn v105_mode_goldens() -> [(&'static str, &'static [u8]); 3] {
     [
-        (
-            "barbclassic_v105",
-            &include_bytes!("../assets/test/barbclassic_v105.d2s")[..],
-        ),
-        (
-            "barbexp_v105",
-            &include_bytes!("../assets/test/barbexp_v105.d2s")[..],
-        ),
-        (
-            "barbrotw_v105",
-            &include_bytes!("../assets/test/barbrotw_v105.d2s")[..],
-        ),
+        ("barbclassic_v105", &include_bytes!("../assets/test/barbclassic_v105.d2s")[..]),
+        ("barbexp_v105", &include_bytes!("../assets/test/barbexp_v105.d2s")[..]),
+        ("barbrotw_v105", &include_bytes!("../assets/test/barbrotw_v105.d2s")[..]),
     ]
 }
 
@@ -63,9 +50,8 @@ fn strict_parses_goldens() {
 fn same_format_roundtrip_keeps_model() {
     for (name, bytes, format_id) in goldens() {
         let original = parse_strict_clean(name, bytes);
-        let encoded = original
-            .to_bytes_for(format_id)
-            .unwrap_or_else(|e| panic!("encode {name}: {e}"));
+        let encoded =
+            original.to_bytes_for(format_id).unwrap_or_else(|e| panic!("encode {name}: {e}"));
         let reparsed = parse_strict_clean(name, &encoded);
         assert_eq!(reparsed.format_id(), format_id, "{name}: format drift");
         assert_same_model(original, reparsed, name);
@@ -76,9 +62,8 @@ fn same_format_roundtrip_keeps_model() {
 fn v105_mode_goldens_roundtrip_semantic() {
     for (name, bytes) in v105_mode_goldens() {
         let original = parse_strict_clean(name, bytes);
-        let encoded = original
-            .to_bytes_for(FormatId::V105)
-            .unwrap_or_else(|e| panic!("encode {name}: {e}"));
+        let encoded =
+            original.to_bytes_for(FormatId::V105).unwrap_or_else(|e| panic!("encode {name}: {e}"));
         let reparsed = parse_strict_clean(name, &encoded);
         assert_eq!(reparsed.format_id(), FormatId::V105, "{name}: format drift");
         assert_same_model(original, reparsed, name);

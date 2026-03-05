@@ -8,10 +8,11 @@ const BITS_PER_BYTE: usize = 8;
 const MAX_U32_BIT_WIDTH: usize = 32;
 
 pub fn get_sys_time_in_secs() -> u32 {
-    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_secs() as u32,
-        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
-    }
+    let seconds_since_epoch = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    cmp::min(seconds_since_epoch, u32::MAX as u64) as u32
 }
 
 fn parse_fixed_array<const ARRAY_LENGTH: usize>(

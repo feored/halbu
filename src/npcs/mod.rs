@@ -1,3 +1,7 @@
+//! NPC section placeholder support.
+//!
+//! This section is currently preserved as fixed raw bytes with header validation.
+
 use crate::ParseHardError;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
@@ -20,6 +24,7 @@ impl Default for Placeholder {
 }
 
 impl Placeholder {
+    /// Parse and validate NPC section bytes.
     pub fn parse(bytes: &[u8]) -> Result<Placeholder, ParseHardError> {
         if bytes.len() < 52 {
             return Err(ParseHardError {
@@ -44,6 +49,7 @@ impl Placeholder {
         Ok(placeholder)
     }
 
+    /// Serialize the NPC placeholder bytes back to the save.
     pub fn to_bytes(&self) -> [u8; 52] {
         let mut bytes: [u8; 52] = [0x00; 52];
         bytes.copy_from_slice(&self.data[0..52]);

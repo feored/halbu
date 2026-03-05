@@ -1,3 +1,8 @@
+//! Attributes/stat section model.
+//!
+//! HP/mana/stamina values are stored in save bytes using fixed-point Q8.
+//! Use the convenience getters/setters on [`Attributes`] to work with game-visible units.
+
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -90,6 +95,7 @@ pub struct Attributes {
 }
 
 impl Attributes {
+    /// Get a cloned stat by canonical stat key (for example `"strength"`).
     pub fn stat(&self, s: &'static str) -> Result<Stat, ParseHardError> {
         match s {
             "strength" => Ok(self.strength.clone()),
@@ -114,6 +120,7 @@ impl Attributes {
         }
     }
 
+    /// Replace a full stat object by canonical stat key.
     pub fn set_stat(&mut self, stat_name: String, stat: &Stat) -> Result<(), ParseHardError> {
         let s: &str = stat_name.as_str();
         match s {
@@ -142,6 +149,7 @@ impl Attributes {
         Ok(())
     }
 
+    /// Set only the numeric value for a stat by canonical stat key.
     pub fn set_stat_value(&mut self, stat_name: String, value: u32) -> Result<(), ParseHardError> {
         let s: &str = stat_name.as_str();
         match s {
@@ -168,6 +176,66 @@ impl Attributes {
             }
         };
         Ok(())
+    }
+
+    /// Set current HP in game-visible units (internal encoding is Q8).
+    pub fn set_hp(&mut self, value: u32) {
+        self.hitpoints.value = value.saturating_mul(256);
+    }
+
+    /// Get current HP in game-visible units.
+    pub fn get_hp(&self) -> u32 {
+        self.hitpoints.value / 256
+    }
+
+    /// Set max HP in game-visible units (internal encoding is Q8).
+    pub fn set_max_hp(&mut self, value: u32) {
+        self.maxhp.value = value.saturating_mul(256);
+    }
+
+    /// Get max HP in game-visible units.
+    pub fn get_max_hp(&self) -> u32 {
+        self.maxhp.value / 256
+    }
+
+    /// Set current mana in game-visible units (internal encoding is Q8).
+    pub fn set_mana(&mut self, value: u32) {
+        self.mana.value = value.saturating_mul(256);
+    }
+
+    /// Get current mana in game-visible units.
+    pub fn get_mana(&self) -> u32 {
+        self.mana.value / 256
+    }
+
+    /// Set max mana in game-visible units (internal encoding is Q8).
+    pub fn set_max_mana(&mut self, value: u32) {
+        self.maxmana.value = value.saturating_mul(256);
+    }
+
+    /// Get max mana in game-visible units.
+    pub fn get_max_mana(&self) -> u32 {
+        self.maxmana.value / 256
+    }
+
+    /// Set current stamina in game-visible units (internal encoding is Q8).
+    pub fn set_stamina(&mut self, value: u32) {
+        self.stamina.value = value.saturating_mul(256);
+    }
+
+    /// Get current stamina in game-visible units.
+    pub fn get_stamina(&self) -> u32 {
+        self.stamina.value / 256
+    }
+
+    /// Set max stamina in game-visible units (internal encoding is Q8).
+    pub fn set_max_stamina(&mut self, value: u32) {
+        self.maxstamina.value = value.saturating_mul(256);
+    }
+
+    /// Get max stamina in game-visible units.
+    pub fn get_max_stamina(&self) -> u32 {
+        self.maxstamina.value / 256
     }
 }
 

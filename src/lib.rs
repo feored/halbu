@@ -9,6 +9,38 @@
     unused_qualifications,
     variant_size_differences
 )]
+//! Diablo II save-file library focused on practical editing workflows.
+//!
+//! `halbu` parses, edits, and writes D2R save data while preserving unknown/raw bytes
+//! where possible so files can roundtrip cleanly.
+//!
+//! Supported top-level save layouts:
+//! - [`format::FormatId::V99`]
+//! - [`format::FormatId::V105`]
+//!
+//! Parsing modes:
+//! - [`Strictness::Strict`]: fail fast on invalid/truncated data
+//! - [`Strictness::Lax`]: continue parsing and collect [`ParseIssue`] values
+//!
+//! # Quick start
+//! ```rust,no_run
+//! use halbu::{Save, Strictness};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let bytes = std::fs::read("Hero.d2s")?;
+//!     let parsed = Save::parse(&bytes, Strictness::Strict)?;
+//!     let mut save = parsed.save;
+//!     let target_format = save.format_id();
+//!
+//!     save.character.name = "Demo".to_string();
+//!     save.set_level(10);
+//!
+//!     let output = save.to_bytes_for(target_format)?;
+//!     let reparsed = Save::parse(&output, Strictness::Strict)?;
+//!
+//!     Ok(())
+//! }
+//! ```
 use bit::BitIndex;
 use serde::{Deserialize, Serialize};
 
@@ -21,14 +53,23 @@ use quests::Quests;
 use skills::SkillPoints;
 use waypoints::Waypoints;
 
+/// Attributes/stat section model and bit-level serializer.
 pub mod attributes;
+/// Character section model and per-format codecs.
 pub mod character;
+/// Save-layout detection and top-level encode/decode glue.
 pub mod format;
+/// Item section placeholder/raw-preserving support.
 pub mod items;
+/// NPC section placeholder/raw-preserving support.
 pub mod npcs;
+/// Quest section model.
 pub mod quests;
+/// Skill section model and optional default-D2R name helpers.
 pub mod skills;
+/// Internal byte utilities shared across sections.
 pub mod utils;
+/// Waypoint section model.
 pub mod waypoints;
 
 const CHECKSUM_START: usize = 12;
@@ -38,16 +79,19 @@ use crate::format::FormatId;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Default)]
 pub struct SaveMeta {
+    /// Layout selected/observed for this save model.
     #[serde(default)]
     pub format: FormatId,
 }
 
+/// Severity classification for a parse issue in lax mode.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IssueSeverity {
     Warning,
     Error,
 }
 
+/// High-level category for a parse issue in lax mode.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IssueKind {
     TruncatedSection,
@@ -58,17 +102,26 @@ pub enum IssueKind {
     Other,
 }
 
+/// Detailed parse diagnostic emitted in lax mode.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParseIssue {
+    /// Error/warning level.
     pub severity: IssueSeverity,
+    /// Broad issue category.
     pub kind: IssueKind,
+    /// Section name when known (`"character"`, `"attributes"`, ...).
     pub section: Option<String>,
+    /// Human-readable diagnostic message.
     pub message: String,
+    /// Byte offset when known.
     pub offset: Option<usize>,
+    /// Expected byte count/value when known.
     pub expected: Option<usize>,
+    /// Observed byte count/value when known.
     pub found: Option<usize>,
 }
 
+/// Hard parse error returned when strict validation fails.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParseHardError {
     pub message: String,
@@ -84,27 +137,44 @@ impl std::error::Error for ParseHardError {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedSave {
+    /// Parsed save model (possibly partial in lax mode).
     pub save: Save,
+    /// Non-fatal issues collected during parsing in lax mode.
     pub issues: Vec<ParseIssue>,
 }
 
+/// Controls parse behavior when malformed data is found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Strictness {
+    /// Return an error on the first hard validation failure.
     Strict,
+    /// Continue parsing when possible and accumulate [`ParseIssue`]s.
     #[default]
     Lax,
 }
 
+/// Full in-memory save model.
+///
+/// Unknown payloads for currently unmodeled sections are preserved in placeholder structs.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Save {
+    /// Numeric version stored in the file header.
     pub version: u32,
+    /// Character section.
     pub character: Character,
+    /// Quests section.
     pub quests: Quests,
+    /// Waypoints section.
     pub waypoints: Waypoints,
+    /// NPC section (placeholder model).
     pub npcs: npcs::Placeholder,
+    /// Attributes section.
     pub attributes: Attributes,
+    /// Skills section.
     pub skills: SkillPoints,
+    /// Items section (placeholder model).
     pub items: items::Placeholder,
+    /// Auxiliary metadata kept by this library.
     #[serde(default)]
     pub meta: SaveMeta,
 }
@@ -143,6 +213,7 @@ impl fmt::Display for Save {
 }
 
 impl Save {
+    /// Build a new blank save for a target format/class.
     pub fn new(format: FormatId, class: Class) -> Save {
         let mut character = Character::default_class(class);
         character.last_played = 0;
@@ -165,6 +236,7 @@ impl Save {
         self.meta.format
     }
 
+    /// Set output format and synchronize the numeric version field.
     pub fn set_format(&mut self, format: FormatId) {
         self.set_format_id(format);
     }
@@ -173,30 +245,46 @@ impl Save {
         self.meta.format
     }
 
+    /// Set output format and synchronize the numeric version field.
     pub fn set_format_id(&mut self, format: FormatId) {
         self.meta.format = format;
         self.version = format.version();
     }
 
+    /// Set both character level fields kept in separate sections.
+    ///
+    /// This updates:
+    /// - `character.level`
+    /// - `attributes.level.value`
+    pub fn set_level(&mut self, level: u8) {
+        self.character.level = level;
+        self.attributes.level.value = level as u32;
+    }
+
+    /// Parse a save with explicit strictness.
     pub fn parse(byte_slice: &[u8], strictness: Strictness) -> Result<ParsedSave, ParseHardError> {
         format::decode_with_strictness(byte_slice, strictness)
     }
 
+    /// Parse a save in lax mode.
     pub fn parse_lax(byte_slice: &[u8]) -> Result<ParsedSave, ParseHardError> {
         Self::parse(byte_slice, Strictness::Lax)
     }
 
+    /// Encode using the explicit `version` field when recognized, otherwise `meta.format`.
     pub fn to_bytes(&self) -> Result<Vec<u8>, EncodeError> {
         let explicit_format = FormatId::from_version(self.version);
         let target_format = explicit_format.unwrap_or(self.meta.format);
         self.to_bytes_for(target_format)
     }
 
+    /// Encode to a specific output format.
     pub fn to_bytes_for(&self, format: FormatId) -> Result<Vec<u8>, EncodeError> {
         format::encode(self, format)
     }
 }
 
+/// Save encoding error.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncodeError {
     message: String,
@@ -216,6 +304,7 @@ impl fmt::Display for EncodeError {
 
 impl std::error::Error for EncodeError {}
 
+/// In-game difficulty.
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Difficulty {
     #[default]
@@ -234,6 +323,7 @@ impl fmt::Display for Difficulty {
     }
 }
 
+/// In-game act.
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum Act {
     #[default]
@@ -284,6 +374,7 @@ impl From<Act> for u8 {
     }
 }
 
+/// Character class id used by the save format.
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Class {
     Amazon,
@@ -298,6 +389,7 @@ pub enum Class {
 }
 
 impl Class {
+    /// Convert raw class id from save bytes.
     pub const fn from_id(class_id: u8) -> Self {
         match class_id {
             0x00 => Class::Amazon,
@@ -312,6 +404,7 @@ impl Class {
         }
     }
 
+    /// Convert class to raw id used in save bytes.
     pub const fn id(self) -> u8 {
         match self {
             Class::Amazon => 0x00,
@@ -359,6 +452,7 @@ impl From<Class> for u8 {
     }
 }
 
+/// Compute save checksum using D2 save algorithm.
 pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
     let mut checksum: i32 = 0;
     for i in 0..bytes.len() {
@@ -385,5 +479,14 @@ mod tests {
         };
 
         let _save = Save::parse_lax(&save_file).expect("save should parse");
+    }
+
+    #[test]
+    fn test_set_level_syncs_character_and_attributes() {
+        let mut save = Save::default();
+        save.set_level(75);
+
+        assert_eq!(save.character.level, 75);
+        assert_eq!(save.attributes.level.value, 75);
     }
 }

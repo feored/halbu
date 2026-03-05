@@ -1,3 +1,9 @@
+//! Top-level save layout detection and orchestration.
+//!
+//! This module wires section codecs together and handles strict vs lax parsing.
+//! Layout internals are public for advanced tooling/tests but are not considered
+//! stable API surface.
+
 use std::ops::Range;
 
 use serde::{Deserialize, Serialize};
@@ -45,14 +51,16 @@ const V105_ATTRIBUTES_OFFSET: usize = 833;
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum FormatId {
     #[default]
-    // V99 is legacy D2R save layout.
+    /// Legacy D2R save layout.
     V99,
-    // V105 is ROTW save layout.
+    /// ROTW save layout.
     V105,
+    /// Unknown layout version read from save bytes.
     Unknown(u32),
 }
 
 impl FormatId {
+    /// Map numeric file version to a known format identifier.
     pub fn from_version(version: u32) -> Option<Self> {
         match version {
             99 => Some(Self::V99),
@@ -61,6 +69,7 @@ impl FormatId {
         }
     }
 
+    /// Numeric version value written in the save header.
     pub const fn version(self) -> u32 {
         match self {
             Self::V99 => 99,
@@ -70,6 +79,9 @@ impl FormatId {
     }
 }
 
+/// Layout metadata used by the top-level parser/encoder.
+///
+/// This trait is mostly an internal plumbing surface and may evolve.
 pub trait Layout {
     fn format_id(&self) -> FormatId;
     fn character_length(&self) -> usize;
@@ -99,6 +111,7 @@ pub trait Layout {
     }
 }
 
+/// Concrete layout metadata for [`FormatId::V99`].
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LayoutV99;
 
@@ -128,6 +141,7 @@ impl Layout for LayoutV99 {
     }
 }
 
+/// Concrete layout metadata for [`FormatId::V105`].
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LayoutV105;
 
@@ -277,6 +291,7 @@ fn read_version(bytes: &[u8]) -> u32 {
     u32::from_le_bytes(version_bytes)
 }
 
+/// Validate signature/version bytes and return detected format id.
 pub fn detect_format(bytes: &[u8]) -> Result<FormatId, ParseHardError> {
     if bytes.len() < SIGNATURE_RANGE.end {
         return Err(ParseHardError {
@@ -298,10 +313,14 @@ pub fn detect_format(bytes: &[u8]) -> Result<FormatId, ParseHardError> {
     Ok(FormatId::from_version(version).unwrap_or(FormatId::Unknown(version)))
 }
 
+/// Decode a save in lax mode.
+///
+/// Equivalent to [`decode_with_strictness`] with [`Strictness::Lax`].
 pub fn decode(bytes: &[u8]) -> Result<ParsedSave, ParseHardError> {
     decode_with_strictness(bytes, Strictness::Lax)
 }
 
+/// Decode a save with configurable strictness.
 pub fn decode_with_strictness(
     bytes: &[u8],
     strictness: Strictness,
@@ -685,6 +704,10 @@ fn v105_mode_marker_for_encode(save: &Save) -> u8 {
         .unwrap_or(crate::character::v105::MODE_ROTW)
 }
 
+/// Encode a [`Save`] into bytes for a target layout.
+///
+/// Placeholder sections keep raw bytes when available; otherwise section-specific defaults
+/// are generated (for example empty-item trailers).
 pub fn encode(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
     let selected_layout = layout_for_encode(target);
     let mut encoded_bytes = vec![0x00; selected_layout.attributes_offset()];
@@ -710,7 +733,8 @@ pub fn encode(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
     encoded_bytes.append(&mut skill_bytes);
 
     let items_layout = empty_items_layout_for_encode(target, v105_mode_marker_for_encode(save));
-    let mut item_bytes = items::generate(&save.items, items_layout, save.character.mercenary.is_hired());
+    let mut item_bytes =
+        items::generate(&save.items, items_layout, save.character.mercenary.is_hired());
     encoded_bytes.append(&mut item_bytes);
 
     let file_size = encoded_bytes.len() as u32;
