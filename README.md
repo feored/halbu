@@ -2,14 +2,14 @@
 
 A Rust library for reading and modifying Diablo II: Resurrected `.d2s` save files.
 
-This library also serves as the backend for  **[Halbu Editor](https://github.com/feored/halbu-editor)**.
+This library also serves as the backend for **[Halbu Editor](https://github.com/feored/halbu-editor)**.
 
 ---
 
 ## Features
 
-- Parse and modify character saves
-- Support both D2R (v99) and ROTW (v105) save files
+- Parse and modify `.d2s` save files
+- Supports both D2R (v99) and ROTW (v105) save formats
 - Edit:
   - character data
   - attributes
@@ -17,17 +17,16 @@ This library also serves as the backend for  **[Halbu Editor](https://github.com
   - quests
   - waypoints
   - mercenary information
-- Preserve unknown bytes where possible to avoid corrupting saves
 - Strict or tolerant parsing modes
 
 ## Limitations
 
-Some sections of the save format are not yet modeled and are currently stored as raw data:
+Some sections of the save format are not yet modeled:
 
 - Items
 - NPC section
 
-These sections are preserved during round-trip encoding.
+These sections are currently stored as raw bytes. The library tries to preserve them when writing the file back, but exact round-tripping is not guaranteed.
 
 
 ## Installation
@@ -39,7 +38,7 @@ cargo add halbu
 ## Quick start
 
 ```rust
-use halbu::{Class, Save, Strictness};
+use halbu::{Save, Strictness};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bytes = std::fs::read("Hero.d2s")?;
@@ -66,11 +65,11 @@ https://docs.rs/halbu
  
 ## Notes
 
-Additional notes about the format, quest flags, etc as well as general reverse-engineering notes can be found in:
+Level is stored in both the character section and the attributes section. Use `save.set_level(...)` to keep them in sync.
 
-NOTES.md
+Additional notes about the format, quest flags, and general reverse-engineering work can be found in `NOTES.md`.
 
-The library packs several example .d2s files used in tests to verify that parsing end round-trip encoding work correctly.
+This repository also contains several example .d2s files used in tests to verify that parsing and round-trip encoding work correctly.
 
 
 ## References
