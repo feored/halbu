@@ -453,11 +453,11 @@ impl From<Class> for u8 {
 }
 
 /// Compute save checksum using D2 save algorithm.
-pub fn calc_checksum(bytes: &Vec<u8>) -> i32 {
+pub fn calc_checksum(bytes: &[u8]) -> i32 {
     let mut checksum: i32 = 0;
-    for i in 0..bytes.len() {
-        let mut ch: i32 = bytes[i] as i32;
-        if i >= CHECKSUM_START && i < CHECKSUM_END {
+    for (i, byte) in bytes.iter().enumerate() {
+        let mut ch = *byte as i32;
+        if (CHECKSUM_START..CHECKSUM_END).contains(&i) {
             ch = 0;
         }
         checksum = (checksum << 1) + ch + ((checksum < 0) as i32);

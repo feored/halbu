@@ -19,7 +19,7 @@ const SECTION_TRAILER: u32 = 0x1FF;
 const STAT_HEADER_LENGTH: usize = 9;
 const STAT_NUMBER: usize = 16;
 
-const STAT_KEY: [&'static str; STAT_NUMBER] = [
+const STAT_KEY: [&str; STAT_NUMBER] = [
     "strength",
     "energy",
     "dexterity",
