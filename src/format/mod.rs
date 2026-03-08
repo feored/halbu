@@ -697,11 +697,7 @@ fn empty_items_layout_for_encode(target: FormatId, mode_marker: u8) -> items::Em
 }
 
 fn v105_mode_marker_for_encode(save: &Save) -> u8 {
-    save.character
-        .raw_section
-        .get(crate::character::v105::OFFSET_MODE_MARKER)
-        .copied()
-        .unwrap_or(crate::character::v105::MODE_ROTW)
+    crate::character::v105::mode_marker_for_encode(&save.character)
 }
 
 /// Encode a [`Save`] into bytes for a target layout.

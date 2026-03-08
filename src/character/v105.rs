@@ -8,6 +8,7 @@ use crate::character::common::{
 use crate::character::mercenary::Mercenary;
 use crate::character::{parse_last_act, write_last_act, Character, Status};
 use crate::Class;
+use crate::ExpansionType;
 use crate::ParseHardError;
 
 pub struct CharacterCodecV105;
@@ -49,6 +50,27 @@ pub const RANGE_UNKNOWN_REGION_THREE: Range<usize> = 331..351;
 pub const RANGE_UNKNOWN_REGION_FOUR: Range<usize> = 351..387;
 
 const ASSIGNED_SKILL_SLOT_COUNT: usize = 16;
+
+pub fn mode_marker(character: &Character) -> Option<u8> {
+    character.raw_section.get(OFFSET_MODE_MARKER).copied()
+}
+
+pub fn expansion_type_from_mode_marker(mode_marker: u8) -> Option<ExpansionType> {
+    match mode_marker {
+        MODE_CLASSIC => Some(ExpansionType::Classic),
+        MODE_EXPANSION => Some(ExpansionType::Expansion),
+        MODE_ROTW => Some(ExpansionType::RotW),
+        _ => None,
+    }
+}
+
+pub fn expansion_type(character: &Character) -> Option<ExpansionType> {
+    mode_marker(character).and_then(expansion_type_from_mode_marker)
+}
+
+pub fn mode_marker_for_encode(character: &Character) -> u8 {
+    mode_marker(character).unwrap_or(MODE_ROTW)
+}
 
 impl CharacterCodec for CharacterCodecV105 {
     const CHARACTER_LENGTH: usize = 387;
@@ -205,8 +227,7 @@ impl CharacterCodec for CharacterCodecV105 {
             0x1E,
             "reserved_version_marker_two",
         )?;
-        let mode_marker =
-            character.raw_section.get(OFFSET_MODE_MARKER).copied().unwrap_or(MODE_ROTW);
+        let mode_marker = mode_marker_for_encode(character);
         write_u8_at(&mut encoded_bytes, OFFSET_MODE_MARKER, mode_marker, "mode_marker")?;
         write_exact_bytes(
             &mut encoded_bytes,

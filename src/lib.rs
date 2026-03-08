@@ -84,6 +84,23 @@ pub struct SaveMeta {
     pub format: FormatId,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ExpansionType {
+    Classic,
+    Expansion,
+    RotW,
+}
+
+impl ExpansionType {
+    pub fn label(self) -> &'static str {
+        match self {
+            ExpansionType::Classic => "Classic",
+            ExpansionType::Expansion => "Expansion",
+            ExpansionType::RotW => "RotW",
+        }
+    }
+}
+
 /// Severity classification for a parse issue in lax mode.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IssueSeverity {
@@ -259,6 +276,24 @@ impl Save {
     pub fn set_level(&mut self, level: u8) {
         self.character.level = level;
         self.attributes.level.value = level as u32;
+    }
+
+    pub fn expansion_type(&self) -> ExpansionType {
+        if self.format_id() == FormatId::V105 {
+            if let Some(expansion_type) = character::v105::expansion_type(&self.character) {
+                return expansion_type;
+            }
+        }
+
+        Self::expansion_type_from_status(self.character.status)
+    }
+
+    fn expansion_type_from_status(status: character::Status) -> ExpansionType {
+        if status.is_expansion() {
+            ExpansionType::Expansion
+        } else {
+            ExpansionType::Classic
+        }
     }
 
     /// Parse a save with explicit strictness.
@@ -488,5 +523,40 @@ mod tests {
 
         assert_eq!(save.character.level, 75);
         assert_eq!(save.attributes.level.value, 75);
+    }
+
+    #[test]
+    fn expansion_type_uses_status_for_non_v105_formats() {
+        let mut save = Save::new(FormatId::V99, Class::Amazon);
+
+        save.character.status = character::Status::from(0b0000_0000);
+        assert_eq!(save.expansion_type(), ExpansionType::Classic);
+
+        save.character.status = character::Status::from(0b0010_0000);
+        assert_eq!(save.expansion_type(), ExpansionType::Expansion);
+    }
+
+    #[test]
+    fn expansion_type_uses_v105_mode_marker_when_available() {
+        let mut save = Save::new(FormatId::V105, Class::Amazon);
+        let mut raw_section = vec![0u8; character::expected_length_for_format(FormatId::V105)];
+        raw_section[character::v105::OFFSET_MODE_MARKER] = character::v105::MODE_ROTW;
+        save.character.raw_section = raw_section;
+
+        assert_eq!(save.expansion_type(), ExpansionType::RotW);
+    }
+
+    #[test]
+    fn expansion_type_falls_back_to_status_when_v105_mode_marker_is_unknown() {
+        let mut save = Save::new(FormatId::V105, Class::Amazon);
+        let mut raw_section = vec![0u8; character::expected_length_for_format(FormatId::V105)];
+        raw_section[character::v105::OFFSET_MODE_MARKER] = 0xFF;
+        save.character.raw_section = raw_section;
+
+        save.character.status = character::Status::from(0b0000_0000);
+        assert_eq!(save.expansion_type(), ExpansionType::Classic);
+
+        save.character.status = character::Status::from(0b0010_0000);
+        assert_eq!(save.expansion_type(), ExpansionType::Expansion);
     }
 }
