@@ -89,3 +89,15 @@ fn v99_to_v105_back_to_v99_keeps_model() {
     assert_eq!(back_to_v99.format_id(), FormatId::V99, "Joe_back_to_v99: wrong format");
     assert_same_model(start, back_to_v99, "Joe v99 -> v105 -> v99");
 }
+
+#[test]
+fn warlock_v105_cannot_encode_to_v99() {
+    let warlock = parse_strict_clean("Warlock_v105", &include_bytes!("../assets/test/Warlock_v105.d2s")[..]);
+    let encode_result = warlock.to_bytes_for(FormatId::V99);
+    let error = encode_result.expect_err("Warlock should not encode to v99");
+
+    assert!(
+        error.to_string().contains("Cannot encode Warlock class as v99"),
+        "unexpected error message: {error}"
+    );
+}

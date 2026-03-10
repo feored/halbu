@@ -41,6 +41,7 @@ pub const OFFSET_MODE_MARKER: usize = 232;
 pub const MODE_CLASSIC: u8 = 1;
 pub const MODE_EXPANSION: u8 = 2;
 pub const MODE_ROTW: u8 = 3;
+const V105_CHARACTER_LENGTH: usize = 387;
 // Resurrected menu appearance moved to this range in v105.
 pub const RANGE_RESURRECTED_MENU_APPEARANCE: Range<usize> = 235..283;
 pub const RANGE_NAME: Range<usize> = 283..331;
@@ -52,6 +53,10 @@ pub const RANGE_UNKNOWN_REGION_FOUR: Range<usize> = 351..387;
 const ASSIGNED_SKILL_SLOT_COUNT: usize = 16;
 
 pub fn mode_marker(character: &Character) -> Option<u8> {
+    if character.raw_section.len() != V105_CHARACTER_LENGTH {
+        return None;
+    }
+
     character.raw_section.get(OFFSET_MODE_MARKER).copied()
 }
 
@@ -68,12 +73,28 @@ pub fn expansion_type(character: &Character) -> Option<ExpansionType> {
     mode_marker(character).and_then(expansion_type_from_mode_marker)
 }
 
+pub fn mode_marker_from_expansion_type(expansion_type: ExpansionType) -> u8 {
+    match expansion_type {
+        ExpansionType::Classic => MODE_CLASSIC,
+        ExpansionType::Expansion => MODE_EXPANSION,
+        ExpansionType::RotW => MODE_ROTW,
+    }
+}
+
+pub fn set_expansion_type(character: &mut Character, expansion_type: ExpansionType) {
+    if character.raw_section.len() != V105_CHARACTER_LENGTH {
+        character.raw_section = vec![0u8; V105_CHARACTER_LENGTH];
+    }
+
+    character.raw_section[OFFSET_MODE_MARKER] = mode_marker_from_expansion_type(expansion_type);
+}
+
 pub fn mode_marker_for_encode(character: &Character) -> u8 {
     mode_marker(character).unwrap_or(MODE_ROTW)
 }
 
 impl CharacterCodec for CharacterCodecV105 {
-    const CHARACTER_LENGTH: usize = 387;
+    const CHARACTER_LENGTH: usize = V105_CHARACTER_LENGTH;
 
     fn decode(character_section_bytes: &[u8]) -> Result<Character, ParseHardError> {
         if character_section_bytes.len() < Self::CHARACTER_LENGTH {
@@ -142,7 +163,10 @@ impl CharacterCodec for CharacterCodecV105 {
             u32::from(character.weapon_switch),
             "weapon_set",
         )?;
-        write_u8_at(&mut encoded_bytes, OFFSET_STATUS, u8::from(character.status), "status")?;
+        let mut status_for_encode = character.status;
+        // In v105, game mode is stored in `mode_marker`; keep legacy expansion bit cleared.
+        status_for_encode.set_expansion(false);
+        write_u8_at(&mut encoded_bytes, OFFSET_STATUS, u8::from(status_for_encode), "status")?;
         write_u8_at(&mut encoded_bytes, OFFSET_PROGRESSION, character.progression, "progression")?;
         write_u8_at(&mut encoded_bytes, OFFSET_CLASS, u8::from(character.class), "class")?;
         write_u8_at(&mut encoded_bytes, OFFSET_LEVEL, character.level, "level")?;

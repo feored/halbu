@@ -263,6 +263,16 @@ impl Default for Status {
     }
 }
 
+impl Status {
+    pub const fn is_expansion(&self) -> bool {
+        self.expansion
+    }
+
+    pub fn set_expansion(&mut self, expansion: bool) {
+        self.expansion = expansion;
+    }
+}
+
 impl From<u8> for Status {
     fn from(byte: u8) -> Status {
         let mut status = Status::default();

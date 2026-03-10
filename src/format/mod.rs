@@ -22,7 +22,7 @@ use crate::utils::BytePosition;
 use crate::waypoints::Waypoints;
 use crate::{
     calc_checksum, EncodeError, IssueKind, IssueSeverity, ParseHardError, ParseIssue, ParsedSave,
-    Save, SaveMeta, Strictness,
+    ExpansionType, Save, SaveMeta, Strictness,
 };
 
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
@@ -48,6 +48,17 @@ const V105_WAYPOINTS_START: usize = 701;
 const V105_NPCS_START: usize = 781;
 const V105_ATTRIBUTES_OFFSET: usize = 833;
 
+#[derive(Debug, Clone, Copy)]
+struct FormatCompatibilityEntry {
+    format: FormatId,
+    edition: ExpansionType,
+}
+
+const FORMAT_COMPATIBILITY_TABLE: [FormatCompatibilityEntry; 2] = [
+    FormatCompatibilityEntry { format: FormatId::V99, edition: ExpansionType::Classic },
+    FormatCompatibilityEntry { format: FormatId::V105, edition: ExpansionType::RotW },
+];
+
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum FormatId {
     #[default]
@@ -67,6 +78,51 @@ impl FormatId {
             105 => Some(Self::V105),
             _ => None,
         }
+    }
+
+    /// Formats this library can currently encode/write.
+    pub const fn encodable_formats() -> [Self; 2] {
+        [Self::V99, Self::V105]
+    }
+
+    /// Coarse edition family for known formats.
+    pub const fn edition(self) -> Option<ExpansionType> {
+        match self {
+            Self::V99 => Some(ExpansionType::Classic),
+            Self::V105 => Some(ExpansionType::RotW),
+            Self::Unknown(_) => None,
+        }
+    }
+
+    /// Pick the best known fallback format for an unknown version.
+    ///
+    /// Selection order:
+    /// 1. Prefer candidates matching `edition_hint` (legacy vs RotW family).
+    /// 2. Within that set, pick smallest numeric distance to `version`.
+    /// 3. If no hint match exists, fall back to closest across all known formats.
+    pub fn fallback_for_unknown_version(version: u32, edition_hint: Option<ExpansionType>) -> Self {
+        let mut best_match_by_hint: Option<(u32, FormatId)> = None;
+        let mut best_match_global: Option<(u32, FormatId)> = None;
+
+        for entry in FORMAT_COMPATIBILITY_TABLE {
+            let distance = entry.format.version().abs_diff(version);
+
+            if best_match_global.is_none_or(|(best_distance, _)| distance < best_distance) {
+                best_match_global = Some((distance, entry.format));
+            }
+
+            if edition_hint.is_some_and(|hint| !edition_hint_matches_format(hint, entry.edition)) {
+                continue;
+            }
+
+            if best_match_by_hint.is_none_or(|(best_distance, _)| distance < best_distance) {
+                best_match_by_hint = Some((distance, entry.format));
+            }
+        }
+
+        best_match_by_hint
+            .or(best_match_global)
+            .map_or(Self::V99, |(_, format)| format)
     }
 
     /// Numeric version value written in the save header.
@@ -244,9 +300,37 @@ fn layout_for_encode(target: FormatId) -> &'static dyn Layout {
     }
 }
 
+fn edition_hint_matches_format(edition_hint: ExpansionType, format_edition: ExpansionType) -> bool {
+    if edition_hint == ExpansionType::RotW {
+        format_edition == ExpansionType::RotW
+    } else {
+        format_edition != ExpansionType::RotW
+    }
+}
+
+fn detect_edition_hint(bytes: &[u8]) -> Option<ExpansionType> {
+    let v105_marker_one =
+        CHARACTER_SECTION_START + crate::character::v105::OFFSET_RESERVED_VERSION_MARKER_ONE;
+    let v105_marker_two =
+        CHARACTER_SECTION_START + crate::character::v105::OFFSET_RESERVED_VERSION_MARKER_TWO;
+    if bytes.get(v105_marker_one) == Some(&0x10) && bytes.get(v105_marker_two) == Some(&0x1E) {
+        return Some(ExpansionType::RotW);
+    }
+
+    let v99_marker_one =
+        CHARACTER_SECTION_START + crate::character::v99::OFFSET_RESERVED_VERSION_MARKER_ONE;
+    let v99_marker_two =
+        CHARACTER_SECTION_START + crate::character::v99::OFFSET_RESERVED_VERSION_MARKER_TWO;
+    if bytes.get(v99_marker_one) == Some(&0x10) && bytes.get(v99_marker_two) == Some(&0x1E) {
+        return Some(ExpansionType::Classic);
+    }
+
+    None
+}
+
 fn layout_for_decode(
     detected_format: FormatId,
-    bytes_len: usize,
+    bytes: &[u8],
     strictness: Strictness,
     issues: &mut Vec<ParseIssue>,
 ) -> Result<&'static dyn Layout, ParseHardError> {
@@ -254,20 +338,18 @@ fn layout_for_decode(
         FormatId::V99 => Ok(&V99_LAYOUT),
         FormatId::V105 => Ok(&V105_LAYOUT),
         FormatId::Unknown(version) => {
-            let fallback_layout: &'static dyn Layout =
-                if bytes_len >= V105_LAYOUT.minimum_decode_size() {
-                    &V105_LAYOUT
-                } else {
-                    &V99_LAYOUT
-                };
+            let edition_hint = detect_edition_hint(bytes);
+            let fallback_format = FormatId::fallback_for_unknown_version(version, edition_hint);
+            let fallback_layout = layout_for_encode(fallback_format);
             push_issue(
                 issues,
                 IssueSeverity::Warning,
                 IssueKind::UnsupportedVersion,
                 section_name_option("version"),
                 format!(
-                    "Unsupported save version {version}. Falling back to {:?} layout in lax mode.",
-                    fallback_layout.format_id()
+                    "Unsupported save version {version}. Falling back to {:?} layout in lax mode (edition hint: {:?}).",
+                    fallback_layout.format_id(),
+                    edition_hint
                 ),
                 Some(VERSION_RANGE.start),
                 Some(VERSION_RANGE.end - VERSION_RANGE.start),
@@ -375,7 +457,7 @@ pub fn decode_with_strictness(
         .unwrap_or(FormatId::Unknown(parsed_save.version));
     parsed_save.meta = SaveMeta { format: detected_format };
 
-    let selected_layout = layout_for_decode(detected_format, bytes.len(), strictness, &mut issues)?;
+    let selected_layout = layout_for_decode(detected_format, bytes, strictness, &mut issues)?;
 
     if bytes.len() < selected_layout.minimum_decode_size() {
         push_issue(
@@ -700,11 +782,23 @@ fn v105_mode_marker_for_encode(save: &Save) -> u8 {
     crate::character::v105::mode_marker_for_encode(&save.character)
 }
 
+fn validate_encode_compatibility(save: &Save, target: FormatId) -> Result<(), EncodeError> {
+    if target == FormatId::V99 && save.character.class == crate::Class::Warlock {
+        return Err(EncodeError::new(
+            "Cannot encode Warlock class as v99. Use v105 format for Warlock saves.",
+        ));
+    }
+
+    Ok(())
+}
+
 /// Encode a [`Save`] into bytes for a target layout.
 ///
 /// Placeholder sections keep raw bytes when available; otherwise section-specific defaults
 /// are generated (for example empty-item trailers).
 pub fn encode(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
+    validate_encode_compatibility(save, target)?;
+
     let selected_layout = layout_for_encode(target);
     let mut encoded_bytes = vec![0x00; selected_layout.attributes_offset()];
 

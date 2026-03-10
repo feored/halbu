@@ -230,6 +230,11 @@ impl fmt::Display for Save {
 }
 
 impl Save {
+    /// Formats this library can currently encode/write.
+    pub const fn supported_output_formats() -> [FormatId; 2] {
+        FormatId::encodable_formats()
+    }
+
     /// Build a new blank save for a target format/class.
     pub fn new(format: FormatId, class: Class) -> Save {
         let mut character = Character::default_class(class);
@@ -279,13 +284,27 @@ impl Save {
     }
 
     pub fn expansion_type(&self) -> ExpansionType {
-        if self.format_id() == FormatId::V105 {
-            if let Some(expansion_type) = character::v105::expansion_type(&self.character) {
-                return expansion_type;
+        match self.format_id() {
+            FormatId::V105 | FormatId::Unknown(_) => {
+                character::v105::expansion_type(&self.character).unwrap_or(ExpansionType::RotW)
+            }
+            FormatId::V99 => Self::expansion_type_from_status(self.character.status),
+        }
+    }
+
+    /// Set game mode using format-specific storage:
+    /// - v99: legacy status expansion bit
+    /// - v105: dedicated character mode marker
+    pub fn set_expansion_type(&mut self, expansion_type: ExpansionType) {
+        match self.format_id() {
+            FormatId::V105 | FormatId::Unknown(_) => {
+                character::v105::set_expansion_type(&mut self.character, expansion_type);
+                self.character.status.set_expansion(false);
+            }
+            FormatId::V99 => {
+                self.character.status.set_expansion(!matches!(expansion_type, ExpansionType::Classic));
             }
         }
-
-        Self::expansion_type_from_status(self.character.status)
     }
 
     fn expansion_type_from_status(status: character::Status) -> ExpansionType {
@@ -547,16 +566,45 @@ mod tests {
     }
 
     #[test]
-    fn expansion_type_falls_back_to_status_when_v105_mode_marker_is_unknown() {
+    fn expansion_type_defaults_to_rotw_when_v105_mode_marker_is_unknown() {
         let mut save = Save::new(FormatId::V105, Class::Amazon);
         let mut raw_section = vec![0u8; character::expected_length_for_format(FormatId::V105)];
         raw_section[character::v105::OFFSET_MODE_MARKER] = 0xFF;
         save.character.raw_section = raw_section;
 
-        save.character.status = character::Status::from(0b0000_0000);
-        assert_eq!(save.expansion_type(), ExpansionType::Classic);
-
         save.character.status = character::Status::from(0b0010_0000);
+        assert_eq!(save.expansion_type(), ExpansionType::RotW);
+    }
+
+    #[test]
+    fn set_expansion_type_updates_v99_status_bit() {
+        let mut save = Save::new(FormatId::V99, Class::Amazon);
+
+        save.set_expansion_type(ExpansionType::Classic);
+        assert_eq!(save.character.status.is_expansion(), false);
+
+        save.set_expansion_type(ExpansionType::Expansion);
+        assert_eq!(save.character.status.is_expansion(), true);
+
+        save.set_expansion_type(ExpansionType::RotW);
+        assert_eq!(save.character.status.is_expansion(), true);
+    }
+
+    #[test]
+    fn set_expansion_type_updates_v105_mode_marker_and_clears_status_bit() {
+        let mut save = Save::new(FormatId::V105, Class::Amazon);
+        save.character.status = character::Status::from(0b0010_0000);
+
+        save.set_expansion_type(ExpansionType::Classic);
+        assert_eq!(save.expansion_type(), ExpansionType::Classic);
+        assert_eq!(save.character.status.is_expansion(), false);
+
+        save.set_expansion_type(ExpansionType::Expansion);
         assert_eq!(save.expansion_type(), ExpansionType::Expansion);
+        assert_eq!(save.character.status.is_expansion(), false);
+
+        save.set_expansion_type(ExpansionType::RotW);
+        assert_eq!(save.expansion_type(), ExpansionType::RotW);
+        assert_eq!(save.character.status.is_expansion(), false);
     }
 }
