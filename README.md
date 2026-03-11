@@ -65,6 +65,14 @@ https://docs.rs/halbu
  
 ## Notes
 
+Halbu models two related concepts:
+
+- `GameEdition`: `D2RLegacy` or `RotW` (derived from save format/version)
+- `ExpansionType`: `Classic`, `Expansion`, or `RotW` (canonical on `Save` as `save.expansion_type`)
+
+Use `save.expansion_type()` / `save.set_expansion_type(...)` to read/write character mode.
+Use `save.game_edition()` to inspect the edition family.
+
 Level is stored in both the character section and the attributes section. Use `save.set_level(...)` to keep them in sync.
 
 Additional notes about the format, quest flags, and general reverse-engineering work can be found in `NOTES.md`.

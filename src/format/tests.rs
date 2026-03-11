@@ -1,14 +1,14 @@
 use super::*;
 use crate::character::v105::{
-    MODE_CLASSIC, MODE_EXPANSION, MODE_ROTW, OFFSET_MODE_MARKER, OFFSET_STATUS,
+    MODE_CLASSIC, MODE_EXPANSION, MODE_ROTW, OFFSET_STATUS,
 };
-use crate::{Class, ExpansionType, Save};
+use crate::{Class, ExpansionType, GameEdition, Save, Strictness};
 
 fn encode_v105_with_mode(mode_marker: u8, mercenary_hired: bool) -> Vec<u8> {
     let mut save = Save::new(FormatId::V105, Class::Barbarian);
-    let mut raw_section = vec![0u8; crate::character::expected_length_for_format(FormatId::V105)];
-    raw_section[OFFSET_MODE_MARKER] = mode_marker;
-    save.character.raw_section = raw_section;
+    let expansion_type =
+        crate::character::v105::expansion_type_from_mode_marker(mode_marker).unwrap_or(ExpansionType::RotW);
+    save.set_expansion_type(expansion_type);
     if mercenary_hired {
         save.character.mercenary.id = 1;
     }
@@ -28,11 +28,11 @@ fn encodable_formats_lists_supported_versions() {
 #[test]
 fn fallback_for_unknown_version_prefers_edition_hint() {
     assert_eq!(
-        FormatId::fallback_for_unknown_version(96, Some(ExpansionType::RotW)),
+        FormatId::fallback_for_unknown_version(96, Some(GameEdition::RotW)),
         FormatId::V105
     );
     assert_eq!(
-        FormatId::fallback_for_unknown_version(200, Some(ExpansionType::Classic)),
+        FormatId::fallback_for_unknown_version(200, Some(GameEdition::D2RLegacy)),
         FormatId::V99
     );
 }
@@ -53,7 +53,7 @@ fn detect_edition_hint_from_reserved_markers() {
     v105_like
         [CHARACTER_SECTION_START + crate::character::v105::OFFSET_RESERVED_VERSION_MARKER_TWO] =
         0x1E;
-    assert_eq!(detect_edition_hint(&v105_like), Some(ExpansionType::RotW));
+    assert_eq!(detect_edition_hint(&v105_like), Some(GameEdition::RotW));
 
     let mut v99_like =
         vec![0u8; CHARACTER_SECTION_START + crate::character::v99::OFFSET_RESERVED_VERSION_MARKER_TWO + 1];
@@ -63,7 +63,31 @@ fn detect_edition_hint_from_reserved_markers() {
     v99_like
         [CHARACTER_SECTION_START + crate::character::v99::OFFSET_RESERVED_VERSION_MARKER_TWO] =
         0x1E;
-    assert_eq!(detect_edition_hint(&v99_like), Some(ExpansionType::Classic));
+    assert_eq!(detect_edition_hint(&v99_like), Some(GameEdition::D2RLegacy));
+}
+
+#[test]
+fn decode_unknown_version_prefers_v99_when_markers_match_legacy() {
+    let mut bytes = include_bytes!("../../assets/test/Joe.d2s").to_vec();
+    bytes[4..8].copy_from_slice(&104u32.to_le_bytes());
+
+    let parsed =
+        decode_with_strictness(&bytes, Strictness::Lax).expect("unknown-version legacy save should parse");
+
+    assert_eq!(parsed.save.format_id(), FormatId::Unknown(104));
+    assert_eq!(parsed.save.character.name, "Joe");
+}
+
+#[test]
+fn decode_unknown_version_prefers_v105_when_markers_match_rotw() {
+    let mut bytes = include_bytes!("../../assets/test/Warlock_v105.d2s").to_vec();
+    bytes[4..8].copy_from_slice(&96u32.to_le_bytes());
+
+    let parsed =
+        decode_with_strictness(&bytes, Strictness::Lax).expect("unknown-version rotw save should parse");
+
+    assert_eq!(parsed.save.format_id(), FormatId::Unknown(96));
+    assert_eq!(parsed.save.character.class, Class::Warlock);
 }
 
 #[test]
@@ -103,7 +127,7 @@ fn encode_v105_empty_items_layout() {
 }
 
 #[test]
-fn encode_v105_clears_legacy_expansion_status_bit() {
+fn encode_v105_preserves_legacy_expansion_status_bit() {
     let mut save = Save::new(FormatId::V105, Class::Barbarian);
     save.character.status = crate::character::Status::from(0b0010_0000);
 
@@ -112,7 +136,58 @@ fn encode_v105_clears_legacy_expansion_status_bit() {
 
     assert_eq!(
         encoded_status & 0b0010_0000,
-        0,
-        "v105 encode should clear legacy expansion status bit"
+        0b0010_0000,
+        "v105 encode should preserve legacy expansion status bit"
     );
+}
+
+#[test]
+fn encode_v99_rejects_rotw_expansion_type() {
+    let mut save = Save::new(FormatId::V99, Class::Barbarian);
+    save.set_expansion_type(ExpansionType::RotW);
+
+    let error = encode(&save, FormatId::V99).expect_err("v99 should reject RotW expansion type");
+    assert!(
+        error
+            .to_string()
+            .contains("Cannot encode RotW expansion type as v99"),
+        "unexpected error message: {error}"
+    );
+}
+
+#[test]
+fn decode_v99_maps_status_bit_to_expansion_type() {
+    let mut classic = include_bytes!("../../assets/test/Joe.d2s").to_vec();
+    classic[CHARACTER_SECTION_START + crate::character::v99::OFFSET_STATUS] &= !0b0010_0000;
+    let parsed_classic =
+        decode_with_strictness(&classic, Strictness::Strict).expect("classic v99 should parse");
+    assert_eq!(parsed_classic.save.expansion_type(), ExpansionType::Classic);
+
+    let mut expansion = include_bytes!("../../assets/test/Joe.d2s").to_vec();
+    expansion[CHARACTER_SECTION_START + crate::character::v99::OFFSET_STATUS] |= 0b0010_0000;
+    let parsed_expansion =
+        decode_with_strictness(&expansion, Strictness::Strict).expect("expansion v99 should parse");
+    assert_eq!(parsed_expansion.save.expansion_type(), ExpansionType::Expansion);
+}
+
+#[test]
+fn decode_v105_maps_mode_marker_to_expansion_type() {
+    let mut classic = include_bytes!("../../assets/test/barbrotw_v105.d2s").to_vec();
+    classic[CHARACTER_SECTION_START + crate::character::v105::OFFSET_MODE_MARKER] = MODE_CLASSIC;
+    let parsed_classic =
+        decode_with_strictness(&classic, Strictness::Strict).expect("classic v105 should parse");
+    assert_eq!(parsed_classic.save.expansion_type(), ExpansionType::Classic);
+
+    let mut expansion = include_bytes!("../../assets/test/barbrotw_v105.d2s").to_vec();
+    expansion[CHARACTER_SECTION_START + crate::character::v105::OFFSET_MODE_MARKER] =
+        MODE_EXPANSION;
+    let parsed_expansion =
+        decode_with_strictness(&expansion, Strictness::Strict).expect("expansion v105 should parse");
+    assert_eq!(parsed_expansion.save.expansion_type(), ExpansionType::Expansion);
+
+    let mut rotw = include_bytes!("../../assets/test/barbrotw_v105.d2s").to_vec();
+    rotw[CHARACTER_SECTION_START + crate::character::v105::OFFSET_MODE_MARKER] = MODE_ROTW;
+    let parsed_rotw =
+        decode_with_strictness(&rotw, Strictness::Strict).expect("rotw v105 should parse");
+    assert_eq!(parsed_rotw.save.expansion_type(), ExpansionType::RotW);
 }

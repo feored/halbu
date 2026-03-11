@@ -163,10 +163,7 @@ impl CharacterCodec for CharacterCodecV105 {
             u32::from(character.weapon_switch),
             "weapon_set",
         )?;
-        let mut status_for_encode = character.status;
-        // In v105, game mode is stored in `mode_marker`; keep legacy expansion bit cleared.
-        status_for_encode.set_expansion(false);
-        write_u8_at(&mut encoded_bytes, OFFSET_STATUS, u8::from(status_for_encode), "status")?;
+        write_u8_at(&mut encoded_bytes, OFFSET_STATUS, u8::from(character.status), "status")?;
         write_u8_at(&mut encoded_bytes, OFFSET_PROGRESSION, character.progression, "progression")?;
         write_u8_at(&mut encoded_bytes, OFFSET_CLASS, u8::from(character.class), "class")?;
         write_u8_at(&mut encoded_bytes, OFFSET_LEVEL, character.level, "level")?;

@@ -233,7 +233,7 @@ pub(crate) fn write_last_act(difficulty: Difficulty, act: Act) -> [u8; 3] {
 /// Bit mapping in save bytes:
 /// - `bit 2`: hardcore
 /// - `bit 3`: has died
-/// - `bit 5`: expansion
+/// - `bit 5`: legacy expansion flag (v99 mapping; not canonical in [`crate::Save`])
 /// - `bit 6`: ladder
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Status {

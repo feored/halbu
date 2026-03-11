@@ -21,8 +21,8 @@ use crate::skills::{SkillPoints, SKILLS_SECTION_LENGTH};
 use crate::utils::BytePosition;
 use crate::waypoints::Waypoints;
 use crate::{
-    calc_checksum, EncodeError, IssueKind, IssueSeverity, ParseHardError, ParseIssue, ParsedSave,
-    ExpansionType, Save, SaveMeta, Strictness,
+    calc_checksum, CompatibilityCode, CompatibilityIssue, EncodeError, ExpansionType, GameEdition,
+    IssueKind, IssueSeverity, ParseHardError, ParseIssue, ParsedSave, Save, SaveMeta, Strictness,
 };
 
 const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
@@ -51,12 +51,12 @@ const V105_ATTRIBUTES_OFFSET: usize = 833;
 #[derive(Debug, Clone, Copy)]
 struct FormatCompatibilityEntry {
     format: FormatId,
-    edition: ExpansionType,
+    edition: GameEdition,
 }
 
 const FORMAT_COMPATIBILITY_TABLE: [FormatCompatibilityEntry; 2] = [
-    FormatCompatibilityEntry { format: FormatId::V99, edition: ExpansionType::Classic },
-    FormatCompatibilityEntry { format: FormatId::V105, edition: ExpansionType::RotW },
+    FormatCompatibilityEntry { format: FormatId::V99, edition: GameEdition::D2RLegacy },
+    FormatCompatibilityEntry { format: FormatId::V105, edition: GameEdition::RotW },
 ];
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize, Default)]
@@ -86,10 +86,10 @@ impl FormatId {
     }
 
     /// Coarse edition family for known formats.
-    pub const fn edition(self) -> Option<ExpansionType> {
+    pub const fn edition(self) -> Option<GameEdition> {
         match self {
-            Self::V99 => Some(ExpansionType::Classic),
-            Self::V105 => Some(ExpansionType::RotW),
+            Self::V99 => Some(GameEdition::D2RLegacy),
+            Self::V105 => Some(GameEdition::RotW),
             Self::Unknown(_) => None,
         }
     }
@@ -100,7 +100,7 @@ impl FormatId {
     /// 1. Prefer candidates matching `edition_hint` (legacy vs RotW family).
     /// 2. Within that set, pick smallest numeric distance to `version`.
     /// 3. If no hint match exists, fall back to closest across all known formats.
-    pub fn fallback_for_unknown_version(version: u32, edition_hint: Option<ExpansionType>) -> Self {
+    pub fn fallback_for_unknown_version(version: u32, edition_hint: Option<GameEdition>) -> Self {
         let mut best_match_by_hint: Option<(u32, FormatId)> = None;
         let mut best_match_global: Option<(u32, FormatId)> = None;
 
@@ -300,21 +300,17 @@ fn layout_for_encode(target: FormatId) -> &'static dyn Layout {
     }
 }
 
-fn edition_hint_matches_format(edition_hint: ExpansionType, format_edition: ExpansionType) -> bool {
-    if edition_hint == ExpansionType::RotW {
-        format_edition == ExpansionType::RotW
-    } else {
-        format_edition != ExpansionType::RotW
-    }
+fn edition_hint_matches_format(edition_hint: GameEdition, format_edition: GameEdition) -> bool {
+    edition_hint == format_edition
 }
 
-fn detect_edition_hint(bytes: &[u8]) -> Option<ExpansionType> {
+fn detect_edition_hint(bytes: &[u8]) -> Option<GameEdition> {
     let v105_marker_one =
         CHARACTER_SECTION_START + crate::character::v105::OFFSET_RESERVED_VERSION_MARKER_ONE;
     let v105_marker_two =
         CHARACTER_SECTION_START + crate::character::v105::OFFSET_RESERVED_VERSION_MARKER_TWO;
     if bytes.get(v105_marker_one) == Some(&0x10) && bytes.get(v105_marker_two) == Some(&0x1E) {
-        return Some(ExpansionType::RotW);
+        return Some(GameEdition::RotW);
     }
 
     let v99_marker_one =
@@ -322,10 +318,46 @@ fn detect_edition_hint(bytes: &[u8]) -> Option<ExpansionType> {
     let v99_marker_two =
         CHARACTER_SECTION_START + crate::character::v99::OFFSET_RESERVED_VERSION_MARKER_TWO;
     if bytes.get(v99_marker_one) == Some(&0x10) && bytes.get(v99_marker_two) == Some(&0x1E) {
-        return Some(ExpansionType::Classic);
+        return Some(GameEdition::D2RLegacy);
     }
 
     None
+}
+
+fn expansion_type_from_v99_status(character: &crate::character::Character) -> ExpansionType {
+    if character.status.is_expansion() {
+        ExpansionType::Expansion
+    } else {
+        ExpansionType::Classic
+    }
+}
+
+fn expansion_type_from_decoded_character(
+    format_id: FormatId,
+    character: &crate::character::Character,
+) -> ExpansionType {
+    match format_id {
+        FormatId::V99 => expansion_type_from_v99_status(character),
+        FormatId::V105 | FormatId::Unknown(_) => {
+            crate::character::v105::expansion_type(character).unwrap_or(ExpansionType::RotW)
+        }
+    }
+}
+
+fn apply_expansion_type_for_encode(
+    character: &mut crate::character::Character,
+    target: FormatId,
+    expansion_type: ExpansionType,
+) {
+    match target {
+        FormatId::V99 => {
+            character.status.set_expansion(!matches!(expansion_type, ExpansionType::Classic));
+        }
+        FormatId::V105 | FormatId::Unknown(_) => {
+            // In v105, expansion mode is encoded via mode marker; keep status bit untouched.
+            crate::character::v105::set_expansion_type(character, expansion_type);
+        }
+    }
 }
 
 fn layout_for_decode(
@@ -494,6 +526,8 @@ pub fn decode_with_strictness(
 
     match character_parse_result {
         Ok(parsed_character) => {
+            parsed_save.expansion_type =
+                expansion_type_from_decoded_character(selected_layout.format_id(), &parsed_character);
             parsed_save.character = parsed_character;
         }
         Err(parse_error) => {
@@ -779,17 +813,55 @@ fn empty_items_layout_for_encode(target: FormatId, mode_marker: u8) -> items::Em
 }
 
 fn v105_mode_marker_for_encode(save: &Save) -> u8 {
-    crate::character::v105::mode_marker_for_encode(&save.character)
+    crate::character::v105::mode_marker_from_expansion_type(save.expansion_type)
+}
+
+pub(crate) fn compatibility_issues(save: &Save, target: FormatId) -> Vec<CompatibilityIssue> {
+    let mut issues = Vec::new();
+
+    if save.character.class == crate::Class::Warlock
+        && target.edition().is_some_and(|edition| edition != GameEdition::RotW)
+    {
+        issues.push(CompatibilityIssue {
+            code: CompatibilityCode::WarlockRequiresRotw,
+            blocking: true,
+            message: "Warlock class is only supported in RotW editions.".to_string(),
+        });
+    }
+
+    if save.character.class == crate::Class::Warlock && save.expansion_type != ExpansionType::RotW {
+        issues.push(CompatibilityIssue {
+            code: CompatibilityCode::WarlockRequiresRotwExpansion,
+            blocking: true,
+            message: "Warlock class requires RotW expansion type.".to_string(),
+        });
+    }
+
+    if target == FormatId::V99 && save.expansion_type == ExpansionType::RotW {
+        issues.push(CompatibilityIssue {
+            code: CompatibilityCode::RotwExpansionRequiresV105,
+            blocking: true,
+            message: "Cannot encode RotW expansion type as v99. Use v105 format for RotW saves."
+                .to_string(),
+        });
+    }
+
+    issues
 }
 
 fn validate_encode_compatibility(save: &Save, target: FormatId) -> Result<(), EncodeError> {
-    if target == FormatId::V99 && save.character.class == crate::Class::Warlock {
-        return Err(EncodeError::new(
-            "Cannot encode Warlock class as v99. Use v105 format for Warlock saves.",
-        ));
+    let errors: Vec<CompatibilityIssue> =
+        compatibility_issues(save, target).into_iter().filter(|issue| issue.blocking).collect();
+    if errors.is_empty() {
+        return Ok(());
     }
 
-    Ok(())
+    let message = errors
+        .iter()
+        .map(|issue| issue.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    Err(EncodeError::new(message))
 }
 
 /// Encode a [`Save`] into bytes for a target layout.
@@ -805,7 +877,13 @@ pub fn encode(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
     encoded_bytes[SIGNATURE_RANGE.clone()].copy_from_slice(&SIGNATURE);
     encoded_bytes[VERSION_RANGE.clone()].copy_from_slice(&target.version().to_le_bytes());
 
-    let character_bytes = encode_character_for_format(selected_layout.format_id(), &save.character)
+    let mut character_for_encode = save.character.clone();
+    apply_expansion_type_for_encode(
+        &mut character_for_encode,
+        selected_layout.format_id(),
+        save.expansion_type,
+    );
+    let character_bytes = encode_character_for_format(selected_layout.format_id(), &character_for_encode)
         .map_err(|error| EncodeError::new(error.to_string()))?;
     let character_range = selected_layout.character_range();
     encoded_bytes[character_range.clone()]
@@ -824,7 +902,7 @@ pub fn encode(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
 
     let items_layout = empty_items_layout_for_encode(target, v105_mode_marker_for_encode(save));
     let mut item_bytes =
-        items::generate(&save.items, items_layout, save.character.mercenary.is_hired());
+        items::generate(&save.items, items_layout, character_for_encode.mercenary.is_hired());
     encoded_bytes.append(&mut item_bytes);
 
     let file_size = encoded_bytes.len() as u32;

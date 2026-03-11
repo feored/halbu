@@ -84,9 +84,10 @@ pub struct SaveMeta {
     pub format: FormatId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ExpansionType {
     Classic,
+    #[default]
     Expansion,
     RotW,
 }
@@ -97,6 +98,21 @@ impl ExpansionType {
             ExpansionType::Classic => "Classic",
             ExpansionType::Expansion => "Expansion",
             ExpansionType::RotW => "RotW",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GameEdition {
+    D2RLegacy,
+    RotW,
+}
+
+impl GameEdition {
+    pub fn label(self) -> &'static str {
+        match self {
+            GameEdition::D2RLegacy => "D2R Legacy",
+            GameEdition::RotW => "RotW",
         }
     }
 }
@@ -170,6 +186,23 @@ pub enum Strictness {
     Lax,
 }
 
+/// Stable identifier for a save compatibility rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CompatibilityCode {
+    WarlockRequiresRotw,
+    WarlockRequiresRotwExpansion,
+    RotwExpansionRequiresV105,
+}
+
+/// Compatibility finding for a specific target format.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompatibilityIssue {
+    pub code: CompatibilityCode,
+    /// `true` means encoding should be blocked unless caller explicitly overrides policy.
+    pub blocking: bool,
+    pub message: String,
+}
+
 /// Full in-memory save model.
 ///
 /// Unknown payloads for currently unmodeled sections are preserved in placeholder structs.
@@ -177,6 +210,9 @@ pub enum Strictness {
 pub struct Save {
     /// Numeric version stored in the file header.
     pub version: u32,
+    /// Canonical character expansion type for this save model.
+    #[serde(default)]
+    pub expansion_type: ExpansionType,
     /// Character section.
     pub character: Character,
     /// Quests section.
@@ -203,6 +239,7 @@ impl Default for Save {
 
         Save {
             version: FormatId::V99.version(),
+            expansion_type: ExpansionType::Expansion,
             character,
             quests: Quests::default(),
             waypoints: Waypoints::default(),
@@ -218,6 +255,7 @@ impl Default for Save {
 impl fmt::Display for Save {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut final_string = format!("Save:\nVersion: {0}\n", self.version);
+        final_string.push_str(&format!("Expansion Type: {}\n", self.expansion_type.label()));
         final_string.push_str(&format!("Character:\n{0}\n", self.character));
         final_string.push_str(&format!("Quests:\n{0}\n", self.quests));
         final_string.push_str(&format!("Waypoints:\n{0}\n", self.waypoints));
@@ -240,9 +278,15 @@ impl Save {
         let mut character = Character::default_class(class);
         character.last_played = 0;
         character.raw_section = Vec::new();
+        let expansion_type = match format.edition() {
+            Some(GameEdition::RotW) => ExpansionType::RotW,
+            Some(GameEdition::D2RLegacy) | None => ExpansionType::Expansion,
+        };
+        character.status.set_expansion(!matches!(expansion_type, ExpansionType::Classic));
 
         Save {
             version: format.version(),
+            expansion_type,
             character,
             quests: Quests::default(),
             waypoints: Waypoints::default(),
@@ -273,6 +317,10 @@ impl Save {
         self.version = format.version();
     }
 
+    pub fn game_edition(&self) -> Option<GameEdition> {
+        self.format_id().edition()
+    }
+
     /// Set both character level fields kept in separate sections.
     ///
     /// This updates:
@@ -284,34 +332,16 @@ impl Save {
     }
 
     pub fn expansion_type(&self) -> ExpansionType {
-        match self.format_id() {
-            FormatId::V105 | FormatId::Unknown(_) => {
-                character::v105::expansion_type(&self.character).unwrap_or(ExpansionType::RotW)
-            }
-            FormatId::V99 => Self::expansion_type_from_status(self.character.status),
-        }
+        self.expansion_type
     }
 
-    /// Set game mode using format-specific storage:
-    /// - v99: legacy status expansion bit
-    /// - v105: dedicated character mode marker
     pub fn set_expansion_type(&mut self, expansion_type: ExpansionType) {
-        match self.format_id() {
-            FormatId::V105 | FormatId::Unknown(_) => {
-                character::v105::set_expansion_type(&mut self.character, expansion_type);
-                self.character.status.set_expansion(false);
-            }
-            FormatId::V99 => {
-                self.character.status.set_expansion(!matches!(expansion_type, ExpansionType::Classic));
-            }
-        }
-    }
-
-    fn expansion_type_from_status(status: character::Status) -> ExpansionType {
-        if status.is_expansion() {
-            ExpansionType::Expansion
-        } else {
-            ExpansionType::Classic
+        self.expansion_type = expansion_type;
+        if self.format_id() == FormatId::V99 {
+            self.character.status.set_expansion(!matches!(expansion_type, ExpansionType::Classic));
+        } else if matches!(self.format_id(), FormatId::V105 | FormatId::Unknown(_)) {
+            // For v105, mode marker is canonical and status bit is ignored/preserved.
+            character::v105::set_expansion_type(&mut self.character, expansion_type);
         }
     }
 
@@ -335,6 +365,11 @@ impl Save {
     /// Encode to a specific output format.
     pub fn to_bytes_for(&self, format: FormatId) -> Result<Vec<u8>, EncodeError> {
         format::encode(self, format)
+    }
+
+    /// Return compatibility findings for encoding this save to `target`.
+    pub fn check_compatibility(&self, target: FormatId) -> Vec<CompatibilityIssue> {
+        format::compatibility_issues(self, target)
     }
 }
 
@@ -545,66 +580,65 @@ mod tests {
     }
 
     #[test]
-    fn expansion_type_uses_status_for_non_v105_formats() {
+    fn new_save_sets_default_expansion_type_by_edition() {
+        let v99 = Save::new(FormatId::V99, Class::Amazon);
+        assert_eq!(v99.expansion_type(), ExpansionType::Expansion);
+
+        let v105 = Save::new(FormatId::V105, Class::Amazon);
+        assert_eq!(v105.expansion_type(), ExpansionType::RotW);
+    }
+
+    #[test]
+    fn game_edition_reflects_format() {
         let mut save = Save::new(FormatId::V99, Class::Amazon);
+        assert_eq!(save.game_edition(), Some(GameEdition::D2RLegacy));
 
-        save.character.status = character::Status::from(0b0000_0000);
+        save.set_format_id(FormatId::V105);
+        assert_eq!(save.game_edition(), Some(GameEdition::RotW));
+
+        save.set_format_id(FormatId::Unknown(1234));
+        assert_eq!(save.game_edition(), None);
+    }
+
+    #[test]
+    fn set_expansion_type_updates_v105_mode_marker_without_touching_status_bit() {
+        let mut save = Save::new(FormatId::V105, Class::Amazon);
+        save.character.status.set_expansion(false);
+
+        save.set_expansion_type(ExpansionType::Classic);
         assert_eq!(save.expansion_type(), ExpansionType::Classic);
+        assert!(!save.character.status.is_expansion());
+        assert_eq!(
+            character::v105::mode_marker(&save.character),
+            Some(character::v105::MODE_CLASSIC)
+        );
 
-        save.character.status = character::Status::from(0b0010_0000);
+        save.set_expansion_type(ExpansionType::Expansion);
         assert_eq!(save.expansion_type(), ExpansionType::Expansion);
-    }
+        assert!(!save.character.status.is_expansion());
+        assert_eq!(
+            character::v105::mode_marker(&save.character),
+            Some(character::v105::MODE_EXPANSION)
+        );
 
-    #[test]
-    fn expansion_type_uses_v105_mode_marker_when_available() {
-        let mut save = Save::new(FormatId::V105, Class::Amazon);
-        let mut raw_section = vec![0u8; character::expected_length_for_format(FormatId::V105)];
-        raw_section[character::v105::OFFSET_MODE_MARKER] = character::v105::MODE_ROTW;
-        save.character.raw_section = raw_section;
-
+        save.set_expansion_type(ExpansionType::RotW);
         assert_eq!(save.expansion_type(), ExpansionType::RotW);
-    }
-
-    #[test]
-    fn expansion_type_defaults_to_rotw_when_v105_mode_marker_is_unknown() {
-        let mut save = Save::new(FormatId::V105, Class::Amazon);
-        let mut raw_section = vec![0u8; character::expected_length_for_format(FormatId::V105)];
-        raw_section[character::v105::OFFSET_MODE_MARKER] = 0xFF;
-        save.character.raw_section = raw_section;
-
-        save.character.status = character::Status::from(0b0010_0000);
-        assert_eq!(save.expansion_type(), ExpansionType::RotW);
+        assert!(!save.character.status.is_expansion());
+        assert_eq!(
+            character::v105::mode_marker(&save.character),
+            Some(character::v105::MODE_ROTW)
+        );
     }
 
     #[test]
     fn set_expansion_type_updates_v99_status_bit() {
         let mut save = Save::new(FormatId::V99, Class::Amazon);
-
-        save.set_expansion_type(ExpansionType::Classic);
-        assert_eq!(save.character.status.is_expansion(), false);
+        save.character.status.set_expansion(false);
 
         save.set_expansion_type(ExpansionType::Expansion);
-        assert_eq!(save.character.status.is_expansion(), true);
-
-        save.set_expansion_type(ExpansionType::RotW);
-        assert_eq!(save.character.status.is_expansion(), true);
-    }
-
-    #[test]
-    fn set_expansion_type_updates_v105_mode_marker_and_clears_status_bit() {
-        let mut save = Save::new(FormatId::V105, Class::Amazon);
-        save.character.status = character::Status::from(0b0010_0000);
+        assert!(save.character.status.is_expansion());
 
         save.set_expansion_type(ExpansionType::Classic);
-        assert_eq!(save.expansion_type(), ExpansionType::Classic);
-        assert_eq!(save.character.status.is_expansion(), false);
-
-        save.set_expansion_type(ExpansionType::Expansion);
-        assert_eq!(save.expansion_type(), ExpansionType::Expansion);
-        assert_eq!(save.character.status.is_expansion(), false);
-
-        save.set_expansion_type(ExpansionType::RotW);
-        assert_eq!(save.expansion_type(), ExpansionType::RotW);
-        assert_eq!(save.character.status.is_expansion(), false);
+        assert!(!save.character.status.is_expansion());
     }
 }

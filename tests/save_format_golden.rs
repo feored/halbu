@@ -1,5 +1,5 @@
 use halbu::format::FormatId;
-use halbu::{Save, Strictness};
+use halbu::{CompatibilityCode, ExpansionType, Save, Strictness};
 
 fn goldens() -> [(&'static str, &'static [u8], FormatId); 2] {
     [
@@ -97,7 +97,62 @@ fn warlock_v105_cannot_encode_to_v99() {
     let error = encode_result.expect_err("Warlock should not encode to v99");
 
     assert!(
-        error.to_string().contains("Cannot encode Warlock class as v99"),
+        error.to_string().contains("Warlock class is only supported in RotW editions."),
         "unexpected error message: {error}"
+    );
+}
+
+#[test]
+fn check_compatibility_reports_blocking_warlock_to_v99() {
+    let warlock = parse_strict_clean("Warlock_v105", &include_bytes!("../assets/test/Warlock_v105.d2s")[..]);
+    let issues = warlock.check_compatibility(FormatId::V99);
+
+    assert!(
+        issues
+            .iter()
+            .any(|issue| issue.blocking && issue.code == CompatibilityCode::WarlockRequiresRotw),
+        "expected blocking WarlockRequiresRotw issue, got: {:?}",
+        issues
+    );
+}
+
+#[test]
+fn check_compatibility_reports_blocking_warlock_non_rotw_expansion() {
+    let mut warlock =
+        parse_strict_clean("Warlock_v105", &include_bytes!("../assets/test/Warlock_v105.d2s")[..]);
+    warlock.set_expansion_type(ExpansionType::Expansion);
+    let issues = warlock.check_compatibility(FormatId::V105);
+
+    assert!(
+        issues
+            .iter()
+            .any(|issue| issue.blocking && issue.code == CompatibilityCode::WarlockRequiresRotwExpansion),
+        "expected blocking WarlockRequiresRotwExpansion issue, got: {:?}",
+        issues
+    );
+
+    let encode_error = warlock
+        .to_bytes_for(FormatId::V105)
+        .expect_err("Warlock with non-RotW expansion should not encode");
+    assert!(
+        encode_error
+            .to_string()
+            .contains("Warlock class requires RotW expansion type."),
+        "unexpected error message: {encode_error}"
+    );
+}
+
+#[test]
+fn check_compatibility_reports_blocking_rotw_to_v99() {
+    let mut save = Save::new(FormatId::V99, halbu::Class::Barbarian);
+    save.set_expansion_type(ExpansionType::RotW);
+    let issues = save.check_compatibility(FormatId::V99);
+
+    assert!(
+        issues
+            .iter()
+            .any(|issue| issue.blocking && issue.code == CompatibilityCode::RotwExpansionRequiresV105),
+        "expected blocking RotwExpansionRequiresV105 issue, got: {:?}",
+        issues
     );
 }
