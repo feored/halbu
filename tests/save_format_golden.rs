@@ -1,5 +1,5 @@
 use halbu::format::FormatId;
-use halbu::{CompatibilityCode, ExpansionType, Save, Strictness};
+use halbu::{Class, CompatibilityCode, ExpansionType, Save, Strictness};
 
 fn goldens() -> [(&'static str, &'static [u8], FormatId); 2] {
     [
@@ -151,8 +151,93 @@ fn check_compatibility_reports_blocking_rotw_to_v99() {
     assert!(
         issues
             .iter()
-            .any(|issue| issue.blocking && issue.code == CompatibilityCode::RotwExpansionRequiresV105),
-        "expected blocking RotwExpansionRequiresV105 issue, got: {:?}",
+            .any(|issue| {
+                issue.blocking
+                    && issue.code == CompatibilityCode::RotwExpansionRequiresRotwEdition
+            }),
+        "expected blocking RotwExpansionRequiresRotwEdition issue, got: {:?}",
         issues
     );
+}
+
+#[test]
+fn check_compatibility_reports_blocking_expansion_classes_in_classic_mode() {
+    for class in [Class::Druid, Class::Assassin] {
+        let mut save = Save::new(FormatId::V105, class);
+        save.set_expansion_type(ExpansionType::Classic);
+        let issues = save.check_compatibility(FormatId::V105);
+
+        assert!(
+            issues.iter().any(|issue| {
+                issue.blocking
+                    && issue.code == CompatibilityCode::ExpansionClassRequiresExpansionMode
+            }),
+            "expected blocking ExpansionClassRequiresExpansionMode issue for class {class}, got: {:?}",
+            issues
+        );
+    }
+}
+
+#[test]
+fn expansion_classes_in_classic_mode_cannot_encode() {
+    for class in [Class::Druid, Class::Assassin] {
+        let mut save = Save::new(FormatId::V105, class);
+        save.set_expansion_type(ExpansionType::Classic);
+
+        let error = save
+            .to_bytes_for(FormatId::V105)
+            .expect_err("expansion-only class in classic mode should not encode");
+        assert!(
+            error
+                .to_string()
+                .contains("Druid and Assassin classes are not valid in Classic mode."),
+            "unexpected error message for class {class}: {error}"
+        );
+    }
+}
+
+#[test]
+fn check_compatibility_reports_blocking_unknown_class_to_known_target() {
+    let mut save = Save::new(FormatId::V105, Class::Amazon);
+    save.character.class = Class::Unknown(0x7F);
+
+    let issues = save.check_compatibility(FormatId::V99);
+
+    assert!(
+        issues
+            .iter()
+            .any(|issue| issue.blocking && issue.code == CompatibilityCode::UnknownClassRequiresKnownTarget),
+        "expected blocking UnknownClassRequiresKnownTarget issue, got: {:?}",
+        issues
+    );
+}
+
+#[test]
+fn unknown_class_cannot_encode_to_known_targets() {
+    let mut save = Save::new(FormatId::V105, Class::Amazon);
+    save.character.class = Class::Unknown(0x7F);
+
+    for target in [FormatId::V99, FormatId::V105] {
+        let error = save
+            .to_bytes_for(target)
+            .expect_err("unknown class should not encode to known targets");
+        assert!(
+            error.to_string().contains("Unknown class id 127"),
+            "unexpected error message for target {target:?}: {error}"
+        );
+    }
+}
+
+#[test]
+fn to_bytes_for_force_bypasses_compatibility_blockers() {
+    let mut save = Save::new(FormatId::V105, Class::Druid);
+    save.set_expansion_type(ExpansionType::Classic);
+
+    save.to_bytes_for(FormatId::V105)
+        .expect_err("strict encode should block expansion-only class in classic mode");
+
+    let forced = save
+        .to_bytes_for_force(FormatId::V105)
+        .expect("forced encode should bypass compatibility blockers");
+    assert!(!forced.is_empty(), "forced encode should still produce bytes");
 }

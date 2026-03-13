@@ -230,7 +230,9 @@ pub enum Strictness {
 pub enum CompatibilityCode {
     WarlockRequiresRotw,
     WarlockRequiresRotwExpansion,
-    RotwExpansionRequiresV105,
+    RotwExpansionRequiresRotwEdition,
+    ExpansionClassRequiresExpansionMode,
+    UnknownClassRequiresKnownTarget,
 }
 
 /// Compatibility finding for a specific target format.
@@ -417,6 +419,11 @@ impl Save {
     /// Encode to a specific output format.
     pub fn to_bytes_for(&self, format: FormatId) -> Result<Vec<u8>, EncodeError> {
         format::encode(self, format)
+    }
+
+    /// Encode to a specific output format, bypassing compatibility checks.
+    pub fn to_bytes_for_force(&self, format: FormatId) -> Result<Vec<u8>, EncodeError> {
+        format::encode_force(self, format)
     }
 
     /// Return compatibility findings for encoding this save to `target`.

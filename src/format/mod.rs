@@ -936,33 +936,69 @@ fn v105_mode_marker_for_encode(save: &Save) -> u8 {
     crate::character::v105::mode_marker_from_expansion_type(save.expansion_type)
 }
 
-pub(crate) fn compatibility_issues(save: &Save, target: FormatId) -> Vec<CompatibilityIssue> {
+fn class_compatibility_issues(
+    class: crate::Class,
+    expansion_type: ExpansionType,
+    target: FormatId,
+) -> Vec<CompatibilityIssue> {
     let mut issues = Vec::new();
 
-    if save.character.class == crate::Class::Warlock
-        && target.edition().is_some_and(|edition| edition != GameEdition::RotW)
+    match class {
+        crate::Class::Unknown(class_id) => {
+            if matches!(target, FormatId::V99 | FormatId::V105) {
+                issues.push(CompatibilityIssue {
+                    code: CompatibilityCode::UnknownClassRequiresKnownTarget,
+                    blocking: true,
+                    message: format!(
+                        "Unknown class id {class_id} cannot be safely converted to known format {target:?}."
+                    ),
+                });
+            }
+        }
+        crate::Class::Warlock => {
+            if target.edition().is_some_and(|edition| edition != GameEdition::RotW) {
+                issues.push(CompatibilityIssue {
+                    code: CompatibilityCode::WarlockRequiresRotw,
+                    blocking: true,
+                    message: "Warlock class is only supported in RotW editions.".to_string(),
+                });
+            }
+
+            if expansion_type != ExpansionType::RotW {
+                issues.push(CompatibilityIssue {
+                    code: CompatibilityCode::WarlockRequiresRotwExpansion,
+                    blocking: true,
+                    message: "Warlock class requires RotW expansion type.".to_string(),
+                });
+            }
+        }
+        crate::Class::Druid | crate::Class::Assassin => {
+            if expansion_type == ExpansionType::Classic {
+                issues.push(CompatibilityIssue {
+                    code: CompatibilityCode::ExpansionClassRequiresExpansionMode,
+                    blocking: true,
+                    message: "Druid and Assassin classes are not valid in Classic mode."
+                        .to_string(),
+                });
+            }
+        }
+        _ => {}
+    }
+
+    issues
+}
+
+pub(crate) fn compatibility_issues(save: &Save, target: FormatId) -> Vec<CompatibilityIssue> {
+    let mut issues =
+        class_compatibility_issues(save.character.class, save.expansion_type, target);
+
+    if target.edition().is_some_and(|edition| edition != GameEdition::RotW)
+        && save.expansion_type == ExpansionType::RotW
     {
         issues.push(CompatibilityIssue {
-            code: CompatibilityCode::WarlockRequiresRotw,
+            code: CompatibilityCode::RotwExpansionRequiresRotwEdition,
             blocking: true,
-            message: "Warlock class is only supported in RotW editions.".to_string(),
-        });
-    }
-
-    if save.character.class == crate::Class::Warlock && save.expansion_type != ExpansionType::RotW {
-        issues.push(CompatibilityIssue {
-            code: CompatibilityCode::WarlockRequiresRotwExpansion,
-            blocking: true,
-            message: "Warlock class requires RotW expansion type.".to_string(),
-        });
-    }
-
-    if target == FormatId::V99 && save.expansion_type == ExpansionType::RotW {
-        issues.push(CompatibilityIssue {
-            code: CompatibilityCode::RotwExpansionRequiresV105,
-            blocking: true,
-            message: "Cannot encode RotW expansion type as v99. Use v105 format for RotW saves."
-                .to_string(),
+            message: "Cannot encode RotW expansion type to non-RotW editions.".to_string(),
         });
     }
 
@@ -984,12 +1020,14 @@ fn validate_encode_compatibility(save: &Save, target: FormatId) -> Result<(), En
     Err(EncodeError::new(message))
 }
 
-/// Encode a [`Save`] into bytes for a target layout.
-///
-/// Placeholder sections keep raw bytes when available; otherwise section-specific defaults
-/// are generated (for example empty-item trailers).
-pub fn encode(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
-    validate_encode_compatibility(save, target)?;
+fn encode_impl(
+    save: &Save,
+    target: FormatId,
+    enforce_compatibility: bool,
+) -> Result<Vec<u8>, EncodeError> {
+    if enforce_compatibility {
+        validate_encode_compatibility(save, target)?;
+    }
 
     let selected_layout = layout_for_encode(target);
     let mut encoded_bytes = vec![0x00; selected_layout.attributes_offset()];
@@ -1032,6 +1070,19 @@ pub fn encode(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
     encoded_bytes[CHECKSUM_RANGE].copy_from_slice(&checksum.to_le_bytes());
 
     Ok(encoded_bytes)
+}
+
+/// Encode a [`Save`] into bytes for a target layout.
+///
+/// Placeholder sections keep raw bytes when available; otherwise section-specific defaults
+/// are generated (for example empty-item trailers).
+pub fn encode(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
+    encode_impl(save, target, true)
+}
+
+/// Encode a [`Save`] into bytes for a target layout, skipping compatibility validation.
+pub fn encode_force(save: &Save, target: FormatId) -> Result<Vec<u8>, EncodeError> {
+    encode_impl(save, target, false)
 }
 
 #[cfg(test)]
