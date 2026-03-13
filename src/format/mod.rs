@@ -416,15 +416,10 @@ fn read_header_checksum(bytes: &[u8]) -> Option<u32> {
     Some(u32::from_le_bytes(checksum_bytes))
 }
 
-fn checksum_metadata(bytes: &[u8]) -> (Option<u32>, Option<u32>, Option<bool>) {
+fn checksum_metadata(bytes: &[u8]) -> (Option<u32>, Option<u32>) {
     let header_checksum = read_header_checksum(bytes);
     let computed_checksum = header_checksum.map(|_| calc_checksum(bytes) as u32);
-    let checksum_valid = match (header_checksum, computed_checksum) {
-        (Some(header), Some(computed)) => Some(header == computed),
-        _ => None,
-    };
-
-    (header_checksum, computed_checksum, checksum_valid)
+    (header_checksum, computed_checksum)
 }
 
 /// Validate signature/version bytes and return detected format id.
@@ -582,13 +577,12 @@ pub fn decode_with_strictness(
 ) -> Result<ParsedSave, ParseHardError> {
     let mut parsed_save = Save::default();
     let mut issues: Vec<ParseIssue> = Vec::new();
-    let (header_checksum, computed_checksum, checksum_valid) = checksum_metadata(bytes);
+    let (header_checksum, computed_checksum) = checksum_metadata(bytes);
     let finalize = |save: Save, issues: Vec<ParseIssue>| ParsedSave {
         save,
         issues,
         header_checksum,
         computed_checksum,
-        checksum_valid,
     };
 
     if !section_readable(bytes, "signature", SIGNATURE_RANGE.clone(), &mut issues) {
