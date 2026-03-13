@@ -2,14 +2,14 @@
 
 A Rust library for reading and modifying Diablo II: Resurrected `.d2s` save files.
 
-This library also serves as the backend for **[Halbu Editor](https://github.com/feored/halbu-editor)**.
+This library serves as the backend for **[Halbu Editor](https://github.com/feored/halbu-editor)**.
 
 ---
 
 ## Features
 
 - Parse and modify `.d2s` save files
-- Supports both D2R (v99) and ROTW (v105) save formats
+- Supports both D2R Legacy and RotW save formats (99/105 at the moment)
 - Edit:
   - character data
   - attributes
@@ -55,7 +55,82 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+If you want tolerant parsing with diagnostics:
+
+```rust
+use halbu::{Save, Strictness};
+
+let parsed = Save::parse(&bytes, Strictness::Lax)?;
+if !parsed.issues.is_empty() {
+    eprintln!("Parse issues: {:?}", parsed.issues);
+}
+```
+
 More examples can be found in `examples/`.
+
+## Fast summary
+
+Use the summary API for file lists and quick metadata reads without a full parse:
+
+```rust
+use halbu::{Save, Strictness};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let bytes = std::fs::read("Hero.d2s")?;
+    let summary = Save::summarize(&bytes, Strictness::Lax)?;
+
+    println!(
+        "name={:?} class={:?} level={:?} expansion={:?}",
+        summary.name, summary.class, summary.level, summary.expansion_type
+    );
+
+    Ok(())
+}
+```
+
+## Compatibility checks
+
+Before converting formats, check compatibility findings:
+
+```rust
+use halbu::{Save, Strictness};
+use halbu::format::FormatId;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let bytes = std::fs::read("Hero.d2s")?;
+    let parsed = Save::parse(&bytes, Strictness::Strict)?;
+    let save = parsed.save;
+
+    let target = FormatId::V99;
+    let issues = save.check_compatibility(target);
+    if !issues.is_empty() {
+        eprintln!("Compatibility issues: {issues:?}");
+    }
+
+    Ok(())
+}
+```
+
+## Forced encode
+
+`to_bytes_for(...)` enforces compatibility checks.  
+`to_bytes_for_force(...)` bypasses compatibility checks and should only be used intentionally.
+
+```rust
+use halbu::{Save, Strictness};
+use halbu::format::FormatId;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let bytes = std::fs::read("Hero.d2s")?;
+    let parsed = Save::parse(&bytes, Strictness::Strict)?;
+    let save = parsed.save;
+
+    let forced = save.to_bytes_for_force(FormatId::V105)?;
+    std::fs::write("Hero-forced.d2s", forced)?;
+
+    Ok(())
+}
+```
 
 ## Documentation
 
@@ -69,6 +144,11 @@ Halbu models two related concepts:
 
 - `GameEdition`: `D2RLegacy` or `RotW` (derived from save format/version)
 - `ExpansionType`: `Classic`, `Expansion`, or `RotW` (canonical on `Save` as `save.expansion_type`)
+
+Known layout versions currently mapped by this crate:
+
+- `v99` -> `D2RLegacy`
+- `v105` -> `RotW`
 
 Use `save.expansion_type()` / `save.set_expansion_type(...)` to read/write character mode.
 Use `save.game_edition()` to inspect the edition family.
