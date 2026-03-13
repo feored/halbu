@@ -174,6 +174,12 @@ pub struct ParsedSave {
     pub save: Save,
     /// Non-fatal issues collected during parsing in lax mode.
     pub issues: Vec<ParseIssue>,
+    /// Header checksum value read from bytes `12..16`, if available.
+    pub header_checksum: Option<u32>,
+    /// Checksum computed from payload using D2 algorithm, if available.
+    pub computed_checksum: Option<u32>,
+    /// Whether `header_checksum == computed_checksum`, if both are available.
+    pub checksum_valid: Option<bool>,
 }
 
 /// Cheap metadata summary extracted from header + character section only.

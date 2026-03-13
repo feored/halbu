@@ -236,3 +236,23 @@ fn summarize_lax_unknown_version_uses_layout_fallback_and_reports_issue() {
         .iter()
         .any(|issue| matches!(issue.kind, IssueKind::UnsupportedVersion)));
 }
+
+#[test]
+fn decode_exposes_checksum_metadata_when_header_is_present() {
+    let bytes = include_bytes!("../../assets/test/Joe.d2s");
+    let parsed = decode_with_strictness(bytes, Strictness::Strict).expect("save should parse");
+
+    assert!(parsed.header_checksum.is_some());
+    assert!(parsed.computed_checksum.is_some());
+    assert_eq!(parsed.header_checksum, parsed.computed_checksum);
+    assert_eq!(parsed.checksum_valid, Some(true));
+}
+
+#[test]
+fn decode_marks_checksum_invalid_when_payload_changes_without_recompute() {
+    let mut bytes = include_bytes!("../../assets/test/Joe.d2s").to_vec();
+    bytes[16] ^= 0x01;
+
+    let parsed = decode_with_strictness(&bytes, Strictness::Lax).expect("save should parse");
+    assert_eq!(parsed.checksum_valid, Some(false));
+}

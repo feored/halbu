@@ -406,6 +406,27 @@ fn read_version(bytes: &[u8]) -> u32 {
     u32::from_le_bytes(version_bytes)
 }
 
+fn read_header_checksum(bytes: &[u8]) -> Option<u32> {
+    if bytes.len() < CHECKSUM_RANGE.end {
+        return None;
+    }
+
+    let mut checksum_bytes = [0u8; 4];
+    checksum_bytes.copy_from_slice(&bytes[CHECKSUM_RANGE.clone()]);
+    Some(u32::from_le_bytes(checksum_bytes))
+}
+
+fn checksum_metadata(bytes: &[u8]) -> (Option<u32>, Option<u32>, Option<bool>) {
+    let header_checksum = read_header_checksum(bytes);
+    let computed_checksum = header_checksum.map(|_| calc_checksum(bytes) as u32);
+    let checksum_valid = match (header_checksum, computed_checksum) {
+        (Some(header), Some(computed)) => Some(header == computed),
+        _ => None,
+    };
+
+    (header_checksum, computed_checksum, checksum_valid)
+}
+
 /// Validate signature/version bytes and return detected format id.
 pub fn detect_format(bytes: &[u8]) -> Result<FormatId, ParseHardError> {
     if bytes.len() < SIGNATURE_RANGE.end {
@@ -561,6 +582,14 @@ pub fn decode_with_strictness(
 ) -> Result<ParsedSave, ParseHardError> {
     let mut parsed_save = Save::default();
     let mut issues: Vec<ParseIssue> = Vec::new();
+    let (header_checksum, computed_checksum, checksum_valid) = checksum_metadata(bytes);
+    let finalize = |save: Save, issues: Vec<ParseIssue>| ParsedSave {
+        save,
+        issues,
+        header_checksum,
+        computed_checksum,
+        checksum_valid,
+    };
 
     if !section_readable(bytes, "signature", SIGNATURE_RANGE.clone(), &mut issues) {
         return if strictness == Strictness::Strict {
@@ -568,7 +597,7 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: signature section is truncated.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
 
@@ -600,7 +629,7 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: version section is truncated.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
 
@@ -636,7 +665,7 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: character section is truncated.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
 
@@ -677,7 +706,7 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: quests section is truncated.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
     match Quests::parse(&bytes[quests_range.clone()]) {
@@ -709,7 +738,7 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: waypoints section is truncated.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
     match Waypoints::parse(&bytes[waypoints_range.clone()]) {
@@ -741,7 +770,7 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: NPC section is truncated.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
     match NPCs::parse(&bytes[npcs_range.clone()]) {
@@ -787,7 +816,7 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: attributes offset is out of bounds.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
 
@@ -812,7 +841,7 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: attributes section header is truncated.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
 
@@ -840,7 +869,7 @@ pub fn decode_with_strictness(
                 });
             }
 
-            return Ok(ParsedSave { save: parsed_save, issues });
+            return Ok(finalize(parsed_save, issues));
         }
     }
 
@@ -866,7 +895,7 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: skills section is truncated.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
 
@@ -912,13 +941,13 @@ pub fn decode_with_strictness(
                 message: "Cannot parse save: items section is out of bounds.".to_string(),
             })
         } else {
-            Ok(ParsedSave { save: parsed_save, issues })
+            Ok(finalize(parsed_save, issues))
         };
     }
 
     parsed_save.items = items::parse(&bytes[items_offset..]);
 
-    Ok(ParsedSave { save: parsed_save, issues })
+    Ok(finalize(parsed_save, issues))
 }
 
 fn empty_items_layout_for_encode(target: FormatId, mode_marker: u8) -> items::EmptyLayout {
