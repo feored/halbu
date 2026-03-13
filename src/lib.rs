@@ -176,6 +176,45 @@ pub struct ParsedSave {
     pub issues: Vec<ParseIssue>,
 }
 
+/// Cheap metadata summary extracted from header + character section only.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveSummary {
+    /// Numeric version stored in the file header when readable.
+    pub version: Option<u32>,
+    /// Detected format id from header version when readable.
+    pub format: Option<FormatId>,
+    /// Edition inferred from detected format family.
+    pub edition: Option<GameEdition>,
+    /// Character expansion mode inferred using format-specific logic.
+    pub expansion_type: Option<ExpansionType>,
+    /// Character name from the character section.
+    pub name: Option<String>,
+    /// Character class from the character section.
+    pub class: Option<Class>,
+    /// Character level from the character section.
+    pub level: Option<u8>,
+    /// Convenience title derived from progression/class/expansion/hardcore.
+    pub title: Option<String>,
+    /// Non-fatal issues collected during summarize in lax mode.
+    pub issues: Vec<ParseIssue>,
+}
+
+impl Default for SaveSummary {
+    fn default() -> Self {
+        Self {
+            version: None,
+            format: None,
+            edition: None,
+            expansion_type: None,
+            name: None,
+            class: None,
+            level: None,
+            title: None,
+            issues: Vec::new(),
+        }
+    }
+}
+
 /// Controls parse behavior when malformed data is found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Strictness {
@@ -353,6 +392,19 @@ impl Save {
     /// Parse a save in lax mode.
     pub fn parse_lax(byte_slice: &[u8]) -> Result<ParsedSave, ParseHardError> {
         Self::parse(byte_slice, Strictness::Lax)
+    }
+
+    /// Summarize only top-level header + character fields.
+    pub fn summarize(
+        byte_slice: &[u8],
+        strictness: Strictness,
+    ) -> Result<SaveSummary, ParseHardError> {
+        format::summarize_with_strictness(byte_slice, strictness)
+    }
+
+    /// Summarize a save in lax mode.
+    pub fn summarize_lax(byte_slice: &[u8]) -> Result<SaveSummary, ParseHardError> {
+        Self::summarize(byte_slice, Strictness::Lax)
     }
 
     /// Encode using the explicit `version` field when recognized, otherwise `meta.format`.

@@ -268,6 +268,10 @@ impl Status {
         self.expansion
     }
 
+    pub const fn is_hardcore(&self) -> bool {
+        self.hardcore
+    }
+
     pub fn set_expansion(&mut self, expansion: bool) {
         self.expansion = expansion;
     }

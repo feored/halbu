@@ -2,7 +2,7 @@ use super::*;
 use crate::character::v105::{
     MODE_CLASSIC, MODE_EXPANSION, MODE_ROTW, OFFSET_STATUS,
 };
-use crate::{Class, ExpansionType, GameEdition, Save, Strictness};
+use crate::{Class, ExpansionType, GameEdition, IssueKind, Save, Strictness};
 
 fn encode_v105_with_mode(mode_marker: u8, mercenary_hired: bool) -> Vec<u8> {
     let mut save = Save::new(FormatId::V105, Class::Barbarian);
@@ -190,4 +190,49 @@ fn decode_v105_maps_mode_marker_to_expansion_type() {
     let parsed_rotw =
         decode_with_strictness(&rotw, Strictness::Strict).expect("rotw v105 should parse");
     assert_eq!(parsed_rotw.save.expansion_type(), ExpansionType::RotW);
+}
+
+#[test]
+fn summarize_extracts_core_fields_v99() {
+    let bytes = include_bytes!("../../assets/test/Joe.d2s");
+    let summary = Save::summarize(bytes, Strictness::Strict).expect("summary should parse");
+    let parsed = decode_with_strictness(bytes, Strictness::Strict).expect("save should parse");
+
+    assert_eq!(summary.version, Some(parsed.save.version));
+    assert_eq!(summary.format, Some(parsed.save.format_id()));
+    assert_eq!(summary.edition, parsed.save.game_edition());
+    assert_eq!(summary.expansion_type, Some(parsed.save.expansion_type()));
+    assert_eq!(summary.name.as_deref(), Some(parsed.save.character.name.as_str()));
+    assert_eq!(summary.class, Some(parsed.save.character.class));
+    assert_eq!(summary.level, Some(parsed.save.character.level));
+    assert_eq!(summary.title, parsed.save.character.title_d2r().map(str::to_string));
+    assert!(summary.issues.is_empty());
+}
+
+#[test]
+fn summarize_v105_uses_mode_marker_over_status_bit_for_expansion_type() {
+    let mut bytes = include_bytes!("../../assets/test/barbrotw_v105.d2s").to_vec();
+    bytes[CHARACTER_SECTION_START + crate::character::v105::OFFSET_STATUS] |= 0b0010_0000;
+    bytes[CHARACTER_SECTION_START + crate::character::v105::OFFSET_MODE_MARKER] = MODE_CLASSIC;
+
+    let summary = Save::summarize(&bytes, Strictness::Strict).expect("summary should parse");
+    assert_eq!(summary.expansion_type, Some(ExpansionType::Classic));
+}
+
+#[test]
+fn summarize_lax_unknown_version_uses_layout_fallback_and_reports_issue() {
+    let mut bytes = include_bytes!("../../assets/test/Warlock_v105.d2s").to_vec();
+    bytes[4..8].copy_from_slice(&96u32.to_le_bytes());
+
+    let summary = Save::summarize_lax(&bytes).expect("summary should parse");
+
+    assert_eq!(summary.version, Some(96));
+    assert_eq!(summary.format, Some(FormatId::Unknown(96)));
+    assert_eq!(summary.edition, None);
+    assert_eq!(summary.class, Some(Class::Warlock));
+    assert_eq!(summary.expansion_type, Some(ExpansionType::RotW));
+    assert!(summary
+        .issues
+        .iter()
+        .any(|issue| matches!(issue.kind, IssueKind::UnsupportedVersion)));
 }
