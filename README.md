@@ -137,6 +137,7 @@ https://docs.rs/halbu
  
 ## Notes
 
+
 Halbu models three related concepts:
 
 - `FormatId`: concrete file format version/layout (`V99`, `V105`, or `Unknown(version)`)
@@ -151,6 +152,12 @@ Known layout versions mapped by this crate:
 Use `save.expansion_type()` / `save.set_expansion_type(...)` to read/write expansion mode.
 Use `save.game_edition()` to inspect the edition family.
 Use `save.character.status()` to inspect status bits, and `save.character.set_hardcore(...)` / `set_ladder(...)` / `set_died(...)` for status mutations.
+
+Current blocking rules (compatibility checks) include:
+- Warlock requires RotW edition and RotW expansion type.
+- RotW expansion type cannot be encoded to non-RotW editions.
+- Druid/Assassin cannot be encoded as Classic.
+- Unknown class ids cannot be safely converted to known target formats.
 
 Level is stored in both the character section and the attributes section. Use `save.set_level(...)` to keep them in sync.
 
