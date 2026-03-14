@@ -36,7 +36,7 @@ pub const RANGE_UNKNOWN_REGION_ONE: Range<usize> = 159..187;
 // New 48-byte region inserted in v105 before resurrected menu appearance.
 pub const RANGE_UNKNOWN_REGION_TWO: Range<usize> = 187..235;
 // Observed mode-like byte in v105 saves.
-// 1 = classic, 2 = expansion, 3 = ROTW.
+// 1 = classic, 2 = expansion, 3 = RotW.
 pub const OFFSET_MODE_MARKER: usize = 232;
 pub const MODE_CLASSIC: u8 = 1;
 pub const MODE_EXPANSION: u8 = 2;
@@ -73,7 +73,7 @@ pub fn expansion_type(character: &Character) -> Option<ExpansionType> {
     mode_marker(character).and_then(expansion_type_from_mode_marker)
 }
 
-pub fn mode_marker_from_expansion_type(expansion_type: ExpansionType) -> u8 {
+pub(crate) fn mode_marker_from_expansion_type(expansion_type: ExpansionType) -> u8 {
     match expansion_type {
         ExpansionType::Classic => MODE_CLASSIC,
         ExpansionType::Expansion => MODE_EXPANSION,
@@ -81,7 +81,7 @@ pub fn mode_marker_from_expansion_type(expansion_type: ExpansionType) -> u8 {
     }
 }
 
-pub fn set_expansion_type(character: &mut Character, expansion_type: ExpansionType) {
+pub(crate) fn set_expansion_type(character: &mut Character, expansion_type: ExpansionType) {
     if character.raw_section.len() != V105_CHARACTER_LENGTH {
         character.raw_section = vec![0u8; V105_CHARACTER_LENGTH];
     }
@@ -89,7 +89,7 @@ pub fn set_expansion_type(character: &mut Character, expansion_type: ExpansionTy
     character.raw_section[OFFSET_MODE_MARKER] = mode_marker_from_expansion_type(expansion_type);
 }
 
-pub fn mode_marker_for_encode(character: &Character) -> u8 {
+pub(crate) fn mode_marker_for_encode(character: &Character) -> u8 {
     mode_marker(character).unwrap_or(MODE_ROTW)
 }
 

@@ -1,7 +1,7 @@
 //! Skills section model.
 //!
 //! Core API is raw index-based (`set`/`get`) so modded skill trees remain supported.
-//! Optional D2R name helpers are available via [`SkillPoints::set_by_name_d2r`]
+//! D2R name mapping is available via [`SkillPoints::set_by_name_d2r`]
 //! and [`SkillPoints::get_by_name_d2r`].
 
 use std::fmt;
@@ -93,10 +93,9 @@ impl SkillPoints {
         self.points[skill_index]
     }
 
-    /// Optional helper that resolves a default D2R skill name to a class-local slot index.
+    /// Resolve a default D2R skill name to a class-local slot and set its value.
     ///
-    /// This is convenience only; raw `set(index, value)` remains the primary API for
-    /// modded classes/trees.
+    /// For modded trees, use raw indices.
     pub fn set_by_name_d2r(
         &mut self,
         class: Class,
@@ -108,9 +107,9 @@ impl SkillPoints {
         Ok(())
     }
 
-    /// Optional helper that resolves a default D2R skill name to a class-local slot index.
+    /// Resolve a default D2R skill name to a class-local slot and return its value.
     ///
-    /// This is convenience only; raw `get(index)` remains available for modded trees.
+    /// For modded trees, use raw indices.
     pub fn get_by_name_d2r(&self, class: Class, skill_name: &str) -> Result<u8, NamedSkillError> {
         let index = d2r_skill_index(class, skill_name)?;
         Ok(self.get(index))

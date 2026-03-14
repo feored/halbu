@@ -1,7 +1,7 @@
 //! Character section model and format-specific codecs.
 //!
-//! Note: [`title_for_progression_d2r`] and [`Character::title_d2r`] are convenience helpers
-//!   for default D2R title mapping only.
+//! [`title_for_progression_d2r`] and [`Character::title_d2r`] implement the default D2R
+//! title rules. Modded title systems are out of scope.
 
 use std::fmt;
 
@@ -44,7 +44,7 @@ pub struct Character {
     /// Current weapon tab selection in the UI.
     pub weapon_switch: bool,
     /// Character status flags stored as bit fields in save bytes.
-    pub status: Status,
+    status: Status,
     /// Character progression score.
     ///
     /// In default D2R this roughly tracks act-boss completion across difficulties.
@@ -52,7 +52,7 @@ pub struct Character {
     /// Character class id.
     pub class: Class,
     /// Character level mirrored by `attributes.level`.
-    pub level: u8,
+    level: u8,
     /// Last-played timestamp as stored in the save.
     pub last_played: u32,
     /// Assigned skill ids in the skill bar/hotkeys area.
@@ -78,9 +78,9 @@ pub struct Character {
     pub raw_section: Vec<u8>,
 }
 
-/// Optional convenience helper for default D2R title mapping.
+/// Return the default D2R title for the given progression tuple.
 ///
-/// This helper intentionally does not try to model modded title systems.
+/// Modded title systems are out of scope for this mapping.
 pub fn title_for_progression_d2r(
     progression: u8,
     class: Class,
@@ -186,8 +186,73 @@ impl Character {
         Character { level: 1, class, ..Default::default() }
     }
 
-    /// Optional convenience helper for default D2R title mapping.
-    /// Mods may override title rules.
+    /// Character level as stored in the character section.
+    pub const fn level(&self) -> u8 {
+        self.level
+    }
+
+    /// Full status bitfield as decoded from save bytes.
+    ///
+    /// The expansion bit here is legacy/v99-only. Canonical expansion mode lives on
+    /// [`crate::Save::expansion_type`].
+    pub const fn status(&self) -> Status {
+        self.status
+    }
+
+    /// Set character level in the character section.
+    ///
+    /// Keep this synchronized with attributes through [`crate::Save::set_level`].
+    pub(crate) fn set_level(&mut self, level: u8) {
+        self.level = level;
+    }
+
+    /// Hardcore status bit.
+    pub const fn is_hardcore(&self) -> bool {
+        self.status.is_hardcore()
+    }
+
+    /// Ladder status bit.
+    pub const fn is_ladder(&self) -> bool {
+        self.status.is_ladder()
+    }
+
+    /// "Has died" status bit.
+    pub const fn has_died(&self) -> bool {
+        self.status.has_died()
+    }
+
+    /// Set hardcore status bit.
+    pub fn set_hardcore(&mut self, hardcore: bool) {
+        self.status.set_hardcore(hardcore);
+    }
+
+    /// Set ladder status bit.
+    pub fn set_ladder(&mut self, ladder: bool) {
+        self.status.set_ladder(ladder);
+    }
+
+    /// Set "has died" status bit.
+    pub fn set_died(&mut self, died: bool) {
+        self.status.set_died(died);
+    }
+
+    /// Legacy expansion status flag stored in the v99 status byte.
+    ///
+    /// This is not canonical for expansion mode. Use [`crate::Save::set_expansion_type`].
+    pub(crate) const fn legacy_expansion_flag(&self) -> bool {
+        self.status.is_expansion()
+    }
+
+    /// Set legacy v99 expansion status flag.
+    ///
+    /// This is internal glue for v99 encode/decode only.
+    pub(crate) fn set_legacy_expansion_flag(&mut self, expansion: bool) {
+        self.status.set_expansion(expansion);
+    }
+
+    /// Return the default D2R title for this character state.
+    ///
+    /// Mods may use different title rules.
     pub fn title_d2r(&self) -> Option<&'static str> {
         title_for_progression_d2r(
             self.progression,
@@ -272,8 +337,28 @@ impl Status {
         self.hardcore
     }
 
-    pub fn set_expansion(&mut self, expansion: bool) {
+    pub const fn is_ladder(&self) -> bool {
+        self.ladder
+    }
+
+    pub const fn has_died(&self) -> bool {
+        self.died
+    }
+
+    pub(crate) fn set_expansion(&mut self, expansion: bool) {
         self.expansion = expansion;
+    }
+
+    pub(crate) fn set_hardcore(&mut self, hardcore: bool) {
+        self.hardcore = hardcore;
+    }
+
+    pub(crate) fn set_ladder(&mut self, ladder: bool) {
+        self.ladder = ladder;
+    }
+
+    pub(crate) fn set_died(&mut self, died: bool) {
+        self.died = died;
     }
 }
 

@@ -1,6 +1,6 @@
 //! NPC section placeholder support.
 //!
-//! This section is currently preserved as fixed raw bytes with header validation.
+//! NPC bytes are preserved as a fixed-size raw payload with header validation.
 
 use crate::ParseHardError;
 use serde::{Deserialize, Serialize};

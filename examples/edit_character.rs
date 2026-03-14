@@ -1,4 +1,4 @@
-use halbu::{Act, Difficulty, Save, Strictness};
+use halbu::{Act, CompatibilityChecks, Difficulty, Save, Strictness};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input_path = "assets/test/Warlock_v105.d2s";
@@ -13,9 +13,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut save = parsed.save;
-    let target_format = save.format_id();
+    let target_format = save.format();
 
-    println!("Loaded {:?} / {} / lvl {}", target_format, save.character.name, save.character.level);
+    println!("Loaded {:?} / {} / lvl {}", target_format, save.character.name, save.character.level());
 
     // Keep file name and in-game name aligned for easy in-game testing.
     save.character.name = output_name.to_string();
@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Keep using the raw byte so modded saves can set custom values.
     save.character.progression = 15;
 
-    // Optional convenience: default D2R name lookup.
+    // Default D2R name lookup.
     // If a class has no default mapping (for example custom/modded classes),
     // keep using raw slot indexes.
     if save.skills.set_by_name_d2r(save.character.class, "Bash", 20).is_err() {
@@ -67,14 +67,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     save.waypoints.hell.set_all(true);
 
     // Encode back to the same detected format.
-    let output_bytes = save.to_bytes_for(target_format)?;
+    let output_bytes = save.encode_for(target_format, CompatibilityChecks::Enforce)?;
     std::fs::create_dir_all(output_dir)?;
     std::fs::write(&output_path, output_bytes)?;
 
     println!("Wrote {output_path}");
     println!(
         "Now: {} / lvl {} / {:?} {:?}",
-        save.character.name, save.character.level, save.character.difficulty, save.character.act
+        save.character.name, save.character.level(), save.character.difficulty, save.character.act
     );
     println!(
         "Stats: str={} dex={} vit={} ene={}",

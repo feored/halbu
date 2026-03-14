@@ -1,7 +1,7 @@
 //! Items section placeholder support.
 //!
-//! The project currently stores raw item bytes and can emit known "empty inventory"
-//! trailers for supported layouts. Full item decoding is not yet supported.
+//! Item payload is preserved as raw bytes.
+//! If raw bytes are empty, encoding emits a known empty-inventory trailer for the target layout.
 
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
@@ -34,8 +34,8 @@ pub enum EmptyLayout {
     V105Classic,
     /// V105 expansion empty-item trailer.
     V105Expansion,
-    /// V105 ROTW empty-item trailer.
-    V105Rotw,
+    /// V105 RotW empty-item trailer.
+    V105RotW,
 }
 
 /// Raw items-section payload placeholder.
@@ -46,12 +46,9 @@ pub struct Placeholder {
     data: Vec<u8>,
 }
 
-/// Store raw item bytes without interpreting them.
+/// Store item bytes without decoding.
 pub fn parse(byte_vector: &[u8]) -> Placeholder {
-    let mut placeholder: Placeholder = Placeholder { data: Vec::<u8>::new() };
-    placeholder.data.extend_from_slice(byte_vector);
-
-    placeholder
+    Placeholder { data: byte_vector.to_vec() }
 }
 
 /// Generate item bytes.
@@ -69,8 +66,8 @@ pub fn generate(
 
     match (empty_layout, mercenary_hired) {
         (EmptyLayout::V105Classic, _) => NO_ITEMS_CLASSIC.to_vec(),
-        (EmptyLayout::V105Rotw, false) => NO_ITEMS_ROTW.to_vec(),
-        (EmptyLayout::V105Rotw, true) => NO_ITEMS_ROTW_MERC.to_vec(),
+        (EmptyLayout::V105RotW, false) => NO_ITEMS_ROTW.to_vec(),
+        (EmptyLayout::V105RotW, true) => NO_ITEMS_ROTW_MERC.to_vec(),
         (EmptyLayout::LegacyExpansion | EmptyLayout::V105Expansion, false) => {
             NO_ITEMS_EXPANSION.to_vec()
         }

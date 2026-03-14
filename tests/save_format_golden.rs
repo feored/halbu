@@ -1,5 +1,5 @@
 use halbu::format::FormatId;
-use halbu::{Class, CompatibilityCode, ExpansionType, Save, Strictness};
+use halbu::{Class, CompatibilityChecks, CompatibilityCode, ExpansionType, Save, Strictness};
 
 fn goldens() -> [(&'static str, &'static [u8], FormatId); 2] {
     [
@@ -29,8 +29,7 @@ fn assert_same_model(left: Save, right: Save, label: &str) {
 
     for save in [&mut left, &mut right] {
         // Ignore format bookkeeping and raw/opaque payload preservation.
-        save.version = 0;
-        save.meta.format = FormatId::Unknown(0);
+        save.set_format(FormatId::Unknown(0));
         save.character.raw_section.clear();
         save.items = halbu::items::Placeholder::default();
     }
@@ -42,7 +41,7 @@ fn assert_same_model(left: Save, right: Save, label: &str) {
 fn strict_parses_goldens() {
     for (name, bytes, expected_format) in goldens() {
         let save = parse_strict_clean(name, bytes);
-        assert_eq!(save.format_id(), expected_format, "{name}: wrong format");
+        assert_eq!(save.format(), expected_format, "{name}: wrong format");
     }
 }
 
@@ -50,10 +49,11 @@ fn strict_parses_goldens() {
 fn same_format_roundtrip_keeps_model() {
     for (name, bytes, format_id) in goldens() {
         let original = parse_strict_clean(name, bytes);
-        let encoded =
-            original.to_bytes_for(format_id).unwrap_or_else(|e| panic!("encode {name}: {e}"));
+        let encoded = original
+            .encode_for(format_id, CompatibilityChecks::Enforce)
+            .unwrap_or_else(|e| panic!("encode {name}: {e}"));
         let reparsed = parse_strict_clean(name, &encoded);
-        assert_eq!(reparsed.format_id(), format_id, "{name}: format drift");
+        assert_eq!(reparsed.format(), format_id, "{name}: format drift");
         assert_same_model(original, reparsed, name);
     }
 }
@@ -62,10 +62,11 @@ fn same_format_roundtrip_keeps_model() {
 fn v105_mode_goldens_roundtrip_semantic() {
     for (name, bytes) in v105_mode_goldens() {
         let original = parse_strict_clean(name, bytes);
-        let encoded =
-            original.to_bytes_for(FormatId::V105).unwrap_or_else(|e| panic!("encode {name}: {e}"));
+        let encoded = original
+            .encode_for(FormatId::V105, CompatibilityChecks::Enforce)
+            .unwrap_or_else(|e| panic!("encode {name}: {e}"));
         let reparsed = parse_strict_clean(name, &encoded);
-        assert_eq!(reparsed.format_id(), FormatId::V105, "{name}: format drift");
+        assert_eq!(reparsed.format(), FormatId::V105, "{name}: format drift");
         assert_same_model(original, reparsed, name);
     }
 }
@@ -76,24 +77,24 @@ fn v99_to_v105_back_to_v99_keeps_model() {
     let start = parse_strict_clean("Joe_v99", source);
 
     let encoded_v105 = start
-        .to_bytes_for(FormatId::V105)
+        .encode_for(FormatId::V105, CompatibilityChecks::Enforce)
         .unwrap_or_else(|e| panic!("encode Joe_v99 -> v105: {e}"));
     let as_v105 = parse_strict_clean("Joe_as_v105", &encoded_v105);
-    assert_eq!(as_v105.format_id(), FormatId::V105, "Joe_as_v105: wrong format");
+    assert_eq!(as_v105.format(), FormatId::V105, "Joe_as_v105: wrong format");
     assert_same_model(start.clone(), as_v105.clone(), "Joe v99 -> v105");
 
     let encoded_v99 = as_v105
-        .to_bytes_for(FormatId::V99)
+        .encode_for(FormatId::V99, CompatibilityChecks::Enforce)
         .unwrap_or_else(|e| panic!("encode Joe_v105 -> v99: {e}"));
     let back_to_v99 = parse_strict_clean("Joe_back_to_v99", &encoded_v99);
-    assert_eq!(back_to_v99.format_id(), FormatId::V99, "Joe_back_to_v99: wrong format");
+    assert_eq!(back_to_v99.format(), FormatId::V99, "Joe_back_to_v99: wrong format");
     assert_same_model(start, back_to_v99, "Joe v99 -> v105 -> v99");
 }
 
 #[test]
 fn warlock_v105_cannot_encode_to_v99() {
     let warlock = parse_strict_clean("Warlock_v105", &include_bytes!("../assets/test/Warlock_v105.d2s")[..]);
-    let encode_result = warlock.to_bytes_for(FormatId::V99);
+    let encode_result = warlock.encode_for(FormatId::V99, CompatibilityChecks::Enforce);
     let error = encode_result.expect_err("Warlock should not encode to v99");
 
     assert!(
@@ -110,8 +111,8 @@ fn check_compatibility_reports_blocking_warlock_to_v99() {
     assert!(
         issues
             .iter()
-            .any(|issue| issue.blocking && issue.code == CompatibilityCode::WarlockRequiresRotw),
-        "expected blocking WarlockRequiresRotw issue, got: {:?}",
+            .any(|issue| issue.blocking && issue.code == CompatibilityCode::WarlockRequiresRotW),
+        "expected blocking WarlockRequiresRotW issue, got: {:?}",
         issues
     );
 }
@@ -126,13 +127,13 @@ fn check_compatibility_reports_blocking_warlock_non_rotw_expansion() {
     assert!(
         issues
             .iter()
-            .any(|issue| issue.blocking && issue.code == CompatibilityCode::WarlockRequiresRotwExpansion),
-        "expected blocking WarlockRequiresRotwExpansion issue, got: {:?}",
+            .any(|issue| issue.blocking && issue.code == CompatibilityCode::WarlockRequiresRotWExpansion),
+        "expected blocking WarlockRequiresRotWExpansion issue, got: {:?}",
         issues
     );
 
     let encode_error = warlock
-        .to_bytes_for(FormatId::V105)
+        .encode_for(FormatId::V105, CompatibilityChecks::Enforce)
         .expect_err("Warlock with non-RotW expansion should not encode");
     assert!(
         encode_error
@@ -153,9 +154,9 @@ fn check_compatibility_reports_blocking_rotw_to_v99() {
             .iter()
             .any(|issue| {
                 issue.blocking
-                    && issue.code == CompatibilityCode::RotwExpansionRequiresRotwEdition
+                    && issue.code == CompatibilityCode::RotWExpansionRequiresRotWEdition
             }),
-        "expected blocking RotwExpansionRequiresRotwEdition issue, got: {:?}",
+        "expected blocking RotWExpansionRequiresRotWEdition issue, got: {:?}",
         issues
     );
 }
@@ -185,7 +186,7 @@ fn expansion_classes_in_classic_mode_cannot_encode() {
         save.set_expansion_type(ExpansionType::Classic);
 
         let error = save
-            .to_bytes_for(FormatId::V105)
+            .encode_for(FormatId::V105, CompatibilityChecks::Enforce)
             .expect_err("expansion-only class in classic mode should not encode");
         assert!(
             error
@@ -219,7 +220,7 @@ fn unknown_class_cannot_encode_to_known_targets() {
 
     for target in [FormatId::V99, FormatId::V105] {
         let error = save
-            .to_bytes_for(target)
+            .encode_for(target, CompatibilityChecks::Enforce)
             .expect_err("unknown class should not encode to known targets");
         assert!(
             error.to_string().contains("Unknown class id 127"),
@@ -229,15 +230,15 @@ fn unknown_class_cannot_encode_to_known_targets() {
 }
 
 #[test]
-fn to_bytes_for_force_bypasses_compatibility_blockers() {
+fn encode_for_force_bypasses_compatibility_blockers() {
     let mut save = Save::new(FormatId::V105, Class::Druid);
     save.set_expansion_type(ExpansionType::Classic);
 
-    save.to_bytes_for(FormatId::V105)
+    save.encode_for(FormatId::V105, CompatibilityChecks::Enforce)
         .expect_err("strict encode should block expansion-only class in classic mode");
 
     let forced = save
-        .to_bytes_for_force(FormatId::V105)
+        .encode_for(FormatId::V105, CompatibilityChecks::Ignore)
         .expect("forced encode should bypass compatibility blockers");
     assert!(!forced.is_empty(), "forced encode should still produce bytes");
 }

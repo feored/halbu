@@ -142,7 +142,7 @@ pub struct BytePosition {
     pub current_bit: usize,
 }
 
-/// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
+/// Write `bits_count` bits (LSB-first) from `bits_source` into `byte_vector`.
 pub fn write_byte(
     byte_vector: &mut Vec<u8>,
     byte_position: &mut BytePosition,
@@ -197,7 +197,7 @@ pub fn write_byte(
     }
 }
 
-/// Write bits_count number of bits (LSB ordering) from bits_source into a vector of u8.
+/// Write `bits_count` bits (LSB-first) from `bits_source` into `byte_vector`.
 pub fn write_bits<T: Into<u32>>(
     byte_vector: &mut Vec<u8>,
     byte_position: &mut BytePosition,
@@ -231,10 +231,9 @@ pub fn write_bits<T: Into<u32>>(
     }
 }
 
-/// Read a certain number of bits in a vector of bytes, starting at a given byte and bit index, and return a u32 with the value.
+/// Read `bits_to_read` bits (LSB-first) from `byte_slice` at `byte_position`.
 ///
-/// The attributes are stored in a packed struct with non-aligned bytes.
-/// Headers for instance contain 9 bits, so they must be read over multiple bytes.
+/// This supports packed bitstreams with non-byte-aligned fields.
 pub fn read_bits(
     byte_slice: &[u8],
     byte_position: &mut BytePosition,

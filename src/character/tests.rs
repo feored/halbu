@@ -179,30 +179,36 @@ mod tests {
         let mut character = Character::default();
         character.class = Class::Amazon;
 
-        character.status = Status { expansion: false, hardcore: false, ladder: false, died: false };
+        character.set_legacy_expansion_flag(false);
+        character.set_hardcore(false);
         character.progression = 4;
         assert_eq!(character.title_d2r(), Some("Dame"));
 
-        character.status = Status { expansion: false, hardcore: true, ladder: false, died: false };
+        character.set_legacy_expansion_flag(false);
+        character.set_hardcore(true);
         character.progression = 12;
         assert_eq!(character.title_d2r(), Some("Queen"));
 
-        character.status = Status { expansion: true, hardcore: false, ladder: false, died: false };
+        character.set_legacy_expansion_flag(true);
+        character.set_hardcore(false);
         character.progression = 10;
         assert_eq!(character.title_d2r(), Some("Champion"));
 
-        character.status = Status { expansion: true, hardcore: true, ladder: false, died: false };
+        character.set_legacy_expansion_flag(true);
+        character.set_hardcore(true);
         character.progression = 15;
         assert_eq!(character.title_d2r(), Some("Guardian"));
 
         // Warlock uses male title variants.
         character.class = Class::Warlock;
-        character.status = Status { expansion: false, hardcore: false, ladder: false, died: false };
+        character.set_legacy_expansion_flag(false);
+        character.set_hardcore(false);
         character.progression = 12;
         assert_eq!(character.title_d2r(), Some("Baron"));
 
         // Expansion normally skips these values.
-        character.status = Status { expansion: true, hardcore: false, ladder: false, died: false };
+        character.set_legacy_expansion_flag(true);
+        character.set_hardcore(false);
         character.progression = 9;
         assert_eq!(character.title_d2r(), None);
     }

@@ -2,11 +2,11 @@
 The following is a list of my own observations from testing the editor on D2R patch 2.7, including added details and updates for behavior that changed in D2R. 
 
 
-## ROTW
+## RotW
 
 All testing done on v105.
 
-Character section offset 232 (absolute file offset 248) now contains information for whether the character is in classic (1), expansion (2) or ROTW (3) mode.
+Character section offset 232 (absolute file offset 248) now contains information for whether the character is in classic (1), expansion (2), or RotW (3) mode.
 
 The legacy status expansion bit in character section must be set to 0 or the game will fail to load.
 

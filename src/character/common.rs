@@ -7,11 +7,13 @@ pub(crate) fn read_range<'a>(
     range: Range<usize>,
     field_name: &str,
 ) -> Result<&'a [u8], ParseHardError> {
-    bytes.get(range.clone()).ok_or_else(|| ParseHardError {
+    let start = range.start;
+    let end = range.end;
+    bytes.get(start..end).ok_or_else(|| ParseHardError {
         message: format!(
             "Character field {field_name} is out of bounds: requested {}..{}, available length {}.",
-            range.start,
-            range.end,
+            start,
+            end,
             bytes.len()
         ),
     })
@@ -105,14 +107,16 @@ pub(crate) fn write_exact_bytes(
     source_bytes: &[u8],
     field_name: &str,
 ) -> Result<(), ParseHardError> {
-    let target_slice = write_range(bytes, range.clone(), field_name)?;
+    let start = range.start;
+    let end = range.end;
+    let target_slice = write_range(bytes, start..end, field_name)?;
     if source_bytes.len() != target_slice.len() {
         return Err(ParseHardError {
             message: format!(
                 "Character field {field_name} length mismatch: target {} bytes for range {}..{}, source {} bytes.",
                 target_slice.len(),
-                range.start,
-                range.end,
+                start,
+                end,
                 source_bytes.len()
             ),
         });

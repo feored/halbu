@@ -54,7 +54,6 @@ mod tests {
         let header: u32 = 0; // strength
         let value: u32 = 30;
 
-        //write_u8(&mut result, &mut byte_position, 7, 8);
         write_bits(&mut result, &mut byte_position, header, 9).expect("header should write");
         write_bits(&mut result, &mut byte_position, value, 10).expect("value should write");
         write_bits(&mut result, &mut byte_position, 1u32, 9).expect("header should write");
@@ -75,7 +74,7 @@ mod tests {
     }
 
     #[test]
-    fn test_convenience_resource_setters_use_q8() {
+    fn test_resource_setters_use_q8() {
         let mut attributes = Attributes::default();
 
         attributes.set_hp(1234);
@@ -98,5 +97,15 @@ mod tests {
         assert_eq!(attributes.get_max_mana(), 456);
         assert_eq!(attributes.get_stamina(), 567);
         assert_eq!(attributes.get_max_stamina(), 678);
+    }
+
+    #[test]
+    fn test_typed_stat_access() {
+        let attributes = Attributes::default();
+
+        let strength = attributes.stat(AttributeId::Strength);
+        assert_eq!(strength.id, AttributeId::Strength.id());
+        assert_eq!(strength.name, AttributeId::Strength.name());
+        assert_eq!(strength.bit_length, AttributeId::Strength.bit_length());
     }
 }

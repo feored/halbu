@@ -12,7 +12,7 @@
 //! Diablo II save-file library focused on practical editing workflows.
 //!
 //! `halbu` parses, edits, and writes D2R save data while preserving unknown/raw bytes
-//! where possible so files can roundtrip cleanly.
+//! so saves can round-trip through the library.
 //!
 //! Supported top-level save layouts:
 //! - [`format::FormatId::V99`]
@@ -24,18 +24,18 @@
 //!
 //! # Quick start
 //! ```rust,no_run
-//! use halbu::{Save, Strictness};
+//! use halbu::{CompatibilityChecks, Save, Strictness};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let bytes = std::fs::read("Hero.d2s")?;
 //!     let parsed = Save::parse(&bytes, Strictness::Strict)?;
 //!     let mut save = parsed.save;
-//!     let target_format = save.format_id();
+//!     let target_format = save.format();
 //!
 //!     save.character.name = "Demo".to_string();
 //!     save.set_level(10);
 //!
-//!     let output = save.to_bytes_for(target_format)?;
+//!     let output = save.encode_for(target_format, CompatibilityChecks::Enforce)?;
 //!     let reparsed = Save::parse(&output, Strictness::Strict)?;
 //!
 //!     Ok(())
@@ -65,7 +65,7 @@ pub mod items;
 pub mod npcs;
 /// Quest section model.
 pub mod quests;
-/// Skill section model and optional default-D2R name helpers.
+/// Skill section model and default D2R name mapping.
 pub mod skills;
 /// Internal byte utilities shared across sections.
 pub mod utils;
@@ -78,8 +78,8 @@ const CHECKSUM_END: usize = 16;
 use crate::format::FormatId;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Default)]
-pub struct SaveMeta {
-    /// Layout selected/observed for this save model.
+struct SaveMeta {
+    /// Format id selected/observed for this save model.
     #[serde(default)]
     pub format: FormatId,
 }
@@ -185,11 +185,11 @@ pub struct ParsedSave {
 pub struct SaveSummary {
     /// Numeric version stored in the file header when readable.
     pub version: Option<u32>,
-    /// Detected format id from header version when readable.
+    /// Detected format id (`FormatId`) from the header version when readable.
     pub format: Option<FormatId>,
-    /// Edition inferred from detected format family.
+    /// Edition family inferred from known format ids.
     pub edition: Option<GameEdition>,
-    /// Character expansion mode inferred using format-specific logic.
+    /// Character expansion mode inferred using format-specific rules.
     pub expansion_type: Option<ExpansionType>,
     /// Character name from the character section.
     pub name: Option<String>,
@@ -197,7 +197,7 @@ pub struct SaveSummary {
     pub class: Option<Class>,
     /// Character level from the character section.
     pub level: Option<u8>,
-    /// Convenience title derived from progression/class/expansion/hardcore.
+    /// Character title derived from progression/class/expansion/hardcore using default D2R rules.
     pub title: Option<String>,
     /// Non-fatal issues collected during summarize in lax mode.
     pub issues: Vec<ParseIssue>,
@@ -229,12 +229,22 @@ pub enum Strictness {
     Lax,
 }
 
+/// Controls whether compatibility checks are enforced during encoding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CompatibilityChecks {
+    /// Block encoding when compatibility checks report blocking issues.
+    #[default]
+    Enforce,
+    /// Skip compatibility checks and encode anyway.
+    Ignore,
+}
+
 /// Stable identifier for a save compatibility rule.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompatibilityCode {
-    WarlockRequiresRotw,
-    WarlockRequiresRotwExpansion,
-    RotwExpansionRequiresRotwEdition,
+    WarlockRequiresRotW,
+    WarlockRequiresRotWExpansion,
+    RotWExpansionRequiresRotWEdition,
     ExpansionClassRequiresExpansionMode,
     UnknownClassRequiresKnownTarget,
 }
@@ -250,14 +260,18 @@ pub struct CompatibilityIssue {
 
 /// Full in-memory save model.
 ///
-/// Unknown payloads for currently unmodeled sections are preserved in placeholder structs.
+/// Unknown payloads for unmodeled sections are preserved in placeholder structs.
+/// Invariants:
+/// - `format()` and `version()` are synchronized through `set_format`.
+/// - `expansion_type()` is canonical and must be changed through `set_expansion_type`.
+/// - Character/attribute level must be changed through `set_level`.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Save {
     /// Numeric version stored in the file header.
-    pub version: u32,
-    /// Canonical character expansion type for this save model.
+    version: u32,
+    /// Canonical character expansion mode for this save model.
     #[serde(default)]
-    pub expansion_type: ExpansionType,
+    expansion_type: ExpansionType,
     /// Character section.
     pub character: Character,
     /// Quests section.
@@ -274,7 +288,7 @@ pub struct Save {
     pub items: items::Placeholder,
     /// Auxiliary metadata kept by this library.
     #[serde(default)]
-    pub meta: SaveMeta,
+    meta: SaveMeta,
 }
 
 impl Default for Save {
@@ -304,18 +318,22 @@ impl fmt::Display for Save {
         final_string.push_str(&format!("Character:\n{0}\n", self.character));
         final_string.push_str(&format!("Quests:\n{0}\n", self.quests));
         final_string.push_str(&format!("Waypoints:\n{0}\n", self.waypoints));
-        //final_string.push_str(&format!("NPCs:\n {0:?}\n", self.npcs));
         final_string.push_str(&format!("Attributes:\n{0}\n", self.attributes));
         final_string.push_str(&format!("Skills:\n{0}\n", self.skills));
-        //final_string.push_str(&format!("Items:\n {0:?}\n", self.items));
         write!(f, "{0}", final_string)
     }
 }
 
 impl Save {
-    /// Formats this library can currently encode/write.
-    pub const fn supported_output_formats() -> [FormatId; 2] {
-        FormatId::encodable_formats()
+    fn apply_expansion_type_for_format(&mut self, format: FormatId, expansion_type: ExpansionType) {
+        self.expansion_type = expansion_type;
+        if format == FormatId::V99 {
+            self.character
+                .set_legacy_expansion_flag(!matches!(expansion_type, ExpansionType::Classic));
+        } else if matches!(format, FormatId::V105 | FormatId::Unknown(_)) {
+            // For v105, mode marker is canonical and status bit is ignored/preserved.
+            character::v105::set_expansion_type(&mut self.character, expansion_type);
+        }
     }
 
     /// Build a new blank save for a target format/class.
@@ -327,7 +345,7 @@ impl Save {
             Some(GameEdition::RotW) => ExpansionType::RotW,
             Some(GameEdition::D2RLegacy) | None => ExpansionType::Expansion,
         };
-        character.status.set_expansion(!matches!(expansion_type, ExpansionType::Classic));
+        character.set_legacy_expansion_flag(!matches!(expansion_type, ExpansionType::Classic));
 
         Save {
             version: format.version(),
@@ -347,33 +365,26 @@ impl Save {
         self.meta.format
     }
 
+    /// Header version synchronized with the save format.
+    pub fn version(&self) -> u32 {
+        self.version
+    }
+
     /// Set output format and synchronize the numeric version field.
     pub fn set_format(&mut self, format: FormatId) {
-        self.set_format_id(format);
-    }
-
-    pub fn format_id(&self) -> FormatId {
-        self.meta.format
-    }
-
-    /// Set output format and synchronize the numeric version field.
-    pub fn set_format_id(&mut self, format: FormatId) {
         self.meta.format = format;
         self.version = format.version();
     }
 
     pub fn game_edition(&self) -> Option<GameEdition> {
-        self.format_id().edition()
+        self.format().edition()
     }
 
     /// Set both character level fields kept in separate sections.
-    ///
-    /// This updates:
-    /// - `character.level`
-    /// - `attributes.level.value`
+    /// This updates both `character.level` and `attributes.level.value`.
     pub fn set_level(&mut self, level: u8) {
-        self.character.level = level;
-        self.attributes.level.value = level as u32;
+        self.character.set_level(level);
+        self.attributes.set_level(level);
     }
 
     pub fn expansion_type(&self) -> ExpansionType {
@@ -381,23 +392,21 @@ impl Save {
     }
 
     pub fn set_expansion_type(&mut self, expansion_type: ExpansionType) {
-        self.expansion_type = expansion_type;
-        if self.format_id() == FormatId::V99 {
-            self.character.status.set_expansion(!matches!(expansion_type, ExpansionType::Classic));
-        } else if matches!(self.format_id(), FormatId::V105 | FormatId::Unknown(_)) {
-            // For v105, mode marker is canonical and status bit is ignored/preserved.
-            character::v105::set_expansion_type(&mut self.character, expansion_type);
-        }
+        self.apply_expansion_type_for_format(self.format(), expansion_type);
+    }
+
+    /// Internal decode path: apply expansion semantics from the selected layout.
+    pub(crate) fn set_expansion_type_for_format(
+        &mut self,
+        format: FormatId,
+        expansion_type: ExpansionType,
+    ) {
+        self.apply_expansion_type_for_format(format, expansion_type);
     }
 
     /// Parse a save with explicit strictness.
     pub fn parse(byte_slice: &[u8], strictness: Strictness) -> Result<ParsedSave, ParseHardError> {
-        format::decode_with_strictness(byte_slice, strictness)
-    }
-
-    /// Parse a save in lax mode.
-    pub fn parse_lax(byte_slice: &[u8]) -> Result<ParsedSave, ParseHardError> {
-        Self::parse(byte_slice, Strictness::Lax)
+        format::decode(byte_slice, strictness)
     }
 
     /// Summarize only top-level header + character fields.
@@ -405,29 +414,16 @@ impl Save {
         byte_slice: &[u8],
         strictness: Strictness,
     ) -> Result<SaveSummary, ParseHardError> {
-        format::summarize_with_strictness(byte_slice, strictness)
+        format::summarize(byte_slice, strictness)
     }
 
-    /// Summarize a save in lax mode.
-    pub fn summarize_lax(byte_slice: &[u8]) -> Result<SaveSummary, ParseHardError> {
-        Self::summarize(byte_slice, Strictness::Lax)
-    }
-
-    /// Encode using the explicit `version` field when recognized, otherwise `meta.format`.
-    pub fn to_bytes(&self) -> Result<Vec<u8>, EncodeError> {
-        let explicit_format = FormatId::from_version(self.version);
-        let target_format = explicit_format.unwrap_or(self.meta.format);
-        self.to_bytes_for(target_format)
-    }
-
-    /// Encode to a specific output format.
-    pub fn to_bytes_for(&self, format: FormatId) -> Result<Vec<u8>, EncodeError> {
-        format::encode(self, format)
-    }
-
-    /// Encode to a specific output format, bypassing compatibility checks.
-    pub fn to_bytes_for_force(&self, format: FormatId) -> Result<Vec<u8>, EncodeError> {
-        format::encode_force(self, format)
+    /// Encode to a specific output format with an explicit compatibility policy.
+    pub fn encode_for(
+        &self,
+        format: FormatId,
+        compatibility_checks: CompatibilityChecks,
+    ) -> Result<Vec<u8>, EncodeError> {
+        format::encode(self, format, compatibility_checks)
     }
 
     /// Return compatibility findings for encoding this save to `target`.
@@ -630,7 +626,7 @@ mod tests {
             Err(e) => panic!("File invalid: {e:?}"),
         };
 
-        let _save = Save::parse_lax(&save_file).expect("save should parse");
+        let _save = Save::parse(&save_file, Strictness::Lax).expect("save should parse");
     }
 
     #[test]
@@ -638,8 +634,8 @@ mod tests {
         let mut save = Save::default();
         save.set_level(75);
 
-        assert_eq!(save.character.level, 75);
-        assert_eq!(save.attributes.level.value, 75);
+        assert_eq!(save.character.level(), 75);
+        assert_eq!(save.attributes.level(), 75);
     }
 
     #[test]
@@ -656,21 +652,21 @@ mod tests {
         let mut save = Save::new(FormatId::V99, Class::Amazon);
         assert_eq!(save.game_edition(), Some(GameEdition::D2RLegacy));
 
-        save.set_format_id(FormatId::V105);
+        save.set_format(FormatId::V105);
         assert_eq!(save.game_edition(), Some(GameEdition::RotW));
 
-        save.set_format_id(FormatId::Unknown(1234));
+        save.set_format(FormatId::Unknown(1234));
         assert_eq!(save.game_edition(), None);
     }
 
     #[test]
     fn set_expansion_type_updates_v105_mode_marker_without_touching_status_bit() {
         let mut save = Save::new(FormatId::V105, Class::Amazon);
-        save.character.status.set_expansion(false);
+        save.character.set_legacy_expansion_flag(false);
 
         save.set_expansion_type(ExpansionType::Classic);
         assert_eq!(save.expansion_type(), ExpansionType::Classic);
-        assert!(!save.character.status.is_expansion());
+        assert!(!save.character.status().is_expansion());
         assert_eq!(
             character::v105::mode_marker(&save.character),
             Some(character::v105::MODE_CLASSIC)
@@ -678,7 +674,7 @@ mod tests {
 
         save.set_expansion_type(ExpansionType::Expansion);
         assert_eq!(save.expansion_type(), ExpansionType::Expansion);
-        assert!(!save.character.status.is_expansion());
+        assert!(!save.character.status().is_expansion());
         assert_eq!(
             character::v105::mode_marker(&save.character),
             Some(character::v105::MODE_EXPANSION)
@@ -686,7 +682,7 @@ mod tests {
 
         save.set_expansion_type(ExpansionType::RotW);
         assert_eq!(save.expansion_type(), ExpansionType::RotW);
-        assert!(!save.character.status.is_expansion());
+        assert!(!save.character.status().is_expansion());
         assert_eq!(
             character::v105::mode_marker(&save.character),
             Some(character::v105::MODE_ROTW)
@@ -696,12 +692,12 @@ mod tests {
     #[test]
     fn set_expansion_type_updates_v99_status_bit() {
         let mut save = Save::new(FormatId::V99, Class::Amazon);
-        save.character.status.set_expansion(false);
+        save.character.set_legacy_expansion_flag(false);
 
         save.set_expansion_type(ExpansionType::Expansion);
-        assert!(save.character.status.is_expansion());
+        assert!(save.character.status().is_expansion());
 
         save.set_expansion_type(ExpansionType::Classic);
-        assert!(!save.character.status.is_expansion());
+        assert!(!save.character.status().is_expansion());
     }
 }

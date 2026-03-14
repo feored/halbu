@@ -1,6 +1,6 @@
-//! Optional default-D2R skill-name mapping helpers.
+//! Default D2R skill-name mapping.
 //!
-//! These helpers are convenience only. For modded trees, use raw index APIs.
+//! For modded trees, use raw index APIs.
 
 use std::fmt;
 
@@ -272,7 +272,7 @@ const WARLOCK_SKILLS: [&str; 30] = [
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NamedSkillError {
-    /// Class has no built-in D2R name table in this helper.
+    /// Class has no built-in D2R name table in this mapping.
     UnsupportedClass(Class),
     /// Name was not found in the class table after normalization.
     UnknownSkillName { class: Class, skill_name: String },
@@ -319,10 +319,6 @@ pub fn d2r_skill_index(class: Class, skill_name: &str) -> Result<usize, NamedSki
         });
     }
 
-    if let Some(index) = legacy_alias_index(class, &normalized_query) {
-        return Ok(index);
-    }
-
     let class_skills = d2r_skills_for_class(class)?;
     class_skills
         .iter()
@@ -349,31 +345,4 @@ fn normalize_name(skill_name: &str) -> String {
         .chars()
         .filter_map(|c| c.is_ascii_alphanumeric().then_some(c.to_ascii_lowercase()))
         .collect()
-}
-
-fn legacy_alias_index(class: Class, normalized_query: &str) -> Option<usize> {
-    match class {
-        Class::Amazon => match normalized_query {
-            "dopplezon" => Some(22),
-            _ => None,
-        },
-        Class::Druid => match normalized_query {
-            "wearwolf" => Some(2),
-            "wearbear" => Some(7),
-            "cycleoflife" => Some(10),
-            "summonfenris" => Some(16),
-            "eruption" => Some(13),
-            "vines" => Some(20),
-            _ => None,
-        },
-        Class::Assassin => match normalized_query {
-            "shockfield" => Some(5),
-            "quickness" => Some(7),
-            "wakeoffiresentry" => Some(11),
-            "infernosentry" => Some(21),
-            "royalstrike" => Some(29),
-            _ => None,
-        },
-        _ => None,
-    }
 }

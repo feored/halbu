@@ -78,7 +78,7 @@ pub struct DifficultyWaypoints {
 }
 
 impl Act4Waypoints {
-    /// Set whether single waypoint is acquired using WaypointID
+    /// Set one waypoint by id.
     pub fn set(&mut self, wp_id: Waypoint, acquired: bool) {
         for wp in self.0.iter_mut() {
             if wp.id == wp_id {
@@ -86,22 +86,17 @@ impl Act4Waypoints {
             }
         }
     }
-    /// Get whether a single waypoint is acquired using WaypointID
+    /// Read one waypoint by id.
     pub fn get(&self, wp_id: Waypoint) -> bool {
-        for wp in self.0.clone().into_iter() {
-            if wp.id == wp_id {
-                return wp.acquired;
-            }
-        }
-        false
+        self.0.iter().any(|wp| wp.id == wp_id && wp.acquired)
     }
-    /// Set whether all waypoints in this act are acquired
+    /// Set all waypoints in this act.
     pub fn set_all(&mut self, acquired: bool) {
         for wp in self.0.iter_mut() {
             wp.acquired = acquired;
         }
     }
-    /// Set whether single waypoint is acquired
+    /// Set one waypoint by index.
     pub fn set_num(&mut self, index: usize, acquired: bool) -> Result<(), ParseHardError> {
         if index >= self.0.len() {
             return Err(ParseHardError {
@@ -114,7 +109,7 @@ impl Act4Waypoints {
         self.0[index].acquired = acquired;
         Ok(())
     }
-    /// Get whether a single waypoint is acquired
+    /// Read one waypoint by index.
     pub fn get_num(&self, index: usize) -> Result<bool, ParseHardError> {
         if index >= self.0.len() {
             return Err(ParseHardError {
@@ -129,13 +124,13 @@ impl Act4Waypoints {
 }
 
 impl ActWaypoints {
-    /// Set whether all waypoints in this act are acquired
+    /// Set all waypoints in this act.
     pub fn set_all(&mut self, acquired: bool) {
         for wp in self.0.iter_mut() {
             wp.acquired = acquired;
         }
     }
-    /// Set whether single waypoint is acquired using WaypointID
+    /// Set one waypoint by id.
     pub fn set(&mut self, wp_id: Waypoint, acquired: bool) {
         for wp in self.0.iter_mut() {
             if wp.id == wp_id {
@@ -143,17 +138,12 @@ impl ActWaypoints {
             }
         }
     }
-    /// Get whether a single waypoint is acquired using WaypointID
+    /// Read one waypoint by id.
     pub fn get(&self, wp_id: Waypoint) -> bool {
-        for wp in self.0.clone().into_iter() {
-            if wp.id == wp_id {
-                return wp.acquired;
-            }
-        }
-        false
+        self.0.iter().any(|wp| wp.id == wp_id && wp.acquired)
     }
 
-    /// Set whether single waypoint is acquired
+    /// Set one waypoint by index.
     pub fn set_num(&mut self, index: usize, acquired: bool) -> Result<(), ParseHardError> {
         if index >= self.0.len() {
             return Err(ParseHardError {
@@ -166,7 +156,7 @@ impl ActWaypoints {
         self.0[index].acquired = acquired;
         Ok(())
     }
-    /// Get whether a single waypoint is acquired
+    /// Read one waypoint by index.
     pub fn get_num(&self, index: usize) -> Result<bool, ParseHardError> {
         if index >= self.0.len() {
             return Err(ParseHardError {

@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let strict = Save::parse(&bytes, Strictness::Strict)?;
     println!(
         "Strict parse OK: format={:?}, name={}",
-        strict.save.format_id(),
+        strict.save.format(),
         strict.save.character.name
     );
 

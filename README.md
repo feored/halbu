@@ -9,7 +9,7 @@ This library serves as the backend for **[Halbu Editor](https://github.com/feore
 ## Features
 
 - Parse and modify `.d2s` save files
-- Supports both D2R Legacy and RotW save formats (99/105 at the moment)
+- Supports both D2R Legacy and RotW save format versions (v99/v105)
 - Edit:
   - character data
   - attributes
@@ -26,7 +26,7 @@ Some sections of the save format are not yet modeled:
 - Items
 - NPC section
 
-These sections are currently stored as raw bytes. The library tries to preserve them when writing the file back, but exact round-tripping is not guaranteed.
+These sections are stored as raw bytes. The library preserves them when writing, but exact round-tripping is not guaranteed.
 
 
 ## Installation
@@ -38,18 +38,22 @@ cargo add halbu
 ## Quick start
 
 ```rust
-use halbu::{Save, Strictness};
+use halbu::{CompatibilityChecks, Save, Strictness};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bytes = std::fs::read("Hero.d2s")?;
 
     let parsed = Save::parse(&bytes, Strictness::Strict)?;
     let mut save = parsed.save;
+    let target_format = save.format();
 
     save.character.name = "Halbu".to_string();
     save.skills.set_all(20);
 
-    std::fs::write("Halbu.d2s", save.to_bytes()?)?;
+    std::fs::write(
+        "Halbu.d2s",
+        save.encode_for(target_format, CompatibilityChecks::Enforce)?,
+    )?;
 
     Ok(())
 }
@@ -67,6 +71,15 @@ if !parsed.issues.is_empty() {
 ```
 
 More examples can be found in `examples/`.
+
+Typed attribute access:
+
+```rust
+use halbu::attributes::AttributeId;
+
+let strength = save.attributes.stat(AttributeId::Strength).value;
+let experience = save.attributes.stat(AttributeId::Experience).value;
+```
 
 ## Fast summary
 
@@ -88,12 +101,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Compatibility checks
+## Compatibility and forced encode
 
-Before converting formats, check compatibility findings:
+Use compatibility checks before conversion.  
+`encode_for(..., CompatibilityChecks::Enforce)` blocks on incompatible conversions.  
+`encode_for(..., CompatibilityChecks::Ignore)` bypasses those checks and should only be used intentionally.
 
 ```rust
-use halbu::{Save, Strictness};
+use halbu::{CompatibilityChecks, Save, Strictness};
 use halbu::format::FormatId;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -107,26 +122,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Compatibility issues: {issues:?}");
     }
 
-    Ok(())
-}
-```
-
-## Forced encode
-
-`to_bytes_for(...)` enforces compatibility checks.  
-`to_bytes_for_force(...)` bypasses compatibility checks and should only be used intentionally.
-
-```rust
-use halbu::{Save, Strictness};
-use halbu::format::FormatId;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let bytes = std::fs::read("Hero.d2s")?;
-    let parsed = Save::parse(&bytes, Strictness::Strict)?;
-    let save = parsed.save;
-
-    let forced = save.to_bytes_for_force(FormatId::V105)?;
-    std::fs::write("Hero-forced.d2s", forced)?;
+    let forced = save.encode_for(target, CompatibilityChecks::Ignore)?;
+    std::fs::write("Hero.d2s", forced)?;
 
     Ok(())
 }
@@ -140,18 +137,20 @@ https://docs.rs/halbu
  
 ## Notes
 
-Halbu models two related concepts:
+Halbu models three related concepts:
 
-- `GameEdition`: `D2RLegacy` or `RotW` (derived from save format/version)
-- `ExpansionType`: `Classic`, `Expansion`, or `RotW` (canonical on `Save` as `save.expansion_type`)
+- `FormatId`: concrete file format version/layout (`V99`, `V105`, or `Unknown(version)`)
+- `GameEdition`: edition family (`D2RLegacy` or `RotW`), derived from known `FormatId` values
+- `ExpansionType`: `Classic`, `Expansion`, or `RotW` (canonical on `Save` as `save.expansion_type()`)
 
-Known layout versions currently mapped by this crate:
+Known layout versions mapped by this crate:
 
 - `v99` -> `D2RLegacy`
 - `v105` -> `RotW`
 
-Use `save.expansion_type()` / `save.set_expansion_type(...)` to read/write character mode.
+Use `save.expansion_type()` / `save.set_expansion_type(...)` to read/write expansion mode.
 Use `save.game_edition()` to inspect the edition family.
+Use `save.character.status()` to inspect status bits, and `save.character.set_hardcore(...)` / `set_ladder(...)` / `set_died(...)` for status mutations.
 
 Level is stored in both the character section and the attributes section. Use `save.set_level(...)` to keep them in sync.
 
