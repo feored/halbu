@@ -1,6 +1,4 @@
-use crate::{
-    CompatibilityCode, CompatibilityIssue, EncodeError, ExpansionType, GameEdition, Save,
-};
+use crate::{CompatibilityCode, CompatibilityIssue, EncodeError, ExpansionType, GameEdition, Save};
 
 use super::FormatId;
 
@@ -74,17 +72,16 @@ pub(crate) fn compatibility_issues(save: &Save, target: FormatId) -> Vec<Compati
     issues
 }
 
-pub(crate) fn validate_encode_compatibility(save: &Save, target: FormatId) -> Result<(), EncodeError> {
+pub(crate) fn validate_encode_compatibility(
+    save: &Save,
+    target: FormatId,
+) -> Result<(), EncodeError> {
     let errors: Vec<CompatibilityIssue> =
         compatibility_issues(save, target).into_iter().filter(|issue| issue.blocking).collect();
     if errors.is_empty() {
         return Ok(());
     }
 
-    let message = errors
-        .iter()
-        .map(|issue| issue.message.as_str())
-        .collect::<Vec<_>>()
-        .join(" ");
+    let message = errors.iter().map(|issue| issue.message.as_str()).collect::<Vec<_>>().join(" ");
     Err(EncodeError::new(message))
 }

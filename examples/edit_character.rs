@@ -15,7 +15,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut save = parsed.save;
     let target_format = save.format();
 
-    println!("Loaded {:?} / {} / lvl {}", target_format, save.character.name, save.character.level());
+    println!(
+        "Loaded {:?} / {} / lvl {}",
+        target_format,
+        save.character.name,
+        save.character.level()
+    );
 
     // Keep file name and in-game name aligned for easy in-game testing.
     save.character.name = output_name.to_string();
@@ -74,7 +79,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Wrote {output_path}");
     println!(
         "Now: {} / lvl {} / {:?} {:?}",
-        save.character.name, save.character.level(), save.character.difficulty, save.character.act
+        save.character.name,
+        save.character.level(),
+        save.character.difficulty,
+        save.character.act
     );
     println!(
         "Stats: str={} dex={} vit={} ene={}",

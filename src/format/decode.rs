@@ -7,9 +7,10 @@ use crate::skills::{SkillPoints, SKILLS_SECTION_LENGTH};
 use crate::utils::BytePosition;
 use crate::waypoints::Waypoints;
 use crate::{
-    IssueKind, IssueSeverity, ParseHardError, ParseIssue, ParsedSave, Save, Strictness,
+    GameEdition, IssueKind, IssueSeverity, ParseHardError, ParseIssue, ParsedSave, Save, Strictness,
 };
 
+use super::edition_hint::detect_edition_hint;
 use super::layout::{
     checksum_metadata, expansion_type_from_decoded_character, layout_for_decode, push_issue,
     range_readable, read_version, section_name_option, NPCS_LENGTH, QUESTS_LENGTH, SIGNATURE,
@@ -18,15 +19,22 @@ use super::layout::{
 use super::FormatId;
 
 /// Decode a save with configurable strictness.
-pub(crate) fn decode(
-    bytes: &[u8],
-    strictness: Strictness,
-) -> Result<ParsedSave, ParseHardError> {
+pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave, ParseHardError> {
     let mut parsed_save = Save::default();
     let mut issues: Vec<ParseIssue> = Vec::new();
     let (header_checksum, computed_checksum) = checksum_metadata(bytes);
-    let finalize = |save: Save, issues: Vec<ParseIssue>| ParsedSave {
+    let mut detected_format = parsed_save.format();
+    let mut decoded_layout = FormatId::V99;
+    let mut edition_hint: Option<GameEdition> = None;
+    let finalize = |save: Save,
+                    issues: Vec<ParseIssue>,
+                    detected_format: FormatId,
+                    decoded_layout: FormatId,
+                    edition_hint: Option<GameEdition>| ParsedSave {
         save,
+        detected_format,
+        decoded_layout,
+        edition_hint,
         issues,
         header_checksum,
         computed_checksum,
@@ -38,7 +46,7 @@ pub(crate) fn decode(
                 message: "Cannot parse save: signature section is truncated.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
 
@@ -70,15 +78,19 @@ pub(crate) fn decode(
                 message: "Cannot parse save: version section is truncated.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
 
     let version = read_version(bytes);
-    let detected_format = FormatId::from_version(version).unwrap_or(FormatId::Unknown(version));
+    detected_format = FormatId::from_version(version).unwrap_or(FormatId::Unknown(version));
+    if matches!(detected_format, FormatId::Unknown(_)) {
+        edition_hint = detect_edition_hint(bytes);
+    }
     parsed_save.set_format(detected_format);
 
     let selected_layout = layout_for_decode(detected_format, bytes, strictness, &mut issues)?;
+    decoded_layout = selected_layout.format_id();
 
     if bytes.len() < selected_layout.minimum_decode_size() {
         push_issue(
@@ -105,7 +117,7 @@ pub(crate) fn decode(
                 message: "Cannot parse save: character section is truncated.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
 
@@ -116,8 +128,10 @@ pub(crate) fn decode(
     match character_parse_result {
         Ok(parsed_character) => {
             parsed_save.character = parsed_character;
-            let expansion_type =
-                expansion_type_from_decoded_character(selected_layout.format_id(), &parsed_save.character);
+            let expansion_type = expansion_type_from_decoded_character(
+                selected_layout.format_id(),
+                &parsed_save.character,
+            );
             parsed_save.set_expansion_type_for_format(selected_layout.format_id(), expansion_type);
         }
         Err(parse_error) => {
@@ -147,7 +161,7 @@ pub(crate) fn decode(
                 message: "Cannot parse save: quests section is truncated.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
     match Quests::parse(&bytes[quests_range.start..quests_range.end]) {
@@ -179,7 +193,7 @@ pub(crate) fn decode(
                 message: "Cannot parse save: waypoints section is truncated.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
     match Waypoints::parse(&bytes[waypoints_range.start..waypoints_range.end]) {
@@ -211,7 +225,7 @@ pub(crate) fn decode(
                 message: "Cannot parse save: NPC section is truncated.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
     match NPCs::parse(&bytes[npcs_range.start..npcs_range.end]) {
@@ -257,7 +271,7 @@ pub(crate) fn decode(
                 message: "Cannot parse save: attributes offset is out of bounds.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
 
@@ -282,7 +296,7 @@ pub(crate) fn decode(
                 message: "Cannot parse save: attributes section header is truncated.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
 
@@ -305,11 +319,18 @@ pub(crate) fn decode(
 
             if strictness == Strictness::Strict {
                 return Err(ParseHardError {
-                    message: "Cannot parse save: attributes section payload is invalid.".to_string(),
+                    message: "Cannot parse save: attributes section payload is invalid."
+                        .to_string(),
                 });
             }
 
-            return Ok(finalize(parsed_save, issues));
+            return Ok(finalize(
+                parsed_save,
+                issues,
+                detected_format,
+                decoded_layout,
+                edition_hint,
+            ));
         }
     }
 
@@ -335,7 +356,7 @@ pub(crate) fn decode(
                 message: "Cannot parse save: skills section is truncated.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
 
@@ -381,11 +402,11 @@ pub(crate) fn decode(
                 message: "Cannot parse save: items section is out of bounds.".to_string(),
             })
         } else {
-            Ok(finalize(parsed_save, issues))
+            Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
         };
     }
 
     parsed_save.items = items::parse(&bytes[items_offset..]);
 
-    Ok(finalize(parsed_save, issues))
+    Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
 }

@@ -36,35 +36,19 @@ impl Section {
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum WaypointError {
-    WrongAct {
-        waypoint: Waypoint,
-        expected: Act,
-        actual: Act,
-    },
-    IndexOutOfRange {
-        act: Act,
-        index: u8,
-        max_index: u8,
-    },
+    WrongAct { waypoint: Waypoint, expected: Act, actual: Act },
+    IndexOutOfRange { act: Act, index: u8, max_index: u8 },
 }
 
 impl fmt::Display for WaypointError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::WrongAct {
-                waypoint,
-                expected,
-                actual,
-            } => write!(
+            Self::WrongAct { waypoint, expected, actual } => write!(
                 f,
                 "Waypoint {:?} belongs to {:?}; expected {:?}.",
                 waypoint, actual, expected
             ),
-            Self::IndexOutOfRange {
-                act,
-                index,
-                max_index,
-            } => write!(
+            Self::IndexOutOfRange { act, index, max_index } => write!(
                 f,
                 "Waypoint index {index} is out of range for {:?}; expected 0..={max_index}.",
                 act
@@ -100,9 +84,7 @@ mod waypoint_state_array {
         let waypoints = Vec::<WaypointState>::deserialize(deserializer)?;
         let found = waypoints.len();
         waypoints.try_into().map_err(|_| {
-            D::Error::custom(format!(
-                "Expected {WAYPOINT_COUNT} waypoints, found {found}."
-            ))
+            D::Error::custom(format!("Expected {WAYPOINT_COUNT} waypoints, found {found}."))
         })
     }
 }
@@ -128,11 +110,7 @@ pub struct Waypoints {
 
 impl fmt::Display for Waypoints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Normal:\n{}\nNightmare:\n{}\nHell:\n{}",
-            self.normal, self.nightmare, self.hell
-        )
+        write!(f, "Normal:\n{}\nNightmare:\n{}\nHell:\n{}", self.normal, self.nightmare, self.hell)
     }
 }
 
@@ -155,10 +133,7 @@ impl<const WAYPOINT_COUNT: usize> ActWaypoints<WAYPOINT_COUNT> {
         for index in 0..WAYPOINT_COUNT {
             let waypoint = Waypoint::from_act_index(act, index)
                 .expect("Act waypoint defaults must map to valid waypoint IDs.");
-            waypoints[index] = WaypointState {
-                id: waypoint,
-                acquired: false,
-            };
+            waypoints[index] = WaypointState { id: waypoint, acquired: false };
         }
 
         Self { act, waypoints }
@@ -306,8 +281,7 @@ impl fmt::Display for DifficultyWaypoints {
 impl Default for DifficultyWaypoints {
     fn default() -> Self {
         let mut act1 = ActWaypoints::<9>::new_for_act(Act::Act1);
-        act1.set_by_index(0, true)
-            .expect("Act I index 0 must always exist.");
+        act1.set_by_index(0, true).expect("Act I index 0 must always exist.");
 
         Self {
             act1,
@@ -479,10 +453,7 @@ impl TryFrom<usize> for Waypoint {
 
     fn try_from(id: usize) -> Result<Waypoint, ParseHardError> {
         Waypoint::ALL.get(id).copied().ok_or_else(|| ParseHardError {
-            message: format!(
-                "Invalid waypoint id {id}; expected 0..={}.",
-                Waypoint::ALL.len() - 1
-            ),
+            message: format!("Invalid waypoint id {id}; expected 0..={}.", Waypoint::ALL.len() - 1),
         })
     }
 }
@@ -572,8 +543,7 @@ impl Waypoints {
             flags.set_bit(waypoint.absolute_index(), acquired);
         }
 
-        bytes[Section::DifficultyWaypointsValue.range()]
-            .copy_from_slice(&u64::to_le_bytes(flags));
+        bytes[Section::DifficultyWaypointsValue.range()].copy_from_slice(&u64::to_le_bytes(flags));
         bytes
     }
 }

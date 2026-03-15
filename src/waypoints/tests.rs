@@ -73,28 +73,14 @@ fn act_get_rejects_wrong_act_waypoint() {
 fn get_by_index_reports_out_of_range() {
     let act4 = ActWaypoints::<3>::new_for_act(Act::Act4);
     let error = act4.get_by_index(3).expect_err("Act IV has indices 0..=2 only.");
-    assert_eq!(
-        error,
-        WaypointError::IndexOutOfRange {
-            act: Act::Act4,
-            index: 3,
-            max_index: 2,
-        }
-    );
+    assert_eq!(error, WaypointError::IndexOutOfRange { act: Act::Act4, index: 3, max_index: 2 });
 }
 
 #[test]
 fn set_by_index_reports_out_of_range() {
     let mut act4 = ActWaypoints::<3>::new_for_act(Act::Act4);
     let error = act4.set_by_index(3, true).expect_err("Act IV has indices 0..=2 only.");
-    assert_eq!(
-        error,
-        WaypointError::IndexOutOfRange {
-            act: Act::Act4,
-            index: 3,
-            max_index: 2,
-        }
-    );
+    assert_eq!(error, WaypointError::IndexOutOfRange { act: Act::Act4, index: 3, max_index: 2 });
 }
 
 #[test]

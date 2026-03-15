@@ -172,6 +172,12 @@ impl std::error::Error for ParseHardError {}
 pub struct ParsedSave {
     /// Parsed save model (possibly partial in lax mode).
     pub save: Save,
+    /// Format detected from header version bytes (`V99`, `V105`, or `Unknown(n)`).
+    pub detected_format: FormatId,
+    /// Known layout actually used for decode (`V99` or `V105`).
+    pub decoded_layout: FormatId,
+    /// Optional inferred edition hint for unknown/unsupported versions.
+    pub edition_hint: Option<GameEdition>,
     /// Non-fatal issues collected during parsing in lax mode.
     pub issues: Vec<ParseIssue>,
     /// Header checksum value read from bytes `12..16`, if available.

@@ -10,12 +10,12 @@ mod encode;
 mod layout;
 mod summary;
 
-pub use layout::detect_format;
 pub use edition_hint::detect_edition_hint;
+pub use layout::detect_format;
 pub use layout::FormatId;
 pub use layout::Layout;
-pub use layout::LayoutV99;
 pub use layout::LayoutV105;
+pub use layout::LayoutV99;
 
 pub(crate) use compatibility::compatibility_issues;
 pub(crate) use decode::decode;

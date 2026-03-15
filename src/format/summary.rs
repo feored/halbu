@@ -119,7 +119,8 @@ pub(crate) fn summarize(
 
             if strictness == Strictness::Strict {
                 return Err(ParseHardError {
-                    message: "Cannot summarize save: character section payload is invalid.".to_string(),
+                    message: "Cannot summarize save: character section payload is invalid."
+                        .to_string(),
                 });
             }
         }

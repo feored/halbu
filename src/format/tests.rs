@@ -72,6 +72,9 @@ fn decode_unknown_version_prefers_v99_when_markers_match_legacy() {
 
     let parsed = decode(&bytes, Strictness::Lax).expect("unknown-version legacy save should parse");
 
+    assert_eq!(parsed.detected_format, FormatId::Unknown(104));
+    assert_eq!(parsed.decoded_layout, FormatId::V99);
+    assert_eq!(parsed.edition_hint, Some(GameEdition::D2RLegacy));
     assert_eq!(parsed.save.format(), FormatId::Unknown(104));
     assert_eq!(parsed.save.character.name, "Joe");
 }
@@ -83,6 +86,9 @@ fn decode_unknown_version_prefers_v105_when_markers_match_rotw() {
 
     let parsed = decode(&bytes, Strictness::Lax).expect("unknown-version rotw save should parse");
 
+    assert_eq!(parsed.detected_format, FormatId::Unknown(96));
+    assert_eq!(parsed.decoded_layout, FormatId::V105);
+    assert_eq!(parsed.edition_hint, Some(GameEdition::RotW));
     assert_eq!(parsed.save.format(), FormatId::Unknown(96));
     assert_eq!(parsed.save.character.class, Class::Warlock);
 }
@@ -233,6 +239,9 @@ fn decode_exposes_checksum_metadata_when_header_is_present() {
     let bytes = include_bytes!("../../assets/test/Joe.d2s");
     let parsed = decode(bytes, Strictness::Strict).expect("save should parse");
 
+    assert_eq!(parsed.detected_format, FormatId::V99);
+    assert_eq!(parsed.decoded_layout, FormatId::V99);
+    assert_eq!(parsed.edition_hint, None);
     assert!(parsed.header_checksum.is_some());
     assert!(parsed.computed_checksum.is_some());
     assert_eq!(parsed.header_checksum, parsed.computed_checksum);

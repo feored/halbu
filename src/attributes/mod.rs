@@ -88,11 +88,9 @@ impl AttributeId {
 
     pub const fn bit_length(self) -> usize {
         match self {
-            Self::Strength
-            | Self::Energy
-            | Self::Dexterity
-            | Self::Vitality
-            | Self::StatPoints => 10,
+            Self::Strength | Self::Energy | Self::Dexterity | Self::Vitality | Self::StatPoints => {
+                10
+            }
             Self::NewSkills => 8,
             Self::Hitpoints
             | Self::MaxHp
@@ -391,13 +389,14 @@ impl Attributes {
                     STAT_NUMBER
                 ),
             })?;
-            let value = read_bits(byte_slice, byte_position, stat_id.bit_length()).map_err(
-                |error| ParseHardError {
-                    message: format!(
-                        "Error while parsing attributes value {_i} (header {header}): {error}"
-                    ),
-                },
-            )?;
+            let value =
+                read_bits(byte_slice, byte_position, stat_id.bit_length()).map_err(|error| {
+                    ParseHardError {
+                        message: format!(
+                            "Error while parsing attributes value {_i} (header {header}): {error}"
+                        ),
+                    }
+                })?;
             attributes.stat_mut(stat_id).value = value;
         }
         Ok(attributes)

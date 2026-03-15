@@ -1,7 +1,7 @@
 use crate::attributes::Attributes;
 use crate::skills::SKILLS_SECTION_LENGTH;
 use crate::utils::BytePosition;
-use crate::{GameEdition, FormatId};
+use crate::{FormatId, GameEdition};
 
 use super::layout::{layout_for_encode, CHARACTER_SECTION_START, VERSION_RANGE};
 
@@ -105,10 +105,7 @@ fn collect_edition_evidence(bytes: &[u8], edition: GameEdition) -> EditionEviden
     }
 }
 
-fn compare_evidence(
-    legacy: EditionEvidence,
-    rotw: EditionEvidence,
-) -> Option<GameEdition> {
+fn compare_evidence(legacy: EditionEvidence, rotw: EditionEvidence) -> Option<GameEdition> {
     if !legacy.character_decodes
         && !rotw.character_decodes
         && !legacy.marker_matches

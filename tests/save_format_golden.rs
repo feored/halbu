@@ -93,7 +93,8 @@ fn v99_to_v105_back_to_v99_keeps_model() {
 
 #[test]
 fn warlock_v105_cannot_encode_to_v99() {
-    let warlock = parse_strict_clean("Warlock_v105", &include_bytes!("../assets/test/Warlock_v105.d2s")[..]);
+    let warlock =
+        parse_strict_clean("Warlock_v105", &include_bytes!("../assets/test/Warlock_v105.d2s")[..]);
     let encode_result = warlock.encode_for(FormatId::V99, CompatibilityChecks::Enforce);
     let error = encode_result.expect_err("Warlock should not encode to v99");
 
@@ -105,7 +106,8 @@ fn warlock_v105_cannot_encode_to_v99() {
 
 #[test]
 fn check_compatibility_reports_blocking_warlock_to_v99() {
-    let warlock = parse_strict_clean("Warlock_v105", &include_bytes!("../assets/test/Warlock_v105.d2s")[..]);
+    let warlock =
+        parse_strict_clean("Warlock_v105", &include_bytes!("../assets/test/Warlock_v105.d2s")[..]);
     let issues = warlock.check_compatibility(FormatId::V99);
 
     assert!(
@@ -127,7 +129,8 @@ fn check_compatibility_reports_blocking_warlock_non_rotw_expansion() {
     assert!(
         issues
             .iter()
-            .any(|issue| issue.blocking && issue.code == CompatibilityCode::WarlockRequiresRotWExpansion),
+            .any(|issue| issue.blocking
+                && issue.code == CompatibilityCode::WarlockRequiresRotWExpansion),
         "expected blocking WarlockRequiresRotWExpansion issue, got: {:?}",
         issues
     );
@@ -136,9 +139,7 @@ fn check_compatibility_reports_blocking_warlock_non_rotw_expansion() {
         .encode_for(FormatId::V105, CompatibilityChecks::Enforce)
         .expect_err("Warlock with non-RotW expansion should not encode");
     assert!(
-        encode_error
-            .to_string()
-            .contains("Warlock class requires RotW expansion type."),
+        encode_error.to_string().contains("Warlock class requires RotW expansion type."),
         "unexpected error message: {encode_error}"
     );
 }
@@ -150,12 +151,9 @@ fn check_compatibility_reports_blocking_rotw_to_v99() {
     let issues = save.check_compatibility(FormatId::V99);
 
     assert!(
-        issues
-            .iter()
-            .any(|issue| {
-                issue.blocking
-                    && issue.code == CompatibilityCode::RotWExpansionRequiresRotWEdition
-            }),
+        issues.iter().any(|issue| {
+            issue.blocking && issue.code == CompatibilityCode::RotWExpansionRequiresRotWEdition
+        }),
         "expected blocking RotWExpansionRequiresRotWEdition issue, got: {:?}",
         issues
     );
@@ -189,9 +187,7 @@ fn expansion_classes_in_classic_mode_cannot_encode() {
             .encode_for(FormatId::V105, CompatibilityChecks::Enforce)
             .expect_err("expansion-only class in classic mode should not encode");
         assert!(
-            error
-                .to_string()
-                .contains("Druid and Assassin classes are not valid in Classic mode."),
+            error.to_string().contains("Druid and Assassin classes are not valid in Classic mode."),
             "unexpected error message for class {class}: {error}"
         );
     }
@@ -205,9 +201,8 @@ fn check_compatibility_reports_blocking_unknown_class_to_known_target() {
     let issues = save.check_compatibility(FormatId::V99);
 
     assert!(
-        issues
-            .iter()
-            .any(|issue| issue.blocking && issue.code == CompatibilityCode::UnknownClassRequiresKnownTarget),
+        issues.iter().any(|issue| issue.blocking
+            && issue.code == CompatibilityCode::UnknownClassRequiresKnownTarget),
         "expected blocking UnknownClassRequiresKnownTarget issue, got: {:?}",
         issues
     );
