@@ -313,7 +313,7 @@ pub(crate) fn decode(
         }
     }
 
-    let skills_offset = selected_layout.attributes_offset() + byte_position.current_byte + 1;
+    let skills_offset = selected_layout.attributes_offset() + byte_position.next_byte_offset();
     if (skills_offset + SKILLS_LENGTH) > bytes.len() {
         let expected_length = SKILLS_LENGTH;
         let found_length = bytes.len().saturating_sub(skills_offset);

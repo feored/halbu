@@ -142,6 +142,13 @@ pub struct BytePosition {
     pub current_bit: usize,
 }
 
+impl BytePosition {
+    /// Byte index of the next byte-aligned section start.
+    pub fn next_byte_offset(&self) -> usize {
+        self.current_byte + usize::from(self.current_bit > 0)
+    }
+}
+
 /// Write `bits_count` bits (LSB-first) from `bits_source` into `byte_vector`.
 pub fn write_byte(
     byte_vector: &mut Vec<u8>,
@@ -267,5 +274,24 @@ pub fn read_bits(
         buffer_bit_position += bits_parsing_count;
         bits_left_to_read -= bits_parsing_count;
         advance_bits(byte_position, bits_parsing_count)?;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BytePosition;
+
+    #[test]
+    fn next_byte_offset_keeps_aligned_position() {
+        let position = BytePosition { current_byte: 9, current_bit: 0 };
+
+        assert_eq!(position.next_byte_offset(), 9);
+    }
+
+    #[test]
+    fn next_byte_offset_advances_unaligned_position() {
+        let position = BytePosition { current_byte: 9, current_bit: 3 };
+
+        assert_eq!(position.next_byte_offset(), 10);
     }
 }

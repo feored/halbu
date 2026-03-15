@@ -9,6 +9,8 @@ use crate::{
     ParseIssue, Strictness,
 };
 
+use super::edition_hint::detect_edition_hint;
+
 pub(crate) const SIGNATURE: [u8; 4] = [0x55, 0xAA, 0x55, 0xAA];
 pub(crate) const SIGNATURE_RANGE: Range<usize> = 0..4;
 pub(crate) const VERSION_RANGE: Range<usize> = 4..8;
@@ -267,26 +269,6 @@ pub(crate) fn layout_for_encode(target: FormatId) -> &'static dyn Layout {
         FormatId::V99 => &V99_LAYOUT,
         FormatId::V105 | FormatId::Unknown(_) => &V105_LAYOUT,
     }
-}
-
-pub(crate) fn detect_edition_hint(bytes: &[u8]) -> Option<GameEdition> {
-    let v105_marker_one =
-        CHARACTER_SECTION_START + crate::character::v105::OFFSET_RESERVED_VERSION_MARKER_ONE;
-    let v105_marker_two =
-        CHARACTER_SECTION_START + crate::character::v105::OFFSET_RESERVED_VERSION_MARKER_TWO;
-    if bytes.get(v105_marker_one) == Some(&0x10) && bytes.get(v105_marker_two) == Some(&0x1E) {
-        return Some(GameEdition::RotW);
-    }
-
-    let v99_marker_one =
-        CHARACTER_SECTION_START + crate::character::v99::OFFSET_RESERVED_VERSION_MARKER_ONE;
-    let v99_marker_two =
-        CHARACTER_SECTION_START + crate::character::v99::OFFSET_RESERVED_VERSION_MARKER_TWO;
-    if bytes.get(v99_marker_one) == Some(&0x10) && bytes.get(v99_marker_two) == Some(&0x1E) {
-        return Some(GameEdition::D2RLegacy);
-    }
-
-    None
 }
 
 fn expansion_type_from_v99_status(character: &crate::character::Character) -> ExpansionType {

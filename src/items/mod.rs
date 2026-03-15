@@ -6,28 +6,35 @@
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
 
-const NO_ITEMS_EXPANSION: [u8; 13] =
+const V99_EMPTY_ITEMS_CLASSIC: [u8; 4] = [0x4A, 0x4D, 0x00, 0x00];
+const V99_EMPTY_ITEMS_EXPANSION: [u8; 13] =
     [0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x6B, 0x66, 0x00];
-
-const NO_ITEMS_EXPANSION_MERC: [u8; 17] = [
+const V99_EMPTY_ITEMS_EXPANSION_MERC: [u8; 17] = [
     0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x4A, 0x4D, 0x00, 0x00, 0x6B, 0x66,
     0x00,
 ];
 
-const NO_ITEMS_CLASSIC: [u8; 4] = [0x4A, 0x4D, 0x00, 0x00];
-
-const NO_ITEMS_ROTW: [u8; 19] = [
+const V105_EMPTY_ITEMS_CLASSIC: [u8; 4] = [0x4A, 0x4D, 0x00, 0x00];
+const V105_EMPTY_ITEMS_EXPANSION: [u8; 13] =
+    [0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x6B, 0x66, 0x00];
+const V105_EMPTY_ITEMS_EXPANSION_MERC: [u8; 17] = [
+    0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x4A, 0x4D, 0x00, 0x00, 0x6B, 0x66,
+    0x00,
+];
+const V105_EMPTY_ITEMS_ROTW: [u8; 19] = [
     0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x6B, 0x66, 0x00, 0x01, 0x00, 0x6C,
     0x66, 0x00, 0x00,
 ];
 
-const NO_ITEMS_ROTW_MERC: [u8; 23] = [
+const V105_EMPTY_ITEMS_ROTW_MERC: [u8; 23] = [
     0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x4A, 0x4D, 0x00, 0x00, 0x6B, 0x66,
     0x00, 0x01, 0x00, 0x6C, 0x66, 0x00, 0x00,
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmptyLayout {
+    /// Legacy D2R classic empty-item trailer.
+    LegacyClassic,
     /// Legacy D2R expansion empty-item trailer.
     LegacyExpansion,
     /// V105 classic empty-item trailer.
@@ -65,14 +72,13 @@ pub fn generate(
     }
 
     match (empty_layout, mercenary_hired) {
-        (EmptyLayout::V105Classic, _) => NO_ITEMS_CLASSIC.to_vec(),
-        (EmptyLayout::V105RotW, false) => NO_ITEMS_ROTW.to_vec(),
-        (EmptyLayout::V105RotW, true) => NO_ITEMS_ROTW_MERC.to_vec(),
-        (EmptyLayout::LegacyExpansion | EmptyLayout::V105Expansion, false) => {
-            NO_ITEMS_EXPANSION.to_vec()
-        }
-        (EmptyLayout::LegacyExpansion | EmptyLayout::V105Expansion, true) => {
-            NO_ITEMS_EXPANSION_MERC.to_vec()
-        }
+        (EmptyLayout::LegacyClassic, _) => V99_EMPTY_ITEMS_CLASSIC.to_vec(),
+        (EmptyLayout::LegacyExpansion, false) => V99_EMPTY_ITEMS_EXPANSION.to_vec(),
+        (EmptyLayout::LegacyExpansion, true) => V99_EMPTY_ITEMS_EXPANSION_MERC.to_vec(),
+        (EmptyLayout::V105Classic, _) => V105_EMPTY_ITEMS_CLASSIC.to_vec(),
+        (EmptyLayout::V105Expansion, false) => V105_EMPTY_ITEMS_EXPANSION.to_vec(),
+        (EmptyLayout::V105Expansion, true) => V105_EMPTY_ITEMS_EXPANSION_MERC.to_vec(),
+        (EmptyLayout::V105RotW, false) => V105_EMPTY_ITEMS_ROTW.to_vec(),
+        (EmptyLayout::V105RotW, true) => V105_EMPTY_ITEMS_ROTW_MERC.to_vec(),
     }
 }

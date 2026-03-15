@@ -101,6 +101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+
 ## Compatibility and forced encode
 
 Use compatibility checks before conversion.  
@@ -128,6 +129,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+## Edition hint
+
+If a file has an unknown/unsupported version, you can still ask Halbu for a best-effort
+game edition hint (`D2RLegacy` vs `RotW`).
+The hint compares v99/v105 layout coherence (character decode + attributes/skills/items headers)
+and uses reserved markers as a tie-breaker.
+
+```rust
+use halbu::format::detect_edition_hint;
+use halbu::GameEdition;
+
+let hint = detect_edition_hint(&bytes);
+if hint == Some(GameEdition::RotW) {
+    // likely RotW edition (v105-family layout)
+}
+```
+
 
 ## Documentation
 

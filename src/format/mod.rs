@@ -5,11 +5,13 @@
 
 mod compatibility;
 mod decode;
+mod edition_hint;
 mod encode;
 mod layout;
 mod summary;
 
 pub use layout::detect_format;
+pub use edition_hint::detect_edition_hint;
 pub use layout::FormatId;
 pub use layout::Layout;
 pub use layout::LayoutV99;
@@ -20,8 +22,6 @@ pub(crate) use decode::decode;
 pub(crate) use encode::encode;
 pub(crate) use summary::summarize;
 
-#[cfg(test)]
-use layout::detect_edition_hint;
 #[cfg(test)]
 use layout::CHARACTER_SECTION_START;
 

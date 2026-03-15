@@ -1,6 +1,6 @@
 use crate::character::encode_for_format as encode_character_for_format;
 use crate::items;
-use crate::{calc_checksum, CompatibilityChecks, EncodeError, Save};
+use crate::{calc_checksum, CompatibilityChecks, EncodeError, ExpansionType, Save};
 
 use super::compatibility::validate_encode_compatibility;
 use super::layout::{
@@ -9,13 +9,19 @@ use super::layout::{
 };
 use super::FormatId;
 
-fn empty_items_layout_for_encode(target: FormatId, mode_marker: u8) -> items::EmptyLayout {
+fn empty_items_layout_for_encode(target: FormatId, expansion_type: ExpansionType) -> items::EmptyLayout {
     match target {
-        FormatId::V99 => items::EmptyLayout::LegacyExpansion,
-        FormatId::V105 | FormatId::Unknown(_) => match mode_marker {
-            crate::character::v105::MODE_CLASSIC => items::EmptyLayout::V105Classic,
-            crate::character::v105::MODE_ROTW => items::EmptyLayout::V105RotW,
-            _ => items::EmptyLayout::V105Expansion,
+        FormatId::V99 => {
+            if expansion_type == ExpansionType::Classic {
+                items::EmptyLayout::LegacyClassic
+            } else {
+                items::EmptyLayout::LegacyExpansion
+            }
+        }
+        FormatId::V105 | FormatId::Unknown(_) => match expansion_type {
+            ExpansionType::Classic => items::EmptyLayout::V105Classic,
+            ExpansionType::RotW => items::EmptyLayout::V105RotW,
+            ExpansionType::Expansion => items::EmptyLayout::V105Expansion,
         },
     }
 }
@@ -62,8 +68,7 @@ pub(crate) fn encode(
     let mut skill_bytes = save.skills.to_bytes();
     encoded_bytes.append(&mut skill_bytes);
 
-    let mode_marker = crate::character::v105::mode_marker_from_expansion_type(save.expansion_type());
-    let items_layout = empty_items_layout_for_encode(target, mode_marker);
+    let items_layout = empty_items_layout_for_encode(target, save.expansion_type());
     let mut item_bytes =
         items::generate(&save.items, items_layout, character_for_encode.mercenary.is_hired());
     encoded_bytes.append(&mut item_bytes);
