@@ -1,13 +1,14 @@
 [package]
-rust-version = "1.85"
 name = "halbu"
 version = "0.2.0"
 edition = "2021"
 description = "Diablo II save file parsing library."
 authors = ["feor"]
 license = "MIT"
-homepage = "https://github.com/feored/halbu"
+repository = "https://github.com/feored/halbu"
 categories = ["games"]
+readme = "README.md"
+keywords = ["diablo2", "d2r", "save", "parser"]
 
 [dependencies]
 bit = "0.1.1"

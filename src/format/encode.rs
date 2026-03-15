@@ -9,7 +9,10 @@ use super::layout::{
 };
 use super::FormatId;
 
-fn empty_items_layout_for_encode(target: FormatId, expansion_type: ExpansionType) -> items::EmptyLayout {
+fn empty_items_layout_for_encode(
+    target: FormatId,
+    expansion_type: ExpansionType,
+) -> items::EmptyLayout {
     match target {
         FormatId::V99 => {
             if expansion_type == ExpansionType::Classic {
@@ -35,6 +38,12 @@ pub(crate) fn encode(
     target: FormatId,
     compatibility_checks: CompatibilityChecks,
 ) -> Result<Vec<u8>, EncodeError> {
+    if let FormatId::Unknown(version) = target {
+        return Err(EncodeError::new(format!(
+            "Cannot encode to unknown format version {version}. Choose a known target format."
+        )));
+    }
+
     if compatibility_checks == CompatibilityChecks::Enforce {
         validate_encode_compatibility(save, target)?;
     }
@@ -43,7 +52,8 @@ pub(crate) fn encode(
     let mut encoded_bytes = vec![0x00; selected_layout.attributes_offset()];
 
     encoded_bytes[SIGNATURE_RANGE.start..SIGNATURE_RANGE.end].copy_from_slice(&SIGNATURE);
-    encoded_bytes[VERSION_RANGE.start..VERSION_RANGE.end].copy_from_slice(&target.version().to_le_bytes());
+    encoded_bytes[VERSION_RANGE.start..VERSION_RANGE.end]
+        .copy_from_slice(&target.version().to_le_bytes());
 
     let mut character_for_encode = save.character.clone();
     apply_expansion_type_for_encode(
@@ -51,8 +61,9 @@ pub(crate) fn encode(
         selected_layout.format_id(),
         save.expansion_type(),
     );
-    let character_bytes = encode_character_for_format(selected_layout.format_id(), &character_for_encode)
-        .map_err(|error| EncodeError::new(error.to_string()))?;
+    let character_bytes =
+        encode_character_for_format(selected_layout.format_id(), &character_for_encode)
+            .map_err(|error| EncodeError::new(error.to_string()))?;
     let character_range = selected_layout.character_range();
     encoded_bytes[character_range.start..character_range.end]
         .copy_from_slice(&character_bytes[..selected_layout.character_length()]);

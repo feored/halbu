@@ -130,7 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Edition hint
+## Edition guess
 
 If a file has an unknown/unsupported version, you can still ask Halbu for a best-effort
 game edition hint (`D2RLegacy` vs `RotW`).

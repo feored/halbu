@@ -311,8 +311,7 @@ pub fn d2r_skill_name(class: Class, skill_index: usize) -> Result<&'static str, 
 ///
 /// Name matching is normalized to ignore case and non-alphanumeric characters.
 pub fn d2r_skill_index(class: Class, skill_name: &str) -> Result<usize, NamedSkillError> {
-    let normalized_query = normalize_name(skill_name);
-    if normalized_query.is_empty() {
+    if has_no_ascii_alnum(skill_name) {
         return Err(NamedSkillError::UnknownSkillName {
             class,
             skill_name: skill_name.to_string(),
@@ -322,7 +321,7 @@ pub fn d2r_skill_index(class: Class, skill_name: &str) -> Result<usize, NamedSki
     let class_skills = d2r_skills_for_class(class)?;
     class_skills
         .iter()
-        .position(|candidate| normalize_name(candidate) == normalized_query)
+        .position(|candidate| eq_normalized(candidate, skill_name))
         .ok_or(NamedSkillError::UnknownSkillName { class, skill_name: skill_name.to_string() })
 }
 
@@ -340,9 +339,23 @@ fn d2r_skills_for_class(class: Class) -> Result<&'static [&'static str; 30], Nam
     }
 }
 
-fn normalize_name(skill_name: &str) -> String {
-    skill_name
-        .chars()
-        .filter_map(|c| c.is_ascii_alphanumeric().then_some(c.to_ascii_lowercase()))
-        .collect()
+fn normalized_ascii_alnum_byte(byte: u8) -> Option<u8> {
+    byte.is_ascii_alphanumeric().then_some(byte.to_ascii_lowercase())
+}
+
+fn has_no_ascii_alnum(skill_name: &str) -> bool {
+    !skill_name.bytes().any(|byte| byte.is_ascii_alphanumeric())
+}
+
+fn eq_normalized(left: &str, right: &str) -> bool {
+    let mut left_iter = left.bytes().filter_map(normalized_ascii_alnum_byte);
+    let mut right_iter = right.bytes().filter_map(normalized_ascii_alnum_byte);
+
+    loop {
+        match (left_iter.next(), right_iter.next()) {
+            (Some(left_byte), Some(right_byte)) if left_byte == right_byte => {}
+            (None, None) => return true,
+            _ => return false,
+        }
+    }
 }

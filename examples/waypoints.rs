@@ -1,4 +1,5 @@
-use halbu::{Save, Strictness, Waypoint, WaypointError};
+use halbu::waypoints::{Waypoint, WaypointError};
+use halbu::{Save, Strictness};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bytes = std::fs::read("assets/test/Joe.d2s")?;
