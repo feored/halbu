@@ -54,7 +54,6 @@ mod tests {
         let header: u32 = 0; // strength
         let value: u32 = 30;
 
-        //write_u8(&mut result, &mut byte_position, 7, 8);
         write_bits(&mut result, &mut byte_position, header, 9).expect("header should write");
         write_bits(&mut result, &mut byte_position, value, 10).expect("value should write");
         write_bits(&mut result, &mut byte_position, 1u32, 9).expect("header should write");
@@ -72,5 +71,41 @@ mod tests {
 
         let value_result = read_bits(&bytes, &mut byte_position, 10).unwrap();
         assert_eq!(value_result, 30);
+    }
+
+    #[test]
+    fn test_resource_setters_use_q8() {
+        let mut attributes = Attributes::default();
+
+        attributes.set_hp(1234);
+        attributes.set_max_hp(2345);
+        attributes.set_mana(345);
+        attributes.set_max_mana(456);
+        attributes.set_stamina(567);
+        attributes.set_max_stamina(678);
+
+        assert_eq!(attributes.hitpoints.value, 1234 * 256);
+        assert_eq!(attributes.maxhp.value, 2345 * 256);
+        assert_eq!(attributes.mana.value, 345 * 256);
+        assert_eq!(attributes.maxmana.value, 456 * 256);
+        assert_eq!(attributes.stamina.value, 567 * 256);
+        assert_eq!(attributes.maxstamina.value, 678 * 256);
+
+        assert_eq!(attributes.get_hp(), 1234);
+        assert_eq!(attributes.get_max_hp(), 2345);
+        assert_eq!(attributes.get_mana(), 345);
+        assert_eq!(attributes.get_max_mana(), 456);
+        assert_eq!(attributes.get_stamina(), 567);
+        assert_eq!(attributes.get_max_stamina(), 678);
+    }
+
+    #[test]
+    fn test_typed_stat_access() {
+        let attributes = Attributes::default();
+
+        let strength = attributes.stat(AttributeId::Strength);
+        assert_eq!(strength.id, AttributeId::Strength.id());
+        assert_eq!(strength.name, AttributeId::Strength.name());
+        assert_eq!(strength.bit_length, AttributeId::Strength.bit_length());
     }
 }

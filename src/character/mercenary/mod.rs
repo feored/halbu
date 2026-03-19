@@ -27,6 +27,82 @@ impl Section {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MercenaryType {
+    Rogue,
+    DesertMercenary,
+    IronWolf,
+    Barbarian,
+}
+
+fn mercenary_type_for_variant_id(variant_id: u16) -> Option<MercenaryType> {
+    match variant_id {
+        0..=5 => Some(MercenaryType::Rogue),
+        6..=14 | 30..=35 => Some(MercenaryType::DesertMercenary),
+        15..=23 => Some(MercenaryType::IronWolf),
+        24..=29 | 36..=38 => Some(MercenaryType::Barbarian),
+        _ => None,
+    }
+}
+
+fn mercenary_name_count_for_type(mercenary_type: MercenaryType) -> usize {
+    match mercenary_type {
+        MercenaryType::Rogue => 41,
+        MercenaryType::DesertMercenary => 21,
+        MercenaryType::IronWolf => 20,
+        MercenaryType::Barbarian => 67,
+    }
+}
+
+/// Return the mercenary name count for a known variant id.
+pub(crate) fn mercenary_name_count_for_variant_id(variant_id: u16) -> Option<usize> {
+    mercenary_type_for_variant_id(variant_id).map(mercenary_name_count_for_type)
+}
+
+/// Return the XP rate for a known mercenary variant id.
+pub(crate) fn xp_rate_for_variant_id(variant_id: u16) -> Option<u32> {
+    match variant_id {
+        0 => Some(100),
+        1 => Some(105),
+        2 => Some(110),
+        3 => Some(115),
+        4 => Some(120),
+        5 => Some(125),
+        6 | 7 | 8 => Some(110),
+        9 | 10 | 11 => Some(120),
+        12 | 13 | 14 => Some(130),
+        15 | 17 => Some(110),
+        16 => Some(120),
+        18 | 20 => Some(120),
+        19 => Some(130),
+        21 | 23 => Some(130),
+        22 => Some(140),
+        24 | 25 => Some(120),
+        26 | 27 => Some(130),
+        28 | 29 => Some(140),
+        30 | 31 | 32 => Some(120),
+        33 | 34 | 35 => Some(130),
+        36 => Some(120),
+        37 => Some(130),
+        38 => Some(140),
+        _ => None,
+    }
+}
+
+/// Resolve a mercenary level from current experience.
+///
+/// This returns `0` when the experience is below level 1.
+pub(crate) fn level_from_experience(experience: u32, xp_rate: u32) -> u8 {
+    let scaled_experience = experience / xp_rate;
+    let guess = (scaled_experience as f64).cbrt().floor() as u8;
+
+    if scaled_experience < u32::from(guess) * u32::from(guess) * u32::from(guess + 1) {
+        guess.saturating_sub(1)
+    } else {
+        guess
+    }
+}
+
 #[derive(Default, PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Mercenary {
     pub is_dead: bool,

@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests {
+    use crate::ExpansionType;
     use crate::character::*;
+    use crate::character::v105::{MODE_ROTW, OFFSET_MODE_MARKER};
+    use crate::format::FormatId;
 
     #[test]
     fn character_parse_test() {
@@ -140,5 +143,74 @@ mod tests {
             CharacterCodecV99::encode(&character).expect("character should encode");
 
         assert_eq!(expected_result.to_vec(), generated_result);
+    }
+
+    #[test]
+    fn character_v105_parse_test() {
+        let save_bytes = include_bytes!("../../assets/test/Warlock_v105.d2s");
+        let section_start = 16usize;
+        let section_end = section_start + expected_length_for_format(FormatId::V105);
+        let character_bytes = &save_bytes[section_start..section_end];
+
+        let parsed =
+            CharacterCodecV105::decode(character_bytes).expect("v105 character should parse");
+
+        assert_eq!(parsed.class, Class::Warlock);
+        assert_eq!(parsed.level, 1);
+        assert_eq!(parsed.raw_section[OFFSET_MODE_MARKER], MODE_ROTW);
+        assert_eq!(parsed.raw_section, character_bytes);
+    }
+
+    #[test]
+    fn character_v105_write_roundtrip_test() {
+        let save_bytes = include_bytes!("../../assets/test/Warlock_v105.d2s");
+        let section_start = 16usize;
+        let section_end = section_start + expected_length_for_format(FormatId::V105);
+        let character_bytes = &save_bytes[section_start..section_end];
+
+        let parsed =
+            CharacterCodecV105::decode(character_bytes).expect("v105 character should parse");
+        let encoded = CharacterCodecV105::encode(&parsed).expect("v105 character should encode");
+
+        assert_eq!(encoded, character_bytes);
+    }
+
+    #[test]
+    fn title_helper_maps_default_d2r_rules() {
+        let mut character = Character::default();
+        character.class = Class::Amazon;
+
+        character.set_legacy_expansion_flag(false);
+        character.set_hardcore(false);
+        character.progression = 4;
+        assert_eq!(character.title_d2r(ExpansionType::Classic), Some("Dame"));
+
+        character.set_legacy_expansion_flag(false);
+        character.set_hardcore(true);
+        character.progression = 12;
+        assert_eq!(character.title_d2r(ExpansionType::Classic), Some("Queen"));
+
+        character.set_legacy_expansion_flag(true);
+        character.set_hardcore(false);
+        character.progression = 10;
+        assert_eq!(character.title_d2r(ExpansionType::Expansion), Some("Champion"));
+
+        character.set_legacy_expansion_flag(true);
+        character.set_hardcore(true);
+        character.progression = 15;
+        assert_eq!(character.title_d2r(ExpansionType::Expansion), Some("Guardian"));
+
+        // Warlock uses male title variants.
+        character.class = Class::Warlock;
+        character.set_legacy_expansion_flag(false);
+        character.set_hardcore(false);
+        character.progression = 12;
+        assert_eq!(character.title_d2r(ExpansionType::Classic), Some("Baron"));
+
+        // Expansion normally skips these values.
+        character.set_legacy_expansion_flag(true);
+        character.set_hardcore(false);
+        character.progression = 9;
+        assert_eq!(character.title_d2r(ExpansionType::Expansion), None);
     }
 }

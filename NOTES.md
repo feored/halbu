@@ -1,5 +1,16 @@
 
-The following is a list of of observations of my own as I test the editor on D2R patch 2.7, either completing some information here and there or adding things that have been changed since D2R. 
+
+## RotW
+
+Tested on v105.
+
+Character section offset 232 (absolute file offset 248) now contains information for whether the character is in classic (1), expansion (2), or RotW (3) mode.
+
+
+## Legacy D2R
+
+The following is a list of my own observations from testing the editor on D2R (v99).
+
 
 ## Attributes
 
@@ -34,7 +45,6 @@ The name now appears to fill 48 bytes. The names are still limited to 15 graphem
 You can't mix and match languages, てすと　is valid but てtoす is not.
 
 Setting the act/difficulty bytes in the Character section to e.g Hell on a fresh level 1 character won't allow them to enter Hell if they haven't unlocked it. However, setting the act will allow you to access an act you haven't unlocked yet within the same difficulty.
-
 
 Loading a single player file with "Ladder" bit set to 1 in Character Status does nothing (duh).
 
@@ -276,7 +286,3 @@ A new character will have three waypoints unlocked by default: Rogue encampment 
 ## Items
 
 The JM header at the top of every item has been removed in D2R.
-
-## ROTW
-
-Character section offset 232 (absolute file offset 248) now contains information for whether the character is in classic (1), expansion (2) or ROTW (3) mode.

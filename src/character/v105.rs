@@ -8,6 +8,7 @@ use crate::character::common::{
 use crate::character::mercenary::Mercenary;
 use crate::character::{parse_last_act, write_last_act, Character, Status};
 use crate::Class;
+use crate::ExpansionType;
 use crate::ParseHardError;
 
 pub struct CharacterCodecV105;
@@ -35,11 +36,12 @@ pub const RANGE_UNKNOWN_REGION_ONE: Range<usize> = 159..187;
 // New 48-byte region inserted in v105 before resurrected menu appearance.
 pub const RANGE_UNKNOWN_REGION_TWO: Range<usize> = 187..235;
 // Observed mode-like byte in v105 saves.
-// 1 = classic, 2 = expansion, 3 = ROTW.
+// 1 = classic, 2 = expansion, 3 = RotW.
 pub const OFFSET_MODE_MARKER: usize = 232;
 pub const MODE_CLASSIC: u8 = 1;
 pub const MODE_EXPANSION: u8 = 2;
 pub const MODE_ROTW: u8 = 3;
+const V105_CHARACTER_LENGTH: usize = 387;
 // Resurrected menu appearance moved to this range in v105.
 pub const RANGE_RESURRECTED_MENU_APPEARANCE: Range<usize> = 235..283;
 pub const RANGE_NAME: Range<usize> = 283..331;
@@ -50,8 +52,49 @@ pub const RANGE_UNKNOWN_REGION_FOUR: Range<usize> = 351..387;
 
 const ASSIGNED_SKILL_SLOT_COUNT: usize = 16;
 
+pub fn mode_marker(character: &Character) -> Option<u8> {
+    if character.raw_section.len() != V105_CHARACTER_LENGTH {
+        return None;
+    }
+
+    character.raw_section.get(OFFSET_MODE_MARKER).copied()
+}
+
+pub fn expansion_type_from_mode_marker(mode_marker: u8) -> Option<ExpansionType> {
+    match mode_marker {
+        MODE_CLASSIC => Some(ExpansionType::Classic),
+        MODE_EXPANSION => Some(ExpansionType::Expansion),
+        MODE_ROTW => Some(ExpansionType::RotW),
+        _ => None,
+    }
+}
+
+pub fn expansion_type(character: &Character) -> Option<ExpansionType> {
+    mode_marker(character).and_then(expansion_type_from_mode_marker)
+}
+
+pub(crate) fn mode_marker_from_expansion_type(expansion_type: ExpansionType) -> u8 {
+    match expansion_type {
+        ExpansionType::Classic => MODE_CLASSIC,
+        ExpansionType::Expansion => MODE_EXPANSION,
+        ExpansionType::RotW => MODE_ROTW,
+    }
+}
+
+pub(crate) fn set_expansion_type(character: &mut Character, expansion_type: ExpansionType) {
+    if character.raw_section.len() != V105_CHARACTER_LENGTH {
+        character.raw_section = vec![0u8; V105_CHARACTER_LENGTH];
+    }
+
+    character.raw_section[OFFSET_MODE_MARKER] = mode_marker_from_expansion_type(expansion_type);
+}
+
+pub(crate) fn mode_marker_for_encode(character: &Character) -> u8 {
+    mode_marker(character).unwrap_or(MODE_ROTW)
+}
+
 impl CharacterCodec for CharacterCodecV105 {
-    const CHARACTER_LENGTH: usize = 387;
+    const CHARACTER_LENGTH: usize = V105_CHARACTER_LENGTH;
 
     fn decode(character_section_bytes: &[u8]) -> Result<Character, ParseHardError> {
         if character_section_bytes.len() < Self::CHARACTER_LENGTH {
@@ -205,11 +248,7 @@ impl CharacterCodec for CharacterCodecV105 {
             0x1E,
             "reserved_version_marker_two",
         )?;
-        let mode_marker = character
-            .raw_section
-            .get(OFFSET_MODE_MARKER)
-            .copied()
-            .unwrap_or(MODE_ROTW);
+        let mode_marker = mode_marker_for_encode(character);
         write_u8_at(&mut encoded_bytes, OFFSET_MODE_MARKER, mode_marker, "mode_marker")?;
         write_exact_bytes(
             &mut encoded_bytes,

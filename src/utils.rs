@@ -8,10 +8,11 @@ const BITS_PER_BYTE: usize = 8;
 const MAX_U32_BIT_WIDTH: usize = 32;
 
 pub fn get_sys_time_in_secs() -> u32 {
-    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_secs() as u32,
-        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
-    }
+    let seconds_since_epoch = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    cmp::min(seconds_since_epoch, u32::MAX as u64) as u32
 }
 
 fn parse_fixed_array<const ARRAY_LENGTH: usize>(
@@ -141,7 +142,14 @@ pub struct BytePosition {
     pub current_bit: usize,
 }
 
-/// Write bits_count number of bits (LSB ordering) from bits_source into a vector of bytes.
+impl BytePosition {
+    /// Byte index of the next byte-aligned section start.
+    pub fn next_byte_offset(&self) -> usize {
+        self.current_byte + usize::from(self.current_bit > 0)
+    }
+}
+
+/// Write `bits_count` bits (LSB-first) from `bits_source` into `byte_vector`.
 pub fn write_byte(
     byte_vector: &mut Vec<u8>,
     byte_position: &mut BytePosition,
@@ -196,7 +204,7 @@ pub fn write_byte(
     }
 }
 
-/// Write bits_count number of bits (LSB ordering) from bits_source into a vector of u8.
+/// Write `bits_count` bits (LSB-first) from `bits_source` into `byte_vector`.
 pub fn write_bits<T: Into<u32>>(
     byte_vector: &mut Vec<u8>,
     byte_position: &mut BytePosition,
@@ -230,10 +238,9 @@ pub fn write_bits<T: Into<u32>>(
     }
 }
 
-/// Read a certain number of bits in a vector of bytes, starting at a given byte and bit index, and return a u32 with the value.
+/// Read `bits_to_read` bits (LSB-first) from `byte_slice` at `byte_position`.
 ///
-/// The attributes are stored in a packed struct with non-aligned bytes.
-/// Headers for instance contain 9 bits, so they must be read over multiple bytes.
+/// This supports packed bitstreams with non-byte-aligned fields.
 pub fn read_bits(
     byte_slice: &[u8],
     byte_position: &mut BytePosition,
@@ -267,5 +274,24 @@ pub fn read_bits(
         buffer_bit_position += bits_parsing_count;
         bits_left_to_read -= bits_parsing_count;
         advance_bits(byte_position, bits_parsing_count)?;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BytePosition;
+
+    #[test]
+    fn next_byte_offset_keeps_aligned_position() {
+        let position = BytePosition { current_byte: 9, current_bit: 0 };
+
+        assert_eq!(position.next_byte_offset(), 9);
+    }
+
+    #[test]
+    fn next_byte_offset_advances_unaligned_position() {
+        let position = BytePosition { current_byte: 9, current_bit: 3 };
+
+        assert_eq!(position.next_byte_offset(), 10);
     }
 }

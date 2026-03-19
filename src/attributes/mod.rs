@@ -1,3 +1,9 @@
+//! Attributes/stat section model.
+//!
+//! HP/mana/stamina values are stored in save bytes using fixed-point Q8.
+//! Use [`AttributeId`] with [`Attributes::stat`] for typed lookup.
+//! Use the HP/mana/stamina accessors on [`Attributes`] for game-visible units.
+
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -14,30 +20,135 @@ const SECTION_TRAILER: u32 = 0x1FF;
 const STAT_HEADER_LENGTH: usize = 9;
 const STAT_NUMBER: usize = 16;
 
-const STAT_KEY: [&'static str; STAT_NUMBER] = [
-    "strength",
-    "energy",
-    "dexterity",
-    "vitality",
-    "statpts",
-    "newskills",
-    "hitpoints",
-    "maxhp",
-    "mana",
-    "maxmana",
-    "stamina",
-    "maxstamina",
-    "level",
-    "experience",
-    "gold",
-    "goldbank",
-];
+/// Typed identifier for supported attributes/stats in the save format.
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum AttributeId {
+    Strength,
+    Energy,
+    Dexterity,
+    Vitality,
+    StatPoints,
+    NewSkills,
+    Hitpoints,
+    MaxHp,
+    Mana,
+    MaxMana,
+    Stamina,
+    MaxStamina,
+    Level,
+    Experience,
+    Gold,
+    GoldBank,
+}
 
-/// Length in bits of each stat
-const STAT_BITLENGTH: [usize; STAT_NUMBER] =
-    [10, 10, 10, 10, 10, 8, 21, 21, 21, 21, 21, 21, 7, 32, 25, 25];
+impl AttributeId {
+    pub const ALL: [Self; STAT_NUMBER] = [
+        Self::Strength,
+        Self::Energy,
+        Self::Dexterity,
+        Self::Vitality,
+        Self::StatPoints,
+        Self::NewSkills,
+        Self::Hitpoints,
+        Self::MaxHp,
+        Self::Mana,
+        Self::MaxMana,
+        Self::Stamina,
+        Self::MaxStamina,
+        Self::Level,
+        Self::Experience,
+        Self::Gold,
+        Self::GoldBank,
+    ];
 
-/// Representation of a single stat, with data taken from itemstatcosts.txt
+    pub const fn index(self) -> usize {
+        match self {
+            Self::Strength => 0,
+            Self::Energy => 1,
+            Self::Dexterity => 2,
+            Self::Vitality => 3,
+            Self::StatPoints => 4,
+            Self::NewSkills => 5,
+            Self::Hitpoints => 6,
+            Self::MaxHp => 7,
+            Self::Mana => 8,
+            Self::MaxMana => 9,
+            Self::Stamina => 10,
+            Self::MaxStamina => 11,
+            Self::Level => 12,
+            Self::Experience => 13,
+            Self::Gold => 14,
+            Self::GoldBank => 15,
+        }
+    }
+
+    pub const fn id(self) -> u32 {
+        self.index() as u32
+    }
+
+    pub const fn bit_length(self) -> usize {
+        match self {
+            Self::Strength | Self::Energy | Self::Dexterity | Self::Vitality | Self::StatPoints => {
+                10
+            }
+            Self::NewSkills => 8,
+            Self::Hitpoints
+            | Self::MaxHp
+            | Self::Mana
+            | Self::MaxMana
+            | Self::Stamina
+            | Self::MaxStamina => 21,
+            Self::Level => 7,
+            Self::Experience => 32,
+            Self::Gold | Self::GoldBank => 25,
+        }
+    }
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Strength => "strength",
+            Self::Energy => "energy",
+            Self::Dexterity => "dexterity",
+            Self::Vitality => "vitality",
+            Self::StatPoints => "statpts",
+            Self::NewSkills => "newskills",
+            Self::Hitpoints => "hitpoints",
+            Self::MaxHp => "maxhp",
+            Self::Mana => "mana",
+            Self::MaxMana => "maxmana",
+            Self::Stamina => "stamina",
+            Self::MaxStamina => "maxstamina",
+            Self::Level => "level",
+            Self::Experience => "experience",
+            Self::Gold => "gold",
+            Self::GoldBank => "goldbank",
+        }
+    }
+
+    pub const fn from_index(index: usize) -> Option<Self> {
+        match index {
+            0 => Some(Self::Strength),
+            1 => Some(Self::Energy),
+            2 => Some(Self::Dexterity),
+            3 => Some(Self::Vitality),
+            4 => Some(Self::StatPoints),
+            5 => Some(Self::NewSkills),
+            6 => Some(Self::Hitpoints),
+            7 => Some(Self::MaxHp),
+            8 => Some(Self::Mana),
+            9 => Some(Self::MaxMana),
+            10 => Some(Self::Stamina),
+            11 => Some(Self::MaxStamina),
+            12 => Some(Self::Level),
+            13 => Some(Self::Experience),
+            14 => Some(Self::Gold),
+            15 => Some(Self::GoldBank),
+            _ => None,
+        }
+    }
+}
+
+/// Single stat entry with canonical save-stat metadata.
 #[derive(Default, PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Stat {
     pub id: u32,
@@ -66,9 +177,9 @@ impl fmt::Display for Stat {
     }
 }
 
-/// Representation of a character's attributes.
+/// Character attributes as stored in the attributes bitstream.
 ///
-/// Names are taken from itemstatcost.txt
+/// Stat names follow the save format's canonical stat keys.
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Attributes {
     pub strength: Stat,
@@ -83,91 +194,126 @@ pub struct Attributes {
     pub maxmana: Stat,
     pub stamina: Stat,
     pub maxstamina: Stat,
-    pub level: Stat,
+    level: Stat,
     pub experience: Stat,
     pub gold: Stat,
     pub goldbank: Stat,
 }
 
 impl Attributes {
-    pub fn stat(&self, s: &'static str) -> Result<Stat, ParseHardError> {
-        match s {
-            "strength" => Ok(self.strength.clone()),
-            "energy" => Ok(self.energy.clone()),
-            "dexterity" => Ok(self.dexterity.clone()),
-            "vitality" => Ok(self.vitality.clone()),
-            "statpts" => Ok(self.statpts.clone()),
-            "newskills" => Ok(self.newskills.clone()),
-            "hitpoints" => Ok(self.hitpoints.clone()),
-            "maxhp" => Ok(self.maxhp.clone()),
-            "mana" => Ok(self.mana.clone()),
-            "maxmana" => Ok(self.maxmana.clone()),
-            "stamina" => Ok(self.stamina.clone()),
-            "maxstamina" => Ok(self.maxstamina.clone()),
-            "level" => Ok(self.level.clone()),
-            "experience" => Ok(self.experience.clone()),
-            "gold" => Ok(self.gold.clone()),
-            "goldbank" => Ok(self.goldbank.clone()),
-            _ => Err(ParseHardError {
-                message: format!("Requested a stat not found in itemstatcost.txt: {s}"),
-            }),
+    /// Get a stat by typed id.
+    pub fn stat(&self, stat_id: AttributeId) -> &Stat {
+        match stat_id {
+            AttributeId::Strength => &self.strength,
+            AttributeId::Energy => &self.energy,
+            AttributeId::Dexterity => &self.dexterity,
+            AttributeId::Vitality => &self.vitality,
+            AttributeId::StatPoints => &self.statpts,
+            AttributeId::NewSkills => &self.newskills,
+            AttributeId::Hitpoints => &self.hitpoints,
+            AttributeId::MaxHp => &self.maxhp,
+            AttributeId::Mana => &self.mana,
+            AttributeId::MaxMana => &self.maxmana,
+            AttributeId::Stamina => &self.stamina,
+            AttributeId::MaxStamina => &self.maxstamina,
+            AttributeId::Level => &self.level,
+            AttributeId::Experience => &self.experience,
+            AttributeId::Gold => &self.gold,
+            AttributeId::GoldBank => &self.goldbank,
         }
     }
 
-    pub fn set_stat(&mut self, stat_name: String, stat: &Stat) -> Result<(), ParseHardError> {
-        let s: &str = stat_name.as_str();
-        match s {
-            "strength" => self.strength = stat.clone(),
-            "energy" => self.energy = stat.clone(),
-            "dexterity" => self.dexterity = stat.clone(),
-            "vitality" => self.vitality = stat.clone(),
-            "statpts" => self.statpts = stat.clone(),
-            "newskills" => self.newskills = stat.clone(),
-            "hitpoints" => self.hitpoints = stat.clone(),
-            "maxhp" => self.maxhp = stat.clone(),
-            "mana" => self.mana = stat.clone(),
-            "maxmana" => self.maxmana = stat.clone(),
-            "stamina" => self.stamina = stat.clone(),
-            "maxstamina" => self.maxstamina = stat.clone(),
-            "level" => self.level = stat.clone(),
-            "experience" => self.experience = stat.clone(),
-            "gold" => self.gold = stat.clone(),
-            "goldbank" => self.goldbank = stat.clone(),
-            _ => {
-                return Err(ParseHardError {
-                    message: format!("Tried to set a stat not found in itemstatcost.txt: {s}"),
-                })
-            }
-        };
-        Ok(())
+    fn stat_mut(&mut self, stat_id: AttributeId) -> &mut Stat {
+        match stat_id {
+            AttributeId::Strength => &mut self.strength,
+            AttributeId::Energy => &mut self.energy,
+            AttributeId::Dexterity => &mut self.dexterity,
+            AttributeId::Vitality => &mut self.vitality,
+            AttributeId::StatPoints => &mut self.statpts,
+            AttributeId::NewSkills => &mut self.newskills,
+            AttributeId::Hitpoints => &mut self.hitpoints,
+            AttributeId::MaxHp => &mut self.maxhp,
+            AttributeId::Mana => &mut self.mana,
+            AttributeId::MaxMana => &mut self.maxmana,
+            AttributeId::Stamina => &mut self.stamina,
+            AttributeId::MaxStamina => &mut self.maxstamina,
+            AttributeId::Level => &mut self.level,
+            AttributeId::Experience => &mut self.experience,
+            AttributeId::Gold => &mut self.gold,
+            AttributeId::GoldBank => &mut self.goldbank,
+        }
     }
 
-    pub fn set_stat_value(&mut self, stat_name: String, value: u32) -> Result<(), ParseHardError> {
-        let s: &str = stat_name.as_str();
-        match s {
-            "strength" => self.strength.value = value,
-            "energy" => self.energy.value = value,
-            "dexterity" => self.dexterity.value = value,
-            "vitality" => self.vitality.value = value,
-            "statpts" => self.statpts.value = value,
-            "newskills" => self.newskills.value = value,
-            "hitpoints" => self.hitpoints.value = value,
-            "maxhp" => self.maxhp.value = value,
-            "mana" => self.mana.value = value,
-            "maxmana" => self.maxmana.value = value,
-            "stamina" => self.stamina.value = value,
-            "maxstamina" => self.maxstamina.value = value,
-            "level" => self.level.value = value,
-            "experience" => self.experience.value = value,
-            "gold" => self.gold.value = value,
-            "goldbank" => self.goldbank.value = value,
-            _ => {
-                return Err(ParseHardError {
-                    message: format!("Tried to set a stat not found in itemstatcost.txt: {s}"),
-                })
-            }
-        };
-        Ok(())
+    /// Set current HP in game-visible units (internal encoding is Q8).
+    pub fn set_hp(&mut self, value: u32) {
+        self.hitpoints.value = value.saturating_mul(256);
+    }
+
+    /// Get current HP in game-visible units.
+    pub fn get_hp(&self) -> u32 {
+        self.hitpoints.value / 256
+    }
+
+    /// Set max HP in game-visible units (internal encoding is Q8).
+    pub fn set_max_hp(&mut self, value: u32) {
+        self.maxhp.value = value.saturating_mul(256);
+    }
+
+    /// Get max HP in game-visible units.
+    pub fn get_max_hp(&self) -> u32 {
+        self.maxhp.value / 256
+    }
+
+    /// Set current mana in game-visible units (internal encoding is Q8).
+    pub fn set_mana(&mut self, value: u32) {
+        self.mana.value = value.saturating_mul(256);
+    }
+
+    /// Get current mana in game-visible units.
+    pub fn get_mana(&self) -> u32 {
+        self.mana.value / 256
+    }
+
+    /// Set max mana in game-visible units (internal encoding is Q8).
+    pub fn set_max_mana(&mut self, value: u32) {
+        self.maxmana.value = value.saturating_mul(256);
+    }
+
+    /// Get max mana in game-visible units.
+    pub fn get_max_mana(&self) -> u32 {
+        self.maxmana.value / 256
+    }
+
+    /// Set current stamina in game-visible units (internal encoding is Q8).
+    pub fn set_stamina(&mut self, value: u32) {
+        self.stamina.value = value.saturating_mul(256);
+    }
+
+    /// Get current stamina in game-visible units.
+    pub fn get_stamina(&self) -> u32 {
+        self.stamina.value / 256
+    }
+
+    /// Set max stamina in game-visible units (internal encoding is Q8).
+    pub fn set_max_stamina(&mut self, value: u32) {
+        self.maxstamina.value = value.saturating_mul(256);
+    }
+
+    /// Get max stamina in game-visible units.
+    pub fn get_max_stamina(&self) -> u32 {
+        self.maxstamina.value / 256
+    }
+
+    /// Character level mirrored by [`crate::character::Character::level`].
+    pub const fn level(&self) -> u8 {
+        self.level.value as u8
+    }
+
+    /// Set level stat value.
+    ///
+    /// Keep this synchronized with character level through [`crate::Save::set_level`].
+    pub(crate) fn set_level(&mut self, level: u8) {
+        self.level.value = u32::from(level);
     }
 }
 
@@ -197,13 +343,10 @@ impl fmt::Display for Attributes {
 }
 
 impl Attributes {
-    /// Parse vector of bytes containing attributes data while storing byte position and return an Attributes struct.
+    /// Parse attributes from a packed bitstream and advance `byte_position`.
     ///
-    /// This function borrows a byte_position, which will store the length in bytes of the
-    /// attributes section to help find the offset at which to start reading the next section.
-    ///
-    /// Attributes are stored in a pair format (header:value). Not all attributes are required to be
-    /// present. Headers are always 9 bits. Values span different number of bits found in itemstatcost.txt
+    /// Each entry is encoded as `9-bit header + value bits`.
+    /// Not every stat must be present in the stream.
     pub fn parse(
         byte_slice: &[u8],
         byte_position: &mut BytePosition,
@@ -228,7 +371,7 @@ impl Attributes {
 
         let mut attributes = Attributes::default();
 
-        // In case all stats are written down, parse one more to make sure we parse 0x1FF trailer
+        // Parse one extra header to allow a fully populated stream plus trailer.
         for _i in 0..(STAT_NUMBER + 1) {
             let header: u32 =
                 read_bits(byte_slice, byte_position, STAT_HEADER_LENGTH).map_err(|error| {
@@ -238,38 +381,36 @@ impl Attributes {
                 })?;
             if header == SECTION_TRAILER {
                 break;
-            } else if header as usize >= STAT_KEY.len() {
-                return Err(ParseHardError {
-                    message: format!(
-                        "Invalid attributes header value {header} at index {_i}; expected < {} or trailer.",
-                        STAT_KEY.len()
-                    ),
-                });
             }
-            let stat: Stat = attributes.stat(STAT_KEY[header as usize])?;
-            attributes.set_stat_value(
-                stat.name.clone(),
-                read_bits(byte_slice, byte_position, stat.bit_length).map_err(|error| {
+
+            let stat_id = AttributeId::from_index(header as usize).ok_or_else(|| ParseHardError {
+                message: format!(
+                    "Invalid attributes header value {header} at index {_i}; expected < {} or trailer.",
+                    STAT_NUMBER
+                ),
+            })?;
+            let value =
+                read_bits(byte_slice, byte_position, stat_id.bit_length()).map_err(|error| {
                     ParseHardError {
                         message: format!(
                             "Error while parsing attributes value {_i} (header {header}): {error}"
                         ),
                     }
-                })?,
-            )?;
+                })?;
+            attributes.stat_mut(stat_id).value = value;
         }
         Ok(attributes)
     }
 
-    /// Get a byte-aligned vector of bytes representing a character's attribute.
+    /// Encode attributes into a byte-aligned bitstream.
     pub fn to_bytes(&self) -> Result<Vec<u8>, ParseHardError> {
         let mut result: Vec<u8> = Vec::<u8>::new();
         let mut byte_position: BytePosition = BytePosition::default();
-        result.append(&mut SECTION_HEADER.to_vec());
+        result.extend_from_slice(&SECTION_HEADER);
         byte_position.current_byte += 2;
 
-        for s in STAT_KEY {
-            let stat = self.stat(s).unwrap_or_else(|_| Stat::default());
+        for stat_id in AttributeId::ALL {
+            let stat = self.stat(stat_id);
             write_bits(&mut result, &mut byte_position, stat.id, STAT_HEADER_LENGTH)?;
             write_bits(&mut result, &mut byte_position, stat.value, stat.bit_length)?;
         }
@@ -321,12 +462,13 @@ impl Default for Attributes {
             goldbank: Stat::default(),
         };
         // Initialize all fields using static stat metadata.
-        for (i, s) in STAT_KEY.iter().enumerate() {
-            let mut stat: Stat = Stat::default();
-            stat.name = s.to_string();
-            stat.bit_length = STAT_BITLENGTH[i];
-            stat.id = i as u32;
-            let _ = attributes.set_stat(stat.name.clone(), &stat);
+        for stat_id in AttributeId::ALL {
+            *attributes.stat_mut(stat_id) = Stat {
+                id: stat_id.id(),
+                name: stat_id.name().to_string(),
+                bit_length: stat_id.bit_length(),
+                value: 0,
+            };
         }
         attributes
     }

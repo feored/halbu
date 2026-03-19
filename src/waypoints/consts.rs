@@ -1,6 +1,5 @@
 pub const SECTION_HEADER: [u8; 8] = [0x57, 0x53, 0x01, 0x00, 0x00, 0x00, 0x50, 0x00];
 pub const DIFFICULTY_HEADER: [u8; 2] = [0x02, 0x01];
-pub const SECTION_TRAILER: u8 = 0x01;
 
 pub const NAMES_ACT1: [&str; 9] = [
     "Rogue Encampment",

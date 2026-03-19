@@ -1,5 +1,4 @@
 #[cfg(test)]
-
 mod tests {
     use crate::character::mercenary::*;
     #[test]

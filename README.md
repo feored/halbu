@@ -1,118 +1,198 @@
-## Halbu
+# Halbu
 
-**See also: [Halbu Editor](https://github.com/feored/halbu-editor)**
+A Rust library for parsing, editing, and safely re-encoding Diablo II: Resurrected `.d2s` save files.
 
-A .d2s file parsing library for Diablo II: Resurrected written in Rust.
+It serves as the backend for **[Halbu Editor](https://github.com/feored/halbu-editor)**.
 
-⚠ NPCs and Items section are not yet supported. ⚠ 
+---
 
-⚠ Neither are hardcore mode and non-expansion characters ⚠ 
+## Features
 
-**[Notes](https://github.com/feored/halbu/blob/main/NOTES.md)** regarding D2R with some useful information regarding quests in particular.
 
-This library uses the [log](https://docs.rs/log/latest/log/) crate to log parsing errors.
+- Parse and modify `.d2s` save files
+- Supports D2R Legacy and RotW formats (`v99`, `v105`)
+- Editable sections:
+  - character data
+  - attributes
+  - skills
+  - quests
+  - waypoints
+  - mercenary data
+- Partial parsing via summary API
+- Strict or tolerant parsing modes
+- Validation for post-edit sanity checks
+- Compatibility checks for format conversion
 
-### Installation
 
-```cargo add halbu```
+## Limitations
 
-### Usage
+Some parts of the save format are not yet modeled:
 
-```rs
-use halbu::{quests::QuestFlag, waypoints::Waypoint, Class, Save};
+- Items
+- NPC section
 
-fn main() {
-    // Open a save file
-    let save_file = std::fs::read("C:\\Users\\Example\\Saved Games\\Diablo II Resurrected\\Jamella.d2s").unwrap();
+These sections are preserved as raw bytes when possible, but may not round-trip identically after modifications.
 
-    let mut save = Save::parse(&save_file);
 
-    // Alternatively, create a new save
-    save = Save::default_class(Class::Necromancer);
+## Installation
 
-    // Change class, name, etc
-    save.character.class = Class::Paladin;
-    save.character.name = String::from("Halbu");
-    // Warning: save.character.level and save.attributes.level must
-    // be the same or the game won't load!
-    save.character.level = 47;
-    save.attributes.level.value = 47;
-    
+```bash
+cargo add halbu
+```
 
-    // Change mercenary stats
-    // Refer to notes.md for a table with name/variant ID
-    save.character.mercenary.name_id = 3;
-    save.character.mercenary.variant_id = 34;
 
-    // Set an attribute
-    save.attributes.strength.value = 156;
+## Basic usage
 
-    // Attribute names are taken from itemstatcosts.txt
-    save.attributes.newskills.value = 5;
+Parse, modify, and write a save:
 
-    // Some attributes are stored as fixed point numbers in 21 bits,
-    // where the first 13 bits are the integer part and the last 8 the decimal
-    // For those attributes (Current/Max HP, Mana & Stamina), you must multiply
-    // the value by 256 to get the value displayed in game.
-    save.attributes.maxmana.value = 200 * 256;
-    println!(
-        "Max mana: {}",
-        save.attributes.maxmana.value as f64 / 256f64
-    );
+```rust
+use halbu::{CompatibilityChecks, Save, Strictness};
 
-    // Acquire all waypoints in an act
-    save.waypoints.normal.act1.set_all(true);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let bytes = std::fs::read("Hero.d2s")?;
 
-    // Set all waypoints in a difficulty
-    save.waypoints.hell.set_all(true);
+    let parsed = Save::parse(&bytes, Strictness::Strict)?;
+    let mut save = parsed.save;
 
-    // Get/set whether a specific waypoint is acquired
-    // Waypoints are a numbered 0-8 (0-2 for Act IV)
-    save.waypoints.hell.act4.set_num(1, true);
-    println!("Hell Act IV WP 1: {}", save.waypoints.hell.act4.get_num(1));
-
-    save.waypoints.hell.act4.set(Waypoint::CityOfTheDamned, false);
-    println!(
-        "Hell Act IV WP 1: {}",
-        save.waypoints.hell.act4.get(Waypoint::CityOfTheDamned)
-    );
-
-    // Set all skills to 20
+    save.character.name = "Halbu".to_string();
     save.skills.set_all(20);
-    println!("{}", save.skills);
 
-    // Set the skill points of a given skill to 0
-    save.skills.set(17, 0);
-    println!("Skillpoints: {}", save.skills.get(17));
+    let encoded = save.encode_for(save.format(), CompatibilityChecks::Enforce)?;
+    std::fs::write("Halbu.d2s", encoded)?;
 
-    // A quest is a struct with a single member State which is a hashset
-    // containing all the flags currently active for that quest.
+    Ok(())
+}
+```
 
-    // Clear all flags
-    // Warning: The quest numbers may not be what you think it is! Refer to NOTES.md.
-    save.quests.hell.act1.q1.state.clear();
-    println!("Hell Act I Q1 State: {}", save.quests.hell.act1.q1);
 
-    // The flag names are from D2MOO. Refer to NOTES.md for a flagname <> bit # table.
-    save.quests.hell.act1.q1.state.insert(QuestFlag::RewardGranted);
-    println!(
-        "Hell Act I Q1 Completed: {}",
-        save.quests.hell.act1.q1.state.contains(&QuestFlag::RewardGranted)
-    );
-    // Save the file
-    // Warning: The file name must match the character's name!
-    std::fs::write("C:\\Users\\Example\\Saved Games\\Diablo II Resurrected\\Halbu.d2s", save.to_bytes()).unwrap();
+## Parsing modes
+
+Strict parsing fails on inconsistencies:
+
+```rust
+let parsed = Save::parse(&bytes, Strictness::Strict)?;
+```
+
+Lax parsing continues and reports issues:
+
+```rust
+let parsed = Save::parse(&bytes, Strictness::Lax)?;
+if !parsed.issues.is_empty() {
+    eprintln!("Parse issues: {:?}", parsed.issues);
+}
+```
+
+
+## Validation
+
+Validation is an optional step to check the save for inconsistencies that may prevent the game from loading the save (e.g. invalid character name or mercenary level).
+
+```rust
+let report = save.validate();
+if !report.is_valid() {
+    eprintln!("Validation issues: {:?}", report.issues);
+}
+```
+
+
+## Compatibility and encoding
+
+Compatibility checks apply when converting between formats during encoding.
+
+```rust
+use halbu::{CompatibilityChecks, Save, Strictness};
+use halbu::format::FormatId;
+
+let parsed = Save::parse(&bytes, Strictness::Strict)?;
+let save = parsed.save;
+
+let target = FormatId::V99;
+let issues = save.check_compatibility(target);
+
+if !issues.is_empty() {
+    eprintln!("Compatibility issues: {issues:?}");
 }
 
+// Safe (blocks on incompatibility)
+let encoded = save.encode_for(target, CompatibilityChecks::Enforce)?;
+
+// Unsafe (bypasses checks)
+let forced = save.encode_for(target, CompatibilityChecks::Ignore)?;
 ```
-For more information, please check the [documentation](https://docs.rs/halbu/0.1.0/halbu/).
 
-### Resources
 
-These resources have helped me understand the .d2s format. Many thanks to their authors, they are the ones who have done all the hard work.
+## Summary API
+
+Read metadata without fully parsing the file:
+
+```rust
+let summary = Save::summarize(&bytes, Strictness::Lax)?;
+
+println!(
+    "name={:?} class={:?} level={:?} expansion={:?}",
+    summary.name,
+    summary.class,
+    summary.level,
+    summary.expansion_type
+);
+```
+
+## Edition detection
+
+For unknown versions, Halbu can try to guess which edition the save layout matches most closely:
+
+```rust
+use halbu::format::detect_edition_hint;
+use halbu::GameEdition;
+
+let hint = detect_edition_hint(&bytes);
+
+if hint == Some(GameEdition::RotW) {
+    // likely RotW (v105-style layout)
+}
+```
+
+
+## Model overview
+
+Halbu distinguishes between three related concepts:
+
+- `FormatId` — concrete file format (`V99`, `V105`, or unknown)
+- `GameEdition` — edition family (`D2RLegacy`, `RotW`)
+- `ExpansionType` — in-game expansion mode (`Classic`, `Expansion`, `RotW`)
+
+Typical usage:
+
+- `save.format()` → file format
+- `save.game_edition()` → edition family
+- `save.expansion_type()` → in-game expansion
+
+
+## Compatibility rules (examples)
+
+- Warlock requires RotW edition and expansion
+- RotW expansion cannot be encoded to non-RotW formats
+- Druid/Assassin cannot be encoded as Classic
+- Unknown class IDs cannot be safely converted
+
+
+## Notes
+
+- Level is stored in multiple sections; use `save.set_level(...)` to keep it consistent
+- Additional reverse-engineering notes are available in `NOTES.md`
+
+
+## Documentation
+
+API docs: https://docs.rs/halbu  
+Changelog: [CHANGELOG.md](CHANGELOG.md)
+
+## References
+
+These resources helped me understand the .d2s format. Many thanks to their authors.
 
 * http://user.xmission.com/~trevin/DiabloIIv1.09_File_Format.shtml
-* https://github.com/dschu012/D2SLib (Unless you specifically need a rust library, you should probably use this.)
+* https://github.com/dschu012/D2SLib
 * https://github.com/d07RiV/d07riv.github.io/blob/master/d2r.html
 * https://github.com/oaken-source/pyd2s
 * https://github.com/WalterCouto/D2CE/blob/main/d2s_File_Format.md
