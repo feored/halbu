@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+- Fixed a bugged difficulty unlock warning by accepting `CompletedBefore` as a quest completion marker.
+- Reworked progression validation to use a difficulty floor instead of requiring an exact normalized value.
+- Added a real high level save as a regression fixture to keep the save parse and validation checks clean.
+
 ## 0.2.2
 
 - Removed unused `log` dependency.

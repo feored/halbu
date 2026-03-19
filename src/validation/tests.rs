@@ -1,6 +1,6 @@
 use super::*;
 use crate::quests::QuestFlag;
-use crate::{Act, Class, Difficulty, ExpansionType, Save};
+use crate::{Act, Class, Difficulty, ExpansionType, Save, Strictness};
 
 fn mercenary_experience_for_level(level: u8, xp_rate: u32) -> u32 {
     let level = u64::from(level);
@@ -13,6 +13,19 @@ fn validate_default_save_has_no_issues() {
     let save = Save::default();
     let report = build_validation_report(&save);
 
+    assert!(report.issues.is_empty());
+    assert!(report.is_valid());
+}
+
+#[test]
+fn validate_ayame_fixture_has_no_issues() {
+    let bytes = include_bytes!("../../assets/test/Ayame.d2s");
+    let parsed = Save::parse(bytes, Strictness::Strict).expect("Ayame should parse cleanly");
+
+    assert!(parsed.issues.is_empty());
+    assert_eq!(parsed.save.character.name, "Ayame");
+
+    let report = parsed.save.validate();
     assert!(report.issues.is_empty());
     assert!(report.is_valid());
 }
@@ -110,22 +123,6 @@ fn validate_reports_character_level_out_of_range() {
 }
 
 #[test]
-fn validate_reports_progression_warning() {
-    let mut save = Save::default();
-    save.character.progression = 6;
-
-    let report = build_validation_report(&save);
-    let issue = report
-        .issues
-        .iter()
-        .find(|issue| issue.code == ValidationCode::ProgressionNonCanonical)
-        .expect("progression warning should be present");
-
-    assert!(!issue.blocking);
-    assert!(!report.has_blocking_issues());
-}
-
-#[test]
 fn validate_reports_impossible_difficulty_selection() {
     let mut save = Save::default();
     save.character.difficulty = Difficulty::Hell;
@@ -135,6 +132,49 @@ fn validate_reports_impossible_difficulty_selection() {
         .issues
         .iter()
         .any(|issue| issue.code == ValidationCode::ImpossibleDifficultySelection));
+}
+
+#[test]
+fn validate_reports_progression_below_difficulty_floor() {
+    let mut save = Save::default();
+    save.character.difficulty = Difficulty::Hell;
+    save.character.progression = 9;
+
+    let report = build_validation_report(&save);
+    let issue = report
+        .issues
+        .iter()
+        .find(|issue| issue.code == ValidationCode::ProgressionNonCanonical)
+        .expect("progression warning should be present");
+
+    assert!(!issue.blocking);
+}
+
+#[test]
+fn validate_allows_progression_above_difficulty_floor() {
+    let mut save = Save::default();
+    save.character.difficulty = Difficulty::Hell;
+    save.character.progression = 13;
+
+    let report = build_validation_report(&save);
+    assert!(!report
+        .issues
+        .iter()
+        .any(|issue| issue.code == ValidationCode::ProgressionNonCanonical));
+}
+
+#[test]
+fn validate_classic_progression_floor_uses_four_acts_per_difficulty() {
+    let mut save = Save::default();
+    save.set_expansion_type(ExpansionType::Classic);
+    save.character.difficulty = Difficulty::Hell;
+    save.character.progression = 7;
+
+    let report = build_validation_report(&save);
+    assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == ValidationCode::ProgressionNonCanonical));
 }
 
 #[test]

@@ -156,30 +156,40 @@ fn validate_level_sync(save: &Save, issues: &mut Vec<ValidationIssue>) {
     }
 }
 
-fn canonical_progression_for(save: &Save) -> u8 {
+fn minimum_progression_for(save: &Save) -> u8 {
     let completed_act_count = if save.expansion_type() == ExpansionType::Classic { 4 } else { 5 };
-    let difficulty_index = (save.character.progression / completed_act_count).min(3);
-    completed_act_count * difficulty_index
+
+    match save.character.difficulty {
+        Difficulty::Normal => 0,
+        Difficulty::Nightmare => completed_act_count,
+        Difficulty::Hell => completed_act_count * 2,
+    }
 }
 
-fn validate_progression_canonical(save: &Save, issues: &mut Vec<ValidationIssue>) {
-    let expected_progression = canonical_progression_for(save);
+fn validate_progression_floor(save: &Save, issues: &mut Vec<ValidationIssue>) {
+    let minimum_progression = minimum_progression_for(save);
 
-    if save.character.progression == expected_progression {
+    if save.character.progression >= minimum_progression {
         return;
     }
 
     issues.push(warning(
         ValidationCode::ProgressionNonCanonical,
         format!(
-            "Progression value {} does not match the current difficulty. Re-select the highest difficulty beaten to normalize it.",
+            "Progression value {} is below the minimum expected for {:?} difficulty in {:?} mode.",
             save.character.progression,
+            save.character.difficulty,
+            save.expansion_type()
         ),
     ));
 }
 
 fn quest_reward_granted(quest: &Quest) -> bool {
     quest.state.contains(&QuestFlag::RewardGranted)
+}
+
+fn quest_completed(quest: &Quest) -> bool {
+    quest_reward_granted(quest) || quest.state.contains(&QuestFlag::CompletedBefore)
 }
 
 fn quest_has_only_reward_granted(quest: &Quest) -> bool {
@@ -208,8 +218,11 @@ fn difficulty_unlocked(save: &Save, difficulty: Difficulty) -> bool {
 
     match difficulty {
         Difficulty::Normal => true,
-        Difficulty::Nightmare => quest_reward_granted(unlock_act),
-        Difficulty::Hell => quest_reward_granted(nightmare_unlock_act),
+        // Act V completions on real saves often retain completion through
+        // `CompletedBefore` rather than `RewardGranted`, especially when reset
+        // state is present. Accept either marker here.
+        Difficulty::Nightmare => quest_completed(unlock_act),
+        Difficulty::Hell => quest_completed(nightmare_unlock_act),
     }
 }
 
@@ -226,6 +239,8 @@ fn act_unlocked(save: &Save, act: Act) -> bool {
 }
 
 fn validate_progression(save: &Save, issues: &mut Vec<ValidationIssue>) {
+    validate_progression_floor(save, issues);
+
     if !difficulty_unlocked(save, save.character.difficulty) {
         issues.push(issue(
             ValidationCode::ImpossibleDifficultySelection,
@@ -355,7 +370,6 @@ pub(crate) fn build_validation_report(save: &Save) -> ValidationReport {
     validate_class(save, &mut report.issues);
     validate_character_name(save, &mut report.issues);
     validate_level_sync(save, &mut report.issues);
-    validate_progression_canonical(save, &mut report.issues);
     validate_progression(save, &mut report.issues);
     validate_quest_state(save, &mut report.issues);
     validate_mercenary_level(save, &mut report.issues);
