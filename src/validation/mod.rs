@@ -6,8 +6,8 @@ use crate::quests::{Quest, QuestFlag};
 use crate::{Act, Difficulty, ExpansionType, Save};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use unicode_segmentation::UnicodeSegmentation;
 use unicode_script::{Script, ScriptExtension};
+use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationCode {
@@ -157,11 +157,7 @@ fn validate_level_sync(save: &Save, issues: &mut Vec<ValidationIssue>) {
 }
 
 fn canonical_progression_for(save: &Save) -> u8 {
-    let completed_act_count = if save.expansion_type() == ExpansionType::Classic {
-        4
-    } else {
-        5
-    };
+    let completed_act_count = if save.expansion_type() == ExpansionType::Classic { 4 } else { 5 };
     let difficulty_index = (save.character.progression / completed_act_count).min(3);
     completed_act_count * difficulty_index
 }
@@ -233,7 +229,10 @@ fn validate_progression(save: &Save, issues: &mut Vec<ValidationIssue>) {
     if !difficulty_unlocked(save, save.character.difficulty) {
         issues.push(issue(
             ValidationCode::ImpossibleDifficultySelection,
-            format!("Difficulty {:?} is not unlocked by the quest state.", save.character.difficulty),
+            format!(
+                "Difficulty {:?} is not unlocked by the quest state.",
+                save.character.difficulty
+            ),
         ));
     }
 
@@ -296,9 +295,7 @@ fn validate_quest_state(save: &Save, issues: &mut Vec<ValidationIssue>) {
         if quest_reward_granted(&quests.act4.completion) && !quest_reward_granted(&quests.act4.q2) {
             issues.push(issue(
                 ValidationCode::QuestStateImpossible,
-                format!(
-                    "{difficulty_label} Act IV completion requires Terror's End."
-                ),
+                format!("{difficulty_label} Act IV completion requires Terror's End."),
             ));
         }
     }
@@ -325,7 +322,10 @@ fn validate_mercenary_level(save: &Save, issues: &mut Vec<ValidationIssue>) {
         if mercenary.name_id as usize >= name_count {
             issues.push(issue(
                 ValidationCode::MercenaryNameIdOutOfRange,
-                format!("Mercenary name id {} is out of range for this mercenary type.", mercenary.name_id),
+                format!(
+                    "Mercenary name id {} is out of range for this mercenary type.",
+                    mercenary.name_id
+                ),
             ));
         }
     }
@@ -362,7 +362,6 @@ pub(crate) fn build_validation_report(save: &Save) -> ValidationReport {
 
     report
 }
-
 
 #[cfg(test)]
 mod tests;

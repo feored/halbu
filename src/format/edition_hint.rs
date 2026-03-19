@@ -3,8 +3,8 @@ use crate::skills::SKILLS_SECTION_LENGTH;
 use crate::utils::BytePosition;
 use crate::GameEdition;
 
-use super::FormatId;
 use super::layout::{layout_for_encode, CHARACTER_SECTION_START, VERSION_RANGE};
+use super::FormatId;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum StructureCoherence {

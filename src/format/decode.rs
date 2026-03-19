@@ -13,8 +13,8 @@ use crate::{
 use super::edition_hint::detect_edition_hint;
 use super::layout::{
     checksum_metadata, expansion_type_from_decoded_character, layout_for_decode, push_issue,
-    range_readable, read_version, section_name_option, NPCS_LENGTH, QUESTS_LENGTH, SIGNATURE,
-    SIGNATURE_RANGE, SKILLS_LENGTH, VERSION_RANGE, WAYPOINTS_LENGTH,
+    range_readable, read_version, section_name_option, IssueContext, NPCS_LENGTH, QUESTS_LENGTH,
+    SIGNATURE, SIGNATURE_RANGE, SKILLS_LENGTH, VERSION_RANGE, WAYPOINTS_LENGTH,
 };
 use super::FormatId;
 
@@ -55,14 +55,16 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
             &mut issues,
             IssueSeverity::Error,
             IssueKind::InvalidSignature,
-            section_name_option("signature"),
-            format!(
-                "Invalid signature: expected {SIGNATURE:X?}, found {:X?}.",
-                &bytes[SIGNATURE_RANGE.start..SIGNATURE_RANGE.end]
-            ),
-            Some(SIGNATURE_RANGE.start),
-            Some(SIGNATURE_RANGE.end - SIGNATURE_RANGE.start),
-            Some(SIGNATURE_RANGE.end - SIGNATURE_RANGE.start),
+            IssueContext {
+                section_name: section_name_option("signature"),
+                message: format!(
+                    "Invalid signature: expected {SIGNATURE:X?}, found {:X?}.",
+                    &bytes[SIGNATURE_RANGE.start..SIGNATURE_RANGE.end]
+                ),
+                offset: Some(SIGNATURE_RANGE.start),
+                expected: Some(SIGNATURE_RANGE.end - SIGNATURE_RANGE.start),
+                found: Some(SIGNATURE_RANGE.end - SIGNATURE_RANGE.start),
+            },
         );
 
         if strictness == Strictness::Strict {
@@ -97,16 +99,18 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
             &mut issues,
             IssueSeverity::Warning,
             IssueKind::InconsistentLayout,
-            None,
-            format!(
-                "File length ({}) is shorter than minimum expected ({}) for layout {:?}.",
-                bytes.len(),
-                selected_layout.minimum_decode_size(),
-                selected_layout.format_id()
-            ),
-            Some(0),
-            Some(selected_layout.minimum_decode_size()),
-            Some(bytes.len()),
+            IssueContext {
+                section_name: None,
+                message: format!(
+                    "File length ({}) is shorter than minimum expected ({}) for layout {:?}.",
+                    bytes.len(),
+                    selected_layout.minimum_decode_size(),
+                    selected_layout.format_id()
+                ),
+                offset: Some(0),
+                expected: Some(selected_layout.minimum_decode_size()),
+                found: Some(bytes.len()),
+            },
         );
     }
 
@@ -139,11 +143,13 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
                 &mut issues,
                 IssueSeverity::Error,
                 IssueKind::InvalidValue,
-                section_name_option("character"),
-                parse_error.to_string(),
-                Some(character_range.start),
-                Some(selected_layout.character_length()),
-                Some(selected_layout.character_length()),
+                IssueContext {
+                    section_name: section_name_option("character"),
+                    message: parse_error.to_string(),
+                    offset: Some(character_range.start),
+                    expected: Some(selected_layout.character_length()),
+                    found: Some(selected_layout.character_length()),
+                },
             );
 
             if strictness == Strictness::Strict {
@@ -171,11 +177,13 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
                 &mut issues,
                 IssueSeverity::Error,
                 IssueKind::InvalidValue,
-                section_name_option("quests"),
-                parse_error.to_string(),
-                Some(quests_range.start),
-                Some(QUESTS_LENGTH),
-                Some(QUESTS_LENGTH),
+                IssueContext {
+                    section_name: section_name_option("quests"),
+                    message: parse_error.to_string(),
+                    offset: Some(quests_range.start),
+                    expected: Some(QUESTS_LENGTH),
+                    found: Some(QUESTS_LENGTH),
+                },
             );
 
             if strictness == Strictness::Strict {
@@ -203,11 +211,13 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
                 &mut issues,
                 IssueSeverity::Error,
                 IssueKind::InvalidValue,
-                section_name_option("waypoints"),
-                parse_error.to_string(),
-                Some(waypoints_range.start),
-                Some(WAYPOINTS_LENGTH),
-                Some(WAYPOINTS_LENGTH),
+                IssueContext {
+                    section_name: section_name_option("waypoints"),
+                    message: parse_error.to_string(),
+                    offset: Some(waypoints_range.start),
+                    expected: Some(WAYPOINTS_LENGTH),
+                    found: Some(WAYPOINTS_LENGTH),
+                },
             );
 
             if strictness == Strictness::Strict {
@@ -235,11 +245,13 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
                 &mut issues,
                 IssueSeverity::Error,
                 IssueKind::InvalidValue,
-                section_name_option("npcs"),
-                parse_error.to_string(),
-                Some(npcs_range.start),
-                Some(NPCS_LENGTH),
-                Some(NPCS_LENGTH),
+                IssueContext {
+                    section_name: section_name_option("npcs"),
+                    message: parse_error.to_string(),
+                    offset: Some(npcs_range.start),
+                    expected: Some(NPCS_LENGTH),
+                    found: Some(NPCS_LENGTH),
+                },
             );
 
             if strictness == Strictness::Strict {
@@ -255,15 +267,17 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
             &mut issues,
             IssueSeverity::Error,
             IssueKind::InconsistentLayout,
-            section_name_option("attributes"),
-            format!(
-                "Attributes offset {} is beyond file length {}.",
-                selected_layout.attributes_offset(),
-                bytes.len()
-            ),
-            Some(selected_layout.attributes_offset()),
-            Some(1),
-            Some(0),
+            IssueContext {
+                section_name: section_name_option("attributes"),
+                message: format!(
+                    "Attributes offset {} is beyond file length {}.",
+                    selected_layout.attributes_offset(),
+                    bytes.len()
+                ),
+                offset: Some(selected_layout.attributes_offset()),
+                expected: Some(1),
+                found: Some(0),
+            },
         );
 
         return if strictness == Strictness::Strict {
@@ -281,14 +295,16 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
             &mut issues,
             IssueSeverity::Error,
             IssueKind::TruncatedSection,
-            section_name_option("attributes"),
-            format!(
-                "Attributes section is too short: expected at least 2 bytes, found {}.",
-                attribute_bytes.len()
-            ),
-            Some(selected_layout.attributes_offset()),
-            Some(2),
-            Some(attribute_bytes.len()),
+            IssueContext {
+                section_name: section_name_option("attributes"),
+                message: format!(
+                    "Attributes section is too short: expected at least 2 bytes, found {}.",
+                    attribute_bytes.len()
+                ),
+                offset: Some(selected_layout.attributes_offset()),
+                expected: Some(2),
+                found: Some(attribute_bytes.len()),
+            },
         );
 
         return if strictness == Strictness::Strict {
@@ -310,11 +326,13 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
                 &mut issues,
                 IssueSeverity::Error,
                 IssueKind::InvalidValue,
-                section_name_option("attributes"),
-                parse_error.to_string(),
-                Some(selected_layout.attributes_offset()),
-                None,
-                None,
+                IssueContext {
+                    section_name: section_name_option("attributes"),
+                    message: parse_error.to_string(),
+                    offset: Some(selected_layout.attributes_offset()),
+                    expected: None,
+                    found: None,
+                },
             );
 
             if strictness == Strictness::Strict {
@@ -342,13 +360,15 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
             &mut issues,
             IssueSeverity::Error,
             IssueKind::TruncatedSection,
-            section_name_option("skills"),
-            format!(
-                "Skills section is truncated at offset {skills_offset}. Expected {expected_length}, found {found_length}."
-            ),
-            Some(skills_offset),
-            Some(expected_length),
-            Some(found_length),
+            IssueContext {
+                section_name: section_name_option("skills"),
+                message: format!(
+                    "Skills section is truncated at offset {skills_offset}. Expected {expected_length}, found {found_length}."
+                ),
+                offset: Some(skills_offset),
+                expected: Some(expected_length),
+                found: Some(found_length),
+            },
         );
 
         return if strictness == Strictness::Strict {
@@ -369,11 +389,13 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
                 &mut issues,
                 IssueSeverity::Error,
                 IssueKind::InvalidValue,
-                section_name_option("skills"),
-                parse_error.to_string(),
-                Some(skills_offset),
-                Some(SKILLS_LENGTH),
-                Some(SKILLS_LENGTH),
+                IssueContext {
+                    section_name: section_name_option("skills"),
+                    message: parse_error.to_string(),
+                    offset: Some(skills_offset),
+                    expected: Some(SKILLS_LENGTH),
+                    found: Some(SKILLS_LENGTH),
+                },
             );
 
             if strictness == Strictness::Strict {
@@ -390,11 +412,16 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
             &mut issues,
             IssueSeverity::Error,
             IssueKind::TruncatedSection,
-            section_name_option("items"),
-            format!("Items section offset {items_offset} is beyond file length {}.", bytes.len()),
-            Some(items_offset),
-            Some(1),
-            Some(0),
+            IssueContext {
+                section_name: section_name_option("items"),
+                message: format!(
+                    "Items section offset {items_offset} is beyond file length {}.",
+                    bytes.len()
+                ),
+                offset: Some(items_offset),
+                expected: Some(1),
+                found: Some(0),
+            },
         );
 
         return if strictness == Strictness::Strict {

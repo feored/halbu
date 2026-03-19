@@ -107,8 +107,10 @@ impl CharacterCodec for CharacterCodecV105 {
             });
         }
 
-        let mut character = Character::default();
-        character.raw_section = character_section_bytes[..Self::CHARACTER_LENGTH].to_vec();
+        let mut character = Character {
+            raw_section: character_section_bytes[..Self::CHARACTER_LENGTH].to_vec(),
+            ..Character::default()
+        };
         let raw_bytes = &character.raw_section;
 
         character.weapon_switch = read_u32_le_at(raw_bytes, OFFSET_WEAPON_SET, "weapon_set")? != 0;

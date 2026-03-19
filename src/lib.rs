@@ -189,7 +189,7 @@ pub struct ParsedSave {
 }
 
 /// Cheap metadata summary extracted from header + character section only.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SaveSummary {
     /// Numeric version stored in the file header when readable.
     pub version: Option<u32>,
@@ -209,22 +209,6 @@ pub struct SaveSummary {
     pub title: Option<String>,
     /// Non-fatal issues collected during summarize in lax mode.
     pub issues: Vec<ParseIssue>,
-}
-
-impl Default for SaveSummary {
-    fn default() -> Self {
-        Self {
-            version: None,
-            format: None,
-            edition: None,
-            expansion_type: None,
-            name: None,
-            class: None,
-            level: None,
-            title: None,
-            issues: Vec::new(),
-        }
-    }
 }
 
 /// Controls parse behavior when malformed data is found.

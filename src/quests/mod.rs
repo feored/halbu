@@ -165,16 +165,16 @@ impl From<&[u8]> for Act1 {
             u16::from_le_bytes([value[start], value[start + 1]])
         }
 
-        let mut complete_act = Act1::default();
-        complete_act.prologue = Quest::from(read_u16(value, 0));
-        complete_act.q1 = Quest::from(read_u16(value, 2));
-        complete_act.q2 = Quest::from(read_u16(value, 4));
-        complete_act.q3 = Quest::from(read_u16(value, 6));
-        complete_act.q4 = Quest::from(read_u16(value, 8));
-        complete_act.q5 = Quest::from(read_u16(value, 10));
-        complete_act.q6 = Quest::from(read_u16(value, 12));
-        complete_act.completion = Quest::from(read_u16(value, 14));
-        complete_act
+        Act1 {
+            prologue: Quest::from(read_u16(value, 0)),
+            q1: Quest::from(read_u16(value, 2)),
+            q2: Quest::from(read_u16(value, 4)),
+            q3: Quest::from(read_u16(value, 6)),
+            q4: Quest::from(read_u16(value, 8)),
+            q5: Quest::from(read_u16(value, 10)),
+            q6: Quest::from(read_u16(value, 12)),
+            completion: Quest::from(read_u16(value, 14)),
+        }
     }
 }
 
@@ -226,16 +226,16 @@ impl From<&[u8]> for Act2 {
             u16::from_le_bytes([value[start], value[start + 1]])
         }
 
-        let mut complete_act = Act2::default();
-        complete_act.prologue = Quest::from(read_u16(value, 0));
-        complete_act.q1 = Quest::from(read_u16(value, 2));
-        complete_act.q2 = Quest::from(read_u16(value, 4));
-        complete_act.q3 = Quest::from(read_u16(value, 6));
-        complete_act.q4 = Quest::from(read_u16(value, 8));
-        complete_act.q5 = Quest::from(read_u16(value, 10));
-        complete_act.q6 = Quest::from(read_u16(value, 12));
-        complete_act.completion = Quest::from(read_u16(value, 14));
-        complete_act
+        Act2 {
+            prologue: Quest::from(read_u16(value, 0)),
+            q1: Quest::from(read_u16(value, 2)),
+            q2: Quest::from(read_u16(value, 4)),
+            q3: Quest::from(read_u16(value, 6)),
+            q4: Quest::from(read_u16(value, 8)),
+            q5: Quest::from(read_u16(value, 10)),
+            q6: Quest::from(read_u16(value, 12)),
+            completion: Quest::from(read_u16(value, 14)),
+        }
     }
 }
 
@@ -287,16 +287,16 @@ impl From<&[u8]> for Act3 {
             u16::from_le_bytes([value[start], value[start + 1]])
         }
 
-        let mut complete_act = Act3::default();
-        complete_act.prologue = Quest::from(read_u16(value, 0));
-        complete_act.q1 = Quest::from(read_u16(value, 2));
-        complete_act.q2 = Quest::from(read_u16(value, 4));
-        complete_act.q3 = Quest::from(read_u16(value, 6));
-        complete_act.q4 = Quest::from(read_u16(value, 8));
-        complete_act.q5 = Quest::from(read_u16(value, 10));
-        complete_act.q6 = Quest::from(read_u16(value, 12));
-        complete_act.completion = Quest::from(read_u16(value, 14));
-        complete_act
+        Act3 {
+            prologue: Quest::from(read_u16(value, 0)),
+            q1: Quest::from(read_u16(value, 2)),
+            q2: Quest::from(read_u16(value, 4)),
+            q3: Quest::from(read_u16(value, 6)),
+            q4: Quest::from(read_u16(value, 8)),
+            q5: Quest::from(read_u16(value, 10)),
+            q6: Quest::from(read_u16(value, 12)),
+            completion: Quest::from(read_u16(value, 14)),
+        }
     }
 }
 
@@ -348,16 +348,16 @@ impl From<&[u8]> for Act4 {
             u16::from_le_bytes([value[start], value[start + 1]])
         }
 
-        let mut complete_act = Act4::default();
-        complete_act.prologue = Quest::from(read_u16(value, 0));
-        complete_act.q1 = Quest::from(read_u16(value, 2));
-        complete_act.q2 = Quest::from(read_u16(value, 4));
-        complete_act.q3 = Quest::from(read_u16(value, 6));
-        complete_act.completion = Quest::from(read_u16(value, 8));
-        complete_act.unused_1 = Quest::from(read_u16(value, 10));
-        complete_act.unused_2 = Quest::from(read_u16(value, 12));
-        complete_act.unused_3 = Quest::from(read_u16(value, 14));
-        complete_act
+        Act4 {
+            prologue: Quest::from(read_u16(value, 0)),
+            q1: Quest::from(read_u16(value, 2)),
+            q2: Quest::from(read_u16(value, 4)),
+            q3: Quest::from(read_u16(value, 6)),
+            completion: Quest::from(read_u16(value, 8)),
+            unused_1: Quest::from(read_u16(value, 10)),
+            unused_2: Quest::from(read_u16(value, 12)),
+            unused_3: Quest::from(read_u16(value, 14)),
+        }
     }
 }
 
@@ -413,18 +413,18 @@ impl From<&[u8]> for Act5 {
             u16::from_le_bytes([value[start], value[start + 1]])
         }
 
-        let mut complete_act = Act5::default();
-        complete_act.prologue = Quest::from(read_u16(value, 0));
-        complete_act.unused_1 = Quest::from(read_u16(value, 2));
-        complete_act.unused_2 = Quest::from(read_u16(value, 4));
-        complete_act.q1 = Quest::from(read_u16(value, 6));
-        complete_act.q2 = Quest::from(read_u16(value, 8));
-        complete_act.q3 = Quest::from(read_u16(value, 10));
-        complete_act.q4 = Quest::from(read_u16(value, 12));
-        complete_act.q5 = Quest::from(read_u16(value, 14));
-        complete_act.q6 = Quest::from(read_u16(value, 16));
-        complete_act.completion = Quest::from(read_u16(value, 18));
-        complete_act
+        Act5 {
+            prologue: Quest::from(read_u16(value, 0)),
+            unused_1: Quest::from(read_u16(value, 2)),
+            unused_2: Quest::from(read_u16(value, 4)),
+            q1: Quest::from(read_u16(value, 6)),
+            q2: Quest::from(read_u16(value, 8)),
+            q3: Quest::from(read_u16(value, 10)),
+            q4: Quest::from(read_u16(value, 12)),
+            q5: Quest::from(read_u16(value, 14)),
+            q6: Quest::from(read_u16(value, 16)),
+            completion: Quest::from(read_u16(value, 18)),
+        }
     }
 }
 
@@ -462,13 +462,13 @@ impl DifficultyQuests {
 
 impl From<&[u8]> for DifficultyQuests {
     fn from(value: &[u8]) -> Self {
-        let mut diff_quests: DifficultyQuests = DifficultyQuests::default();
-        diff_quests.act1 = Act1::from(&value[Section::Act1.range()]);
-        diff_quests.act2 = Act2::from(&value[Section::Act2.range()]);
-        diff_quests.act3 = Act3::from(&value[Section::Act3.range()]);
-        diff_quests.act4 = Act4::from(&value[Section::Act4.range()]);
-        diff_quests.act5 = Act5::from(&value[Section::Act5.range()]);
-        diff_quests
+        DifficultyQuests {
+            act1: Act1::from(&value[Section::Act1.range()]),
+            act2: Act2::from(&value[Section::Act2.range()]),
+            act3: Act3::from(&value[Section::Act3.range()]),
+            act4: Act4::from(&value[Section::Act4.range()]),
+            act5: Act5::from(&value[Section::Act5.range()]),
+        }
     }
 }
 
@@ -500,8 +500,6 @@ impl Quests {
     }
 
     pub fn parse(bytes: &[u8]) -> Result<Self, ParseHardError> {
-        let mut quests: Quests = Quests::default();
-
         if bytes.len() < SECTION_LENGTH {
             return Err(ParseHardError {
                 message: format!(
@@ -520,11 +518,11 @@ impl Quests {
             });
         }
 
-        quests.normal = DifficultyQuests::from(&bytes[Section::Normal.range()]);
-        quests.nightmare = DifficultyQuests::from(&bytes[Section::Nightmare.range()]);
-        quests.hell = DifficultyQuests::from(&bytes[Section::Hell.range()]);
-
-        Ok(quests)
+        Ok(Quests {
+            normal: DifficultyQuests::from(&bytes[Section::Normal.range()]),
+            nightmare: DifficultyQuests::from(&bytes[Section::Nightmare.range()]),
+            hell: DifficultyQuests::from(&bytes[Section::Hell.range()]),
+        })
     }
 }
 

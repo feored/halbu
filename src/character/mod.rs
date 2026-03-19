@@ -366,12 +366,12 @@ impl Status {
 
 impl From<u8> for Status {
     fn from(byte: u8) -> Status {
-        let mut status = Status::default();
-        status.hardcore = byte.bit(2);
-        status.died = byte.bit(3);
-        status.expansion = byte.bit(5);
-        status.ladder = byte.bit(6);
-        status
+        Status {
+            ladder: byte.bit(6),
+            expansion: byte.bit(5),
+            hardcore: byte.bit(2),
+            died: byte.bit(3),
+        }
     }
 }
 

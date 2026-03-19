@@ -74,11 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::write(&output_path, output_bytes)?;
 
     println!("Wrote {output_path}");
-    println!(
-        "Now: {} / lvl {}",
-        save.character.name,
-        save.character.level()
-    );
+    println!("Now: {} / lvl {}", save.character.name, save.character.level());
     println!(
         "Stats: str={} dex={} vit={} ene={}",
         save.attributes.strength.value,

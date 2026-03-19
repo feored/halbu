@@ -153,9 +153,7 @@ fn encode_v99_rejects_rotw_expansion_type() {
     let error = encode(&save, FormatId::V99, CompatibilityChecks::Enforce)
         .expect_err("v99 should reject RotW expansion type");
     assert!(
-        error
-            .to_string()
-            .contains("RotW expansion mode cannot be encoded to non-RotW formats"),
+        error.to_string().contains("RotW expansion mode cannot be encoded to non-RotW formats"),
         "unexpected error message: {error}"
     );
 }

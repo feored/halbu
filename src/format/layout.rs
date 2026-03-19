@@ -214,24 +214,28 @@ pub(crate) fn section_name_option(section_name: &str) -> Option<String> {
     Some(section_name.to_string())
 }
 
+pub(crate) struct IssueContext {
+    pub section_name: Option<String>,
+    pub message: String,
+    pub offset: Option<usize>,
+    pub expected: Option<usize>,
+    pub found: Option<usize>,
+}
+
 pub(crate) fn push_issue(
     issues: &mut Vec<ParseIssue>,
     severity: IssueSeverity,
     kind: IssueKind,
-    section_name: Option<String>,
-    message: String,
-    offset: Option<usize>,
-    expected: Option<usize>,
-    found: Option<usize>,
+    context: IssueContext,
 ) {
     issues.push(ParseIssue {
         severity,
         kind,
-        section: section_name,
-        message,
-        offset,
-        expected,
-        found,
+        section: context.section_name,
+        message: context.message,
+        offset: context.offset,
+        expected: context.expected,
+        found: context.found,
     });
 }
 
@@ -251,14 +255,16 @@ pub(crate) fn range_readable(
         issues,
         IssueSeverity::Error,
         IssueKind::TruncatedSection,
-        section_name_option(section_name),
-        format!(
-            "Section {section_name} is truncated. Expected {expected_length} bytes at offset {}, found {found_length}.",
-            range.start
-        ),
-        Some(range.start),
-        Some(expected_length),
-        Some(found_length),
+        IssueContext {
+            section_name: section_name_option(section_name),
+            message: format!(
+                "Section {section_name} is truncated. Expected {expected_length} bytes at offset {}, found {found_length}.",
+                range.start
+            ),
+            offset: Some(range.start),
+            expected: Some(expected_length),
+            found: Some(found_length),
+        },
     );
 
     false
@@ -324,15 +330,17 @@ pub(crate) fn layout_for_decode(
                 issues,
                 IssueSeverity::Warning,
                 IssueKind::UnsupportedVersion,
-                section_name_option("version"),
-                format!(
-                    "Unsupported save version {version}. Falling back to {:?} layout in lax mode (edition hint: {:?}).",
-                    fallback_layout.format_id(),
-                    edition_hint
-                ),
-                Some(VERSION_RANGE.start),
-                Some(VERSION_RANGE.end - VERSION_RANGE.start),
-                Some(VERSION_RANGE.end - VERSION_RANGE.start),
+                IssueContext {
+                    section_name: section_name_option("version"),
+                    message: format!(
+                        "Unsupported save version {version}. Falling back to {:?} layout in lax mode (edition hint: {:?}).",
+                        fallback_layout.format_id(),
+                        edition_hint
+                    ),
+                    offset: Some(VERSION_RANGE.start),
+                    expected: Some(VERSION_RANGE.end - VERSION_RANGE.start),
+                    found: Some(VERSION_RANGE.end - VERSION_RANGE.start),
+                },
             );
 
             if strictness == Strictness::Strict {

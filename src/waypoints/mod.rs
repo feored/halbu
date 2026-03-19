@@ -130,10 +130,10 @@ impl<const WAYPOINT_COUNT: usize> ActWaypoints<WAYPOINT_COUNT> {
         );
 
         let mut waypoints = [WaypointState::default(); WAYPOINT_COUNT];
-        for index in 0..WAYPOINT_COUNT {
+        for (index, waypoint_state) in waypoints.iter_mut().enumerate() {
             let waypoint = Waypoint::from_act_index(act, index)
                 .expect("Act waypoint defaults must map to valid waypoint IDs.");
-            waypoints[index] = WaypointState { id: waypoint, acquired: false };
+            *waypoint_state = WaypointState { id: waypoint, acquired: false };
         }
 
         Self { act, waypoints }
@@ -145,6 +145,10 @@ impl<const WAYPOINT_COUNT: usize> ActWaypoints<WAYPOINT_COUNT> {
 
     pub const fn len(&self) -> usize {
         WAYPOINT_COUNT
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        WAYPOINT_COUNT == 0
     }
 
     pub fn iter(&self) -> std::slice::Iter<'_, WaypointState> {

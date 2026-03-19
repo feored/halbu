@@ -3,7 +3,7 @@ use crate::{IssueKind, IssueSeverity, ParseHardError, ParseIssue, SaveSummary, S
 
 use super::layout::{
     expansion_type_from_decoded_character, layout_for_decode, push_issue, range_readable,
-    read_version, section_name_option, SIGNATURE, SIGNATURE_RANGE, VERSION_RANGE,
+    read_version, section_name_option, IssueContext, SIGNATURE, SIGNATURE_RANGE, VERSION_RANGE,
 };
 use super::FormatId;
 
@@ -31,14 +31,16 @@ pub(crate) fn summarize(
             &mut issues,
             IssueSeverity::Error,
             IssueKind::InvalidSignature,
-            section_name_option("signature"),
-            format!(
-                "Invalid signature: expected {SIGNATURE:X?}, found {:X?}.",
-                &bytes[SIGNATURE_RANGE.start..SIGNATURE_RANGE.end]
-            ),
-            Some(SIGNATURE_RANGE.start),
-            Some(SIGNATURE_RANGE.end - SIGNATURE_RANGE.start),
-            Some(SIGNATURE_RANGE.end - SIGNATURE_RANGE.start),
+            IssueContext {
+                section_name: section_name_option("signature"),
+                message: format!(
+                    "Invalid signature: expected {SIGNATURE:X?}, found {:X?}.",
+                    &bytes[SIGNATURE_RANGE.start..SIGNATURE_RANGE.end]
+                ),
+                offset: Some(SIGNATURE_RANGE.start),
+                expected: Some(SIGNATURE_RANGE.end - SIGNATURE_RANGE.start),
+                found: Some(SIGNATURE_RANGE.end - SIGNATURE_RANGE.start),
+            },
         );
 
         if strictness == Strictness::Strict {
@@ -100,11 +102,13 @@ pub(crate) fn summarize(
                 &mut issues,
                 IssueSeverity::Error,
                 IssueKind::InvalidValue,
-                section_name_option("character"),
-                parse_error.to_string(),
-                Some(character_range.start),
-                Some(selected_layout.character_length()),
-                Some(selected_layout.character_length()),
+                IssueContext {
+                    section_name: section_name_option("character"),
+                    message: parse_error.to_string(),
+                    offset: Some(character_range.start),
+                    expected: Some(selected_layout.character_length()),
+                    found: Some(selected_layout.character_length()),
+                },
             );
 
             if strictness == Strictness::Strict {

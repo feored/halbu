@@ -29,10 +29,7 @@ fn validate_reports_invalid_character_name() {
     save.character.name = "   ".to_string();
 
     let report = build_validation_report(&save);
-    assert!(report
-        .issues
-        .iter()
-        .any(|issue| issue.code == ValidationCode::InvalidCharacterName));
+    assert!(report.issues.iter().any(|issue| issue.code == ValidationCode::InvalidCharacterName));
 }
 
 #[test]
@@ -53,10 +50,7 @@ fn validate_reports_overlong_byte_name() {
     save.character.name = "😀😀😀😀😀😀😀😀😀😀😀😀😀".to_string();
 
     let report = build_validation_report(&save);
-    assert!(report
-        .issues
-        .iter()
-        .any(|issue| issue.code == ValidationCode::InvalidCharacterName));
+    assert!(report.issues.iter().any(|issue| issue.code == ValidationCode::InvalidCharacterName));
 }
 
 #[test]
@@ -81,10 +75,7 @@ fn validate_reports_overlong_name() {
     save.character.name = "abcdefghijklmnop".to_string();
 
     let report = build_validation_report(&save);
-    assert!(report
-        .issues
-        .iter()
-        .any(|issue| issue.code == ValidationCode::InvalidCharacterName));
+    assert!(report.issues.iter().any(|issue| issue.code == ValidationCode::InvalidCharacterName));
 }
 
 #[test]
@@ -93,10 +84,7 @@ fn validate_reports_unknown_class_id() {
     save.character.class = Class::Unknown(0x7F);
 
     let report = build_validation_report(&save);
-    assert!(report
-        .issues
-        .iter()
-        .any(|issue| issue.code == ValidationCode::UnknownClassId));
+    assert!(report.issues.iter().any(|issue| issue.code == ValidationCode::UnknownClassId));
 }
 
 #[test]
@@ -106,10 +94,7 @@ fn validate_reports_level_mismatch() {
     save.attributes.set_level(11);
 
     let report = build_validation_report(&save);
-    assert!(report
-        .issues
-        .iter()
-        .any(|issue| issue.code == ValidationCode::CharacterLevelMismatch));
+    assert!(report.issues.iter().any(|issue| issue.code == ValidationCode::CharacterLevelMismatch));
 }
 
 #[test]
@@ -172,10 +157,7 @@ fn validate_reports_impossible_act_selection() {
     save.character.act = Act::Act5;
 
     let report = build_validation_report(&save);
-    assert!(report
-        .issues
-        .iter()
-        .any(|issue| issue.code == ValidationCode::ImpossibleActSelection));
+    assert!(report.issues.iter().any(|issue| issue.code == ValidationCode::ImpossibleActSelection));
 }
 
 #[test]
@@ -184,10 +166,7 @@ fn validate_reports_impossible_quest_state() {
     save.quests.normal.act1.prologue.state.insert(QuestFlag::Started);
 
     let report = build_validation_report(&save);
-    assert!(report
-        .issues
-        .iter()
-        .any(|issue| issue.code == ValidationCode::QuestStateImpossible));
+    assert!(report.issues.iter().any(|issue| issue.code == ValidationCode::QuestStateImpossible));
 }
 
 #[test]
@@ -196,10 +175,7 @@ fn validate_reports_act_iv_completion_without_terrors_end() {
     save.quests.normal.act4.completion.state.insert(QuestFlag::RewardGranted);
 
     let report = build_validation_report(&save);
-    assert!(report
-        .issues
-        .iter()
-        .any(|issue| issue.code == ValidationCode::QuestStateImpossible));
+    assert!(report.issues.iter().any(|issue| issue.code == ValidationCode::QuestStateImpossible));
 }
 
 #[test]
