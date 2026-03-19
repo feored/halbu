@@ -1,8 +1,9 @@
 use crate::attributes::Attributes;
 use crate::skills::SKILLS_SECTION_LENGTH;
 use crate::utils::BytePosition;
-use crate::{FormatId, GameEdition};
+use crate::GameEdition;
 
+use super::FormatId;
 use super::layout::{layout_for_encode, CHARACTER_SECTION_START, VERSION_RANGE};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
