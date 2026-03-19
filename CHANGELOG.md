@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Removed unused `log` dependency.
+
 ## 0.2.1
 
 - Added optional save validation reports, separate from encoding.

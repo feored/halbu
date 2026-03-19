@@ -1,6 +1,6 @@
 [package]
 name = "halbu"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "Diablo II save file parsing library."
 authors = ["feor"]
@@ -12,7 +12,6 @@ keywords = ["diablo2", "d2r", "save", "parser"]
 
 [dependencies]
 bit = "0.1.1"
-log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_with = "3"
 unicode-script = "0.5.8"
