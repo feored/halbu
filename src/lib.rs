@@ -188,7 +188,7 @@ pub struct ParsedSave {
     pub computed_checksum: Option<u32>,
 }
 
-/// Cheap metadata summary extracted from header + character section only.
+/// Lightweight metadata summary extracted from header + character section only.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SaveSummary {
     /// Numeric version stored in the file header when readable.
@@ -329,6 +329,9 @@ impl Save {
     }
 
     /// Build a new blank save for a target format/class.
+    ///
+    /// `V99` defaults to `Expansion`; `V105` and unknown formats default to `RotW`.
+    /// Call `set_expansion_type` afterward if you need `Classic`.
     pub fn new(format: FormatId, class: Class) -> Save {
         let mut character = Character::default_class(class);
         character.last_played = 0;

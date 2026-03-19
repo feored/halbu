@@ -8,9 +8,8 @@ It serves as the backend for **[Halbu Editor](https://github.com/feored/halbu-ed
 
 ## Features
 
-
 - Parse and modify `.d2s` save files
-- Supports D2R Legacy and RotW formats (`v99`, `v105`)
+- Supports the D2R Legacy and RotW layouts (`v99`, `v105`)
 - Editable sections:
   - character data
   - attributes
@@ -157,22 +156,22 @@ if hint == Some(GameEdition::RotW) {
 
 Halbu distinguishes between three related concepts:
 
-- `FormatId` — concrete file format (`V99`, `V105`, or unknown)
-- `GameEdition` — edition family (`D2RLegacy`, `RotW`)
-- `ExpansionType` — in-game expansion mode (`Classic`, `Expansion`, `RotW`)
+- `FormatId` - concrete file format (`V99`, `V105`, or unknown)
+- `GameEdition` - edition family (`D2RLegacy`, `RotW`)
+- `ExpansionType` - in-game expansion mode (`Classic`, `Expansion`, `RotW`)
 
 Typical usage:
 
-- `save.format()` → file format
-- `save.game_edition()` → edition family
-- `save.expansion_type()` → in-game expansion
+- `save.format()` -> file format
+- `save.game_edition()` -> edition family
+- `save.expansion_type()` -> in-game expansion
 
 
 ## Compatibility rules (examples)
 
 - Warlock requires RotW edition and expansion
 - RotW expansion cannot be encoded to non-RotW formats
-- Druid/Assassin cannot be encoded as Classic
+- Druid and Assassin cannot be encoded as Classic
 - Unknown class IDs cannot be safely converted
 
 

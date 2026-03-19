@@ -135,7 +135,7 @@ fn compare_evidence(legacy: EditionEvidence, rotw: EditionEvidence) -> Option<Ga
     }
 }
 
-/// Infer the most likely game edition for bytes whose version is unknown or unsupported.
+/// Tries to guess the edition hint from reserved markers and layout bytes.
 ///
 /// This compares two edition hypotheses:
 /// - `GameEdition::D2RLegacy` using the v99 layout
