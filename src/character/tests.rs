@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::character::v105::{MODE_ROTW, OFFSET_MODE_MARKER};
+    use crate::ExpansionType;
     use crate::character::*;
+    use crate::character::v105::{MODE_ROTW, OFFSET_MODE_MARKER};
     use crate::format::FormatId;
 
     #[test]
@@ -182,34 +183,34 @@ mod tests {
         character.set_legacy_expansion_flag(false);
         character.set_hardcore(false);
         character.progression = 4;
-        assert_eq!(character.title_d2r(), Some("Dame"));
+        assert_eq!(character.title_d2r(ExpansionType::Classic), Some("Dame"));
 
         character.set_legacy_expansion_flag(false);
         character.set_hardcore(true);
         character.progression = 12;
-        assert_eq!(character.title_d2r(), Some("Queen"));
+        assert_eq!(character.title_d2r(ExpansionType::Classic), Some("Queen"));
 
         character.set_legacy_expansion_flag(true);
         character.set_hardcore(false);
         character.progression = 10;
-        assert_eq!(character.title_d2r(), Some("Champion"));
+        assert_eq!(character.title_d2r(ExpansionType::Expansion), Some("Champion"));
 
         character.set_legacy_expansion_flag(true);
         character.set_hardcore(true);
         character.progression = 15;
-        assert_eq!(character.title_d2r(), Some("Guardian"));
+        assert_eq!(character.title_d2r(ExpansionType::Expansion), Some("Guardian"));
 
         // Warlock uses male title variants.
         character.class = Class::Warlock;
         character.set_legacy_expansion_flag(false);
         character.set_hardcore(false);
         character.progression = 12;
-        assert_eq!(character.title_d2r(), Some("Baron"));
+        assert_eq!(character.title_d2r(ExpansionType::Classic), Some("Baron"));
 
         // Expansion normally skips these values.
         character.set_legacy_expansion_flag(true);
         character.set_hardcore(false);
         character.progression = 9;
-        assert_eq!(character.title_d2r(), None);
+        assert_eq!(character.title_d2r(ExpansionType::Expansion), None);
     }
 }

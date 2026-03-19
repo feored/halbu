@@ -438,6 +438,11 @@ impl Save {
         format::compatibility_issues(self, target)
     }
 
+    /// Return the default D2R title for this save using the canonical expansion mode.
+    pub fn title_d2r(&self) -> Option<&'static str> {
+        self.character.title_d2r(self.expansion_type())
+    }
+
     /// Validate the current save using backend-owned canonical rules.
     pub fn validate(&self) -> validation::ValidationReport {
         validation::build_validation_report(self)
@@ -669,6 +674,16 @@ mod tests {
 
         save.set_format(FormatId::Unknown(1234));
         assert_eq!(save.game_edition(), None);
+    }
+
+    #[test]
+    fn save_title_uses_canonical_expansion_type() {
+        let mut save = Save::new(FormatId::V105, Class::Amazon);
+        save.set_expansion_type(ExpansionType::Classic);
+        save.character.set_legacy_expansion_flag(true);
+        save.character.progression = 4;
+
+        assert_eq!(save.title_d2r(), Some("Dame"));
     }
 
     #[test]

@@ -1,7 +1,5 @@
 use crate::character::decode_for_format as decode_character_for_format;
-use crate::{
-    ExpansionType, IssueKind, IssueSeverity, ParseHardError, ParseIssue, SaveSummary, Strictness,
-};
+use crate::{IssueKind, IssueSeverity, ParseHardError, ParseIssue, SaveSummary, Strictness};
 
 use super::layout::{
     expansion_type_from_decoded_character, layout_for_decode, push_issue, range_readable,
@@ -87,18 +85,10 @@ pub(crate) fn summarize(
         Ok(character) => {
             let expansion_type =
                 expansion_type_from_decoded_character(selected_layout.format_id(), &character);
+            let title = character.title_d2r(expansion_type).map(str::to_string);
             let class = character.class;
-            let progression = character.progression;
-            let is_hardcore = character.is_hardcore();
             let level = character.level();
             let name = character.name;
-            let title = crate::character::title_for_progression_d2r(
-                progression,
-                class,
-                !matches!(expansion_type, ExpansionType::Classic),
-                is_hardcore,
-            )
-            .map(str::to_string);
             summary.expansion_type = Some(expansion_type);
             summary.name = Some(name);
             summary.class = Some(class);

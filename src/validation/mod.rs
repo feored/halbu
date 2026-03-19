@@ -5,6 +5,9 @@ use crate::character::mercenary::{
 use crate::quests::{Quest, QuestFlag};
 use crate::{Act, Difficulty, ExpansionType, Save};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_script::{Script, ScriptExtension};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationCode {
@@ -51,36 +54,23 @@ fn warning(code: ValidationCode, message: impl Into<String>) -> ValidationIssue 
     ValidationIssue { code, blocking: false, message: message.into() }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum NameScript {
-    Latin,
-    NonLatin,
-}
-
-fn name_script(c: char) -> Option<NameScript> {
-    if !c.is_alphabetic() {
-        return None;
-    }
-
-    if c.is_ascii_alphabetic() {
-        Some(NameScript::Latin)
-    } else {
-        Some(NameScript::NonLatin)
-    }
-}
-
 fn has_mixed_name_scripts(name: &str) -> bool {
-    let mut seen_latin = false;
-    let mut seen_non_latin = false;
+    let mut scripts = HashSet::new();
 
     for c in name.chars() {
-        match name_script(c) {
-            Some(NameScript::Latin) => seen_latin = true,
-            Some(NameScript::NonLatin) => seen_non_latin = true,
-            None => {}
+        if !c.is_alphabetic() {
+            continue;
         }
 
-        if seen_latin && seen_non_latin {
+        for script in ScriptExtension::from(c).iter() {
+            if matches!(script, Script::Common | Script::Inherited) {
+                continue;
+            }
+
+            scripts.insert(script);
+        }
+
+        if scripts.len() > 1 {
             return true;
         }
     }
@@ -90,6 +80,8 @@ fn has_mixed_name_scripts(name: &str) -> bool {
 
 fn validate_character_name(save: &Save, issues: &mut Vec<ValidationIssue>) {
     let name = save.character.name.as_str();
+    let grapheme_count = UnicodeSegmentation::graphemes(name, true).count();
+    let byte_count = name.len();
 
     if name.trim().is_empty() {
         issues.push(issue(ValidationCode::InvalidCharacterName, "Character name is empty."));
@@ -103,17 +95,31 @@ fn validate_character_name(save: &Save, issues: &mut Vec<ValidationIssue>) {
         ));
     }
 
-    if name.chars().count() > 15 {
+    if grapheme_count < 2 {
+        issues.push(issue(
+            ValidationCode::InvalidCharacterName,
+            "Character name must be at least 2 graphemes long.",
+        ));
+    }
+
+    if grapheme_count > 15 {
         issues.push(issue(
             ValidationCode::InvalidCharacterName,
             "Character name exceeds the game's 15-grapheme limit.",
         ));
     }
 
-    if has_mixed_name_scripts(name) {
+    if byte_count > 48 {
         issues.push(issue(
             ValidationCode::InvalidCharacterName,
-            "Character name mixes Latin and non-Latin scripts.",
+            "Character name exceeds the game's 48-byte name field.",
+        ));
+    }
+
+    if has_mixed_name_scripts(name) {
+        issues.push(warning(
+            ValidationCode::InvalidCharacterName,
+            "Character name uses mixed scripts.",
         ));
     }
 }
@@ -122,7 +128,7 @@ fn validate_class(save: &Save, issues: &mut Vec<ValidationIssue>) {
     if let crate::Class::Unknown(class_id) = save.character.class {
         issues.push(issue(
             ValidationCode::UnknownClassId,
-            format!("Unknown class id {class_id} is not loadable by the game."),
+            format!("Unknown class id {class_id} is not recognized by the game."),
         ));
     }
 }
@@ -135,7 +141,7 @@ fn validate_level_sync(save: &Save, issues: &mut Vec<ValidationIssue>) {
         issues.push(issue(
             ValidationCode::CharacterLevelOutOfRange,
             format!(
-                "Character level ({character_level}) and attributes level ({attribute_level}) must both be within 1..=99."
+                "Character level ({character_level}) and attributes level ({attribute_level}) must both be between 1 and 99."
             ),
         ));
     }
@@ -167,21 +173,11 @@ fn validate_progression_canonical(save: &Save, issues: &mut Vec<ValidationIssue>
         return;
     }
 
-    let completed_act_count = if save.expansion_type() == ExpansionType::Classic {
-        4
-    } else {
-        5
-    };
-    let difficulty_index = (save.character.progression / completed_act_count).min(3);
-    let difficulty_label = ["None", "Normal", "Nightmare", "Hell"][difficulty_index as usize];
-
     issues.push(warning(
         ValidationCode::ProgressionNonCanonical,
         format!(
-            "Progression value {} is non-canonical for {} {}. Re-select Difficulty beaten to normalize it.",
+            "Progression value {} does not match the current difficulty. Re-select the highest difficulty beaten to normalize it.",
             save.character.progression,
-            difficulty_label,
-            save.expansion_type().label()
         ),
     ));
 }
@@ -203,10 +199,21 @@ fn current_difficulty_quests(save: &Save) -> &crate::quests::DifficultyQuests {
 }
 
 fn difficulty_unlocked(save: &Save, difficulty: Difficulty) -> bool {
+    let unlock_act = if save.expansion_type() == ExpansionType::Classic {
+        &save.quests.normal.act4.completion
+    } else {
+        &save.quests.normal.act5.completion
+    };
+    let nightmare_unlock_act = if save.expansion_type() == ExpansionType::Classic {
+        &save.quests.nightmare.act4.completion
+    } else {
+        &save.quests.nightmare.act5.completion
+    };
+
     match difficulty {
         Difficulty::Normal => true,
-        Difficulty::Nightmare => quest_reward_granted(&save.quests.normal.act5.completion),
-        Difficulty::Hell => quest_reward_granted(&save.quests.nightmare.act5.completion),
+        Difficulty::Nightmare => quest_reward_granted(unlock_act),
+        Difficulty::Hell => quest_reward_granted(nightmare_unlock_act),
     }
 }
 
@@ -226,10 +233,7 @@ fn validate_progression(save: &Save, issues: &mut Vec<ValidationIssue>) {
     if !difficulty_unlocked(save, save.character.difficulty) {
         issues.push(issue(
             ValidationCode::ImpossibleDifficultySelection,
-            format!(
-                "Difficulty {:?} is not unlocked by the quest state.",
-                save.character.difficulty
-            ),
+            format!("Difficulty {:?} is not unlocked by the quest state.", save.character.difficulty),
         ));
     }
 
@@ -237,7 +241,7 @@ fn validate_progression(save: &Save, issues: &mut Vec<ValidationIssue>) {
         issues.push(issue(
             ValidationCode::ImpossibleActSelection,
             format!(
-                "Act {:?} is not unlocked in {:?}.",
+                "Act {:?} is not unlocked for {:?}.",
                 save.character.act, save.character.difficulty
             ),
         ));
@@ -279,7 +283,7 @@ fn validate_quest_state(save: &Save, issues: &mut Vec<ValidationIssue>) {
         if !quest_has_only_reward_granted(quest) {
             issues.push(issue(
                 ValidationCode::QuestStateImpossible,
-                format!("{label} contains flags other than RewardGranted."),
+                format!("{label} should only use RewardGranted."),
             ));
         }
     }
@@ -293,7 +297,7 @@ fn validate_quest_state(save: &Save, issues: &mut Vec<ValidationIssue>) {
             issues.push(issue(
                 ValidationCode::QuestStateImpossible,
                 format!(
-                    "{difficulty_label} Act IV completion is granted without Terror's End being completed."
+                    "{difficulty_label} Act IV completion requires Terror's End."
                 ),
             ));
         }
@@ -321,10 +325,7 @@ fn validate_mercenary_level(save: &Save, issues: &mut Vec<ValidationIssue>) {
         if mercenary.name_id as usize >= name_count {
             issues.push(issue(
                 ValidationCode::MercenaryNameIdOutOfRange,
-                format!(
-                    "Mercenary name id {} exceeds the available {name_count} names for variant {}.",
-                    mercenary.name_id, mercenary.variant_id
-                ),
+                format!("Mercenary name id {} is out of range for this mercenary type.", mercenary.name_id),
             ));
         }
     }
@@ -333,7 +334,7 @@ fn validate_mercenary_level(save: &Save, issues: &mut Vec<ValidationIssue>) {
         issues.push(issue(
             ValidationCode::MercenaryLevelImpossible,
             format!(
-                "Mercenary experience ({}) does not map to a valid mercenary level for variant {}.",
+                "Mercenary experience ({}) does not map to a valid level for variant {}.",
                 mercenary.experience, mercenary.variant_id
             ),
         ));
@@ -341,7 +342,7 @@ fn validate_mercenary_level(save: &Save, issues: &mut Vec<ValidationIssue>) {
         issues.push(issue(
             ValidationCode::MercenaryLevelImpossible,
             format!(
-                "Mercenary level ({mercenary_level}) is impossible for player level ({player_level}); mercenary levels are 1..=98 and cannot exceed the player level."
+                "Mercenary level ({mercenary_level}) is higher than player level ({player_level})."
             ),
         ));
     }

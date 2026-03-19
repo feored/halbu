@@ -15,3 +15,5 @@ bit = "0.1.1"
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_with = "3"
+unicode-script = "0.5.8"
+unicode-segmentation = "1"

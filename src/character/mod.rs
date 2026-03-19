@@ -1,7 +1,8 @@
 //! Character section model and format-specific codecs.
 //!
 //! [`title_for_progression_d2r`] and [`Character::title_d2r`] implement the default D2R
-//! title rules. Modded title systems are out of scope.
+//! title rules. `Save::title_d2r()` is the canonical entry point. Modded title systems
+//! are out of scope.
 
 use std::fmt;
 
@@ -252,12 +253,13 @@ impl Character {
 
     /// Return the default D2R title for this character state.
     ///
+    /// Pass the canonical [`crate::ExpansionType`] from [`crate::Save::expansion_type`].
     /// Mods may use different title rules.
-    pub fn title_d2r(&self) -> Option<&'static str> {
+    pub fn title_d2r(&self, expansion_type: crate::ExpansionType) -> Option<&'static str> {
         title_for_progression_d2r(
             self.progression,
             self.class,
-            self.status.expansion,
+            !matches!(expansion_type, crate::ExpansionType::Classic),
             self.status.hardcore,
         )
     }

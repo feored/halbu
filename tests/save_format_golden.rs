@@ -99,7 +99,7 @@ fn warlock_v105_cannot_encode_to_v99() {
     let error = encode_result.expect_err("Warlock should not encode to v99");
 
     assert!(
-        error.to_string().contains("Warlock class is only supported in RotW editions."),
+        error.to_string().contains("Warlock can only be encoded as RotW."),
         "unexpected error message: {error}"
     );
 }
@@ -139,7 +139,7 @@ fn check_compatibility_reports_blocking_warlock_non_rotw_expansion() {
         .encode_for(FormatId::V105, CompatibilityChecks::Enforce)
         .expect_err("Warlock with non-RotW expansion should not encode");
     assert!(
-        encode_error.to_string().contains("Warlock class requires RotW expansion type."),
+        encode_error.to_string().contains("Warlock requires RotW expansion mode."),
         "unexpected error message: {encode_error}"
     );
 }
@@ -187,7 +187,7 @@ fn expansion_classes_in_classic_mode_cannot_encode() {
             .encode_for(FormatId::V105, CompatibilityChecks::Enforce)
             .expect_err("expansion-only class in classic mode should not encode");
         assert!(
-            error.to_string().contains("Druid and Assassin classes are not valid in Classic mode."),
+            error.to_string().contains("Druid and Assassin cannot be encoded in Classic mode."),
             "unexpected error message for class {class}: {error}"
         );
     }

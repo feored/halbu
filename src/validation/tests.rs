@@ -1,6 +1,6 @@
 use super::*;
 use crate::quests::QuestFlag;
-use crate::{Act, Class, Difficulty, Save};
+use crate::{Act, Class, Difficulty, ExpansionType, Save};
 
 fn mercenary_experience_for_level(level: u8, xp_rate: u32) -> u32 {
     let level = u64::from(level);
@@ -36,15 +36,43 @@ fn validate_reports_invalid_character_name() {
 }
 
 #[test]
-fn validate_reports_mixed_script_name() {
+fn validate_reports_too_short_name() {
     let mut save = Save::default();
-    save.character.name = "ã¦toã™".to_string();
+    save.character.name = "o".to_string();
+
+    let report = build_validation_report(&save);
+    assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == ValidationCode::InvalidCharacterName && issue.blocking));
+}
+
+#[test]
+fn validate_reports_overlong_byte_name() {
+    let mut save = Save::default();
+    save.character.name = "😀😀😀😀😀😀😀😀😀😀😀😀😀".to_string();
 
     let report = build_validation_report(&save);
     assert!(report
         .issues
         .iter()
         .any(|issue| issue.code == ValidationCode::InvalidCharacterName));
+}
+
+#[test]
+fn validate_reports_mixed_script_name() {
+    let mut save = Save::default();
+    save.character.name = "あto".to_string();
+
+    let report = build_validation_report(&save);
+    let issue = report
+        .issues
+        .iter()
+        .find(|issue| issue.code == ValidationCode::InvalidCharacterName)
+        .expect("mixed script warning should be present");
+
+    assert!(!issue.blocking);
+    assert!(!report.has_blocking_issues());
 }
 
 #[test]
@@ -119,6 +147,20 @@ fn validate_reports_impossible_difficulty_selection() {
 
     let report = build_validation_report(&save);
     assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == ValidationCode::ImpossibleDifficultySelection));
+}
+
+#[test]
+fn validate_classic_saves_use_act_iv_for_difficulty_unlocks() {
+    let mut save = Save::default();
+    save.set_expansion_type(ExpansionType::Classic);
+    save.character.difficulty = Difficulty::Nightmare;
+    save.quests.normal.act4.completion.state.insert(QuestFlag::RewardGranted);
+
+    let report = build_validation_report(&save);
+    assert!(!report
         .issues
         .iter()
         .any(|issue| issue.code == ValidationCode::ImpossibleDifficultySelection));

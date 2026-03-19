@@ -16,7 +16,7 @@ fn class_compatibility_issues(
                     code: CompatibilityCode::UnknownClassRequiresKnownTarget,
                     blocking: true,
                     message: format!(
-                        "Unknown class id {class_id} cannot be safely converted to known format {target:?}."
+                        "Unknown class id {class_id} cannot be converted to {target:?}."
                     ),
                 });
             }
@@ -26,7 +26,7 @@ fn class_compatibility_issues(
                 issues.push(CompatibilityIssue {
                     code: CompatibilityCode::WarlockRequiresRotW,
                     blocking: true,
-                    message: "Warlock class is only supported in RotW editions.".to_string(),
+                    message: "Warlock can only be encoded as RotW.".to_string(),
                 });
             }
 
@@ -34,7 +34,7 @@ fn class_compatibility_issues(
                 issues.push(CompatibilityIssue {
                     code: CompatibilityCode::WarlockRequiresRotWExpansion,
                     blocking: true,
-                    message: "Warlock class requires RotW expansion type.".to_string(),
+                    message: "Warlock requires RotW expansion mode.".to_string(),
                 });
             }
         }
@@ -43,8 +43,7 @@ fn class_compatibility_issues(
                 issues.push(CompatibilityIssue {
                     code: CompatibilityCode::ExpansionClassRequiresExpansionMode,
                     blocking: true,
-                    message: "Druid and Assassin classes are not valid in Classic mode."
-                        .to_string(),
+                    message: "Druid and Assassin cannot be encoded in Classic mode.".to_string(),
                 });
             }
         }
@@ -64,8 +63,7 @@ pub(crate) fn compatibility_issues(save: &Save, target: FormatId) -> Vec<Compati
         issues.push(CompatibilityIssue {
             code: CompatibilityCode::RotWExpansionRequiresRotWEdition,
             blocking: true,
-            message: "Cannot encode RotW expansion type as v99 or other non-RotW editions."
-                .to_string(),
+            message: "RotW expansion mode cannot be encoded to non-RotW formats.".to_string(),
         });
     }
 

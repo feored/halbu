@@ -153,7 +153,9 @@ fn encode_v99_rejects_rotw_expansion_type() {
     let error = encode(&save, FormatId::V99, CompatibilityChecks::Enforce)
         .expect_err("v99 should reject RotW expansion type");
     assert!(
-        error.to_string().contains("Cannot encode RotW expansion type as v99"),
+        error
+            .to_string()
+            .contains("RotW expansion mode cannot be encoded to non-RotW formats"),
         "unexpected error message: {error}"
     );
 }
@@ -205,7 +207,7 @@ fn summarize_extracts_core_fields_v99() {
     assert_eq!(summary.name.as_deref(), Some(parsed.save.character.name.as_str()));
     assert_eq!(summary.class, Some(parsed.save.character.class));
     assert_eq!(summary.level, Some(parsed.save.character.level()));
-    assert_eq!(summary.title, parsed.save.character.title_d2r().map(str::to_string));
+    assert_eq!(summary.title, parsed.save.title_d2r().map(str::to_string));
     assert!(summary.issues.is_empty());
 }
 
