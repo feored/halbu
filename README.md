@@ -18,6 +18,7 @@ This library serves as the backend for **[Halbu Editor](https://github.com/feore
   - waypoints
   - mercenary information
 - Strict or tolerant parsing modes
+- Optional validation reports to ensure the game loads the save
 
 ## Limitations
 
@@ -36,6 +37,9 @@ cargo add halbu
 ```
 
 ## Quick start
+
+More examples can be found in `examples/`.
+
 
 ```rust
 use halbu::{CompatibilityChecks, Save, Strictness};
@@ -70,7 +74,6 @@ if !parsed.issues.is_empty() {
 }
 ```
 
-More examples can be found in `examples/`.
 
 Typed attribute access:
 
@@ -105,6 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Compatibility and forced encode
 
 Use compatibility checks before conversion.  
+They only apply when you are encoding to a target format.  
 `encode_for(..., CompatibilityChecks::Enforce)` blocks on incompatible conversions.  
 `encode_for(..., CompatibilityChecks::Ignore)` bypasses those checks and should only be used intentionally.
 
@@ -130,6 +134,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Validation
+
+Use validation when you want a quick sanity check after editing a save.
+
+`save.validate()` reports issues in the current save model.  
+Validation is separate from encoding.
+
+```rust
+use halbu::Save;
+
+let report = save.validate();
+if !report.is_valid() {
+    eprintln!("Validation issues: {:?}", report.issues);
+}
+```
+
+If you prefer the free function:
+
+```rust
+use halbu::validate_save;
+
+let report = validate_save(&save);
+```
+
 ## Edition guess
 
 If a file has an unknown/unsupported version, you can still ask Halbu for a best-effort
@@ -153,6 +181,8 @@ if hint == Some(GameEdition::RotW) {
 API documentation is available on docs.rs:
 
 https://docs.rs/halbu
+
+Project history and release notes are in [CHANGELOG.md](CHANGELOG.md).
  
 ## Notes
 
@@ -171,6 +201,7 @@ Known layout versions mapped by this crate:
 Use `save.expansion_type()` / `save.set_expansion_type(...)` to read/write expansion mode.
 Use `save.game_edition()` to inspect the edition family.
 Use `save.character.status()` to inspect status bits, and `save.character.set_hardcore(...)` / `set_ladder(...)` / `set_died(...)` for status mutations.
+Use `save.validate()` when you want to check the current save state without writing it.
 
 Current blocking rules (compatibility checks) include:
 - Warlock requires RotW edition and RotW expansion type.

@@ -69,6 +69,8 @@ pub mod quests;
 pub mod skills;
 /// Internal byte utilities shared across sections.
 pub mod utils;
+/// Backend-owned save validation rules and issue model.
+pub mod validation;
 /// Waypoint section model.
 pub mod waypoints;
 
@@ -387,7 +389,6 @@ impl Save {
     }
 
     /// Set both character level fields kept in separate sections.
-    /// This updates both `character.level` and `attributes.level.value`.
     pub fn set_level(&mut self, level: u8) {
         self.character.set_level(level);
         self.attributes.set_level(level);
@@ -435,6 +436,11 @@ impl Save {
     /// Return compatibility findings for encoding this save to `target`.
     pub fn check_compatibility(&self, target: FormatId) -> Vec<CompatibilityIssue> {
         format::compatibility_issues(self, target)
+    }
+
+    /// Validate the current save using backend-owned canonical rules.
+    pub fn validate(&self) -> validation::ValidationReport {
+        validation::build_validation_report(self)
     }
 }
 
@@ -689,10 +695,7 @@ mod tests {
         save.set_expansion_type(ExpansionType::RotW);
         assert_eq!(save.expansion_type(), ExpansionType::RotW);
         assert!(!save.character.status().is_expansion());
-        assert_eq!(
-            character::v105::mode_marker(&save.character),
-            Some(character::v105::MODE_ROTW)
-        );
+        assert_eq!(character::v105::mode_marker(&save.character), Some(character::v105::MODE_ROTW));
     }
 
     #[test]

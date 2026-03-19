@@ -6,7 +6,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let parsed = Save::parse(&bytes, Strictness::Strict)?;
     let mut save = parsed.save;
 
-    // Read by index (Hell Act I, Catacombs).
+    // Read by index.
     let catacombs_was_unlocked = save.waypoints.hell.act1.get_by_index(8)?;
     println!("Hell Act I / Catacombs unlocked: {catacombs_was_unlocked}");
 
@@ -15,21 +15,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let catacombs_is_unlocked = save.waypoints.hell.act1.get(Waypoint::Catacombs)?;
     println!("Hell Act I / Catacombs now unlocked: {catacombs_is_unlocked}");
 
-    // Set by index (Normal Act IV has indices 0..=2).
+    // Set by index.
     save.waypoints.normal.act4.set_by_index(2, true)?;
     println!(
         "Normal Act IV / River of Flames unlocked: {}",
         save.waypoints.normal.act4.get_by_index(2)?
     );
 
-    // Bulk update one whole difficulty.
+    // Bulk update one difficulty.
     save.waypoints.nightmare.set_all(true);
     println!(
         "Nightmare Act II / Sewers unlocked after set_all: {}",
         save.waypoints.nightmare.act2.get_by_index(1)?
     );
 
-    // Wrong-act usage is explicit.
+    // Wrong-act usage returns an explicit error.
     match save.waypoints.normal.act1.set(Waypoint::LutGholein, true) {
         Err(WaypointError::WrongAct { waypoint, expected, actual }) => {
             println!("WrongAct: {waypoint:?} belongs to {actual:?}, expected {expected:?}.")
@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(error) => println!("Unexpected waypoint error: {error}"),
     }
 
-    // Out-of-range index usage is explicit.
+    // Out-of-range reads return an explicit error.
     match save.waypoints.normal.act4.get_by_index(3) {
         Err(WaypointError::IndexOutOfRange { act, index, max_index }) => {
             println!("IndexOutOfRange: {act:?} index {index} (max {max_index}).")
