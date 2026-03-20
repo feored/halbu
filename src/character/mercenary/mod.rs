@@ -123,8 +123,16 @@ impl fmt::Display for Mercenary {
 }
 
 impl Mercenary {
+    pub(crate) fn has_data_without_hire(&self) -> bool {
+        !self.is_hired() && (self.is_dead || self.name_id != 0 || self.variant_id != 0 || self.experience != 0)
+    }
+
     pub fn write(&self) -> [u8; 14] {
         let mut bytes: [u8; 14] = [0x00; 14];
+        if !self.is_hired() {
+            return bytes;
+        }
+
         bytes[Section::IsDead.range()].copy_from_slice(match self.is_dead {
             true => &[0x01, 0x00],
             false => &[0x00, 0x00],

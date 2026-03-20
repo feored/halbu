@@ -87,6 +87,20 @@ pub(crate) fn summarize(
         Ok(character) => {
             let expansion_type =
                 expansion_type_from_decoded_character(selected_layout.format_id(), &character);
+            if character.mercenary.has_data_without_hire() {
+                push_issue(
+                    &mut issues,
+                    IssueSeverity::Warning,
+                    IssueKind::InvalidValue,
+                    IssueContext {
+                        section_name: section_name_option("mercenary"),
+                        message: "Mercenary block contains non-zero fields even though mercenary id is 0.".to_string(),
+                        offset: Some(character_range.start),
+                        expected: Some(14),
+                        found: Some(14),
+                    },
+                );
+            }
             let title = character.title_d2r(expansion_type).map(str::to_string);
             let class = character.class;
             let level = character.level();

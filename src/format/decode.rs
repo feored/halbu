@@ -137,6 +137,20 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
                 &parsed_save.character,
             );
             parsed_save.set_expansion_type_for_format(selected_layout.format_id(), expansion_type);
+            if parsed_save.character.mercenary.has_data_without_hire() {
+                push_issue(
+                    &mut issues,
+                    IssueSeverity::Warning,
+                    IssueKind::InvalidValue,
+                    IssueContext {
+                        section_name: section_name_option("mercenary"),
+                        message: "Mercenary block contains non-zero fields even though mercenary id is 0.".to_string(),
+                        offset: Some(character_range.start),
+                        expected: Some(14),
+                        found: Some(14),
+                    },
+                );
+            }
         }
         Err(parse_error) => {
             push_issue(

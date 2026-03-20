@@ -28,3 +28,16 @@ fn mercenary_write_test() {
     let parsed_result: [u8; 14] = merc.write();
     assert_eq!(parsed_result, expected_result);
 }
+
+#[test]
+fn mercenary_write_zeroes_unhired_payload() {
+    let merc: crate::character::mercenary::Mercenary = crate::character::mercenary::Mercenary {
+        is_dead: true,
+        id: 0,
+        name_id: 20,
+        variant_id: 7,
+        experience: 220,
+    };
+
+    assert_eq!(merc.write(), [0x00; 14]);
+}

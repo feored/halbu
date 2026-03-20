@@ -276,3 +276,17 @@ fn validate_reports_impossible_mercenary_experience() {
         .iter()
         .any(|issue| issue.code == ValidationCode::MercenaryLevelImpossible));
 }
+
+#[test]
+fn validate_reports_mercenary_data_without_hire() {
+    let mut save = Save::default();
+    save.character.mercenary.name_id = 20;
+    save.character.mercenary.variant_id = 7;
+    save.character.mercenary.experience = 220;
+
+    let report = build_validation_report(&save);
+    assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == ValidationCode::MercenaryDataWithoutHire));
+}

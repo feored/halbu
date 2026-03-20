@@ -18,6 +18,7 @@ pub enum ValidationCode {
     ProgressionNonCanonical,
     ImpossibleDifficultySelection,
     ImpossibleActSelection,
+    MercenaryDataWithoutHire,
     MercenaryVariantUnknown,
     MercenaryNameIdOutOfRange,
     MercenaryLevelImpossible,
@@ -319,6 +320,12 @@ fn validate_quest_state(save: &Save, issues: &mut Vec<ValidationIssue>) {
 fn validate_mercenary_level(save: &Save, issues: &mut Vec<ValidationIssue>) {
     let mercenary = save.character.mercenary;
     if !mercenary.is_hired() {
+        if mercenary.has_data_without_hire() {
+            issues.push(issue(
+                ValidationCode::MercenaryDataWithoutHire,
+                "Mercenary name, type, experience, and death state must be zero when no mercenary is hired.",
+            ));
+        }
         return;
     }
 

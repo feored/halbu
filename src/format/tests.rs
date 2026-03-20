@@ -255,3 +255,33 @@ fn decode_marks_checksum_invalid_when_payload_changes_without_recompute() {
     let parsed = decode(&bytes, Strictness::Lax).expect("save should parse");
     assert_ne!(parsed.header_checksum, parsed.computed_checksum);
 }
+
+#[test]
+fn decode_warns_when_unhired_mercenary_has_nonzero_fields() {
+    let mut bytes = include_bytes!("../../assets/test/barbrotw_v105.d2s").to_vec();
+    bytes[CHARACTER_SECTION_START + crate::character::v105::RANGE_MERCENARY.start + 6] = 20;
+    bytes[CHARACTER_SECTION_START + crate::character::v105::RANGE_MERCENARY.start + 8] = 7;
+    bytes[CHARACTER_SECTION_START + crate::character::v105::RANGE_MERCENARY.start + 10] = 220;
+
+    let parsed = decode(&bytes, Strictness::Lax).expect("save should parse");
+    assert!(parsed.issues.iter().any(|issue| {
+        matches!(issue.kind, IssueKind::InvalidValue)
+            && issue.section.as_deref() == Some("mercenary")
+            && issue.message.contains("mercenary id is 0")
+    }));
+}
+
+#[test]
+fn summarize_warns_when_unhired_mercenary_has_nonzero_fields() {
+    let mut bytes = include_bytes!("../../assets/test/barbrotw_v105.d2s").to_vec();
+    bytes[CHARACTER_SECTION_START + crate::character::v105::RANGE_MERCENARY.start + 6] = 20;
+    bytes[CHARACTER_SECTION_START + crate::character::v105::RANGE_MERCENARY.start + 8] = 7;
+    bytes[CHARACTER_SECTION_START + crate::character::v105::RANGE_MERCENARY.start + 10] = 220;
+
+    let summary = Save::summarize(&bytes, Strictness::Lax).expect("summary should parse");
+    assert!(summary.issues.iter().any(|issue| {
+        matches!(issue.kind, IssueKind::InvalidValue)
+            && issue.section.as_deref() == Some("mercenary")
+            && issue.message.contains("mercenary id is 0")
+    }));
+}
