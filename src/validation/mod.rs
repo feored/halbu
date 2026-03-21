@@ -344,10 +344,7 @@ fn validate_mercenary_level(save: &Save, issues: &mut Vec<ValidationIssue>) {
 }
 
 fn validate_mercenary_hire_state(save: &Save, issues: &mut Vec<ValidationIssue>) {
-    if save
-        .items
-        .mercenary_hire_state_changed(save.character.mercenary.is_hired())
-    {
+    if save.items.mercenary_hire_state_changed(save.character.mercenary.is_hired()) {
         issues.push(issue(
             ValidationCode::MercenaryHireStateToggleUnsupported,
             "Changing mercenary.id between 0 (no mercenary hired) and nonzero (mercenary hired) is not supported by this version of halbu, because the mercenary item subsection in the raw item tail is not rewritten yet.",

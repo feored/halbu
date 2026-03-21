@@ -126,9 +126,7 @@ fn encode_rejects_mercenary_hire_state_toggle_when_enforced() {
     let error = encode(&save, FormatId::V105, CompatibilityChecks::Enforce)
         .expect_err("mercenary hire-state toggle should be rejected");
     assert!(
-        error
-            .to_string()
-            .contains("Changing mercenary.id between 0"),
+        error.to_string().contains("Changing mercenary.id between 0"),
         "unexpected error message: {error}"
     );
 

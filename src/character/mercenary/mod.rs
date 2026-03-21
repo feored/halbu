@@ -124,7 +124,8 @@ impl fmt::Display for Mercenary {
 
 impl Mercenary {
     pub(crate) fn has_data_without_hire(&self) -> bool {
-        !self.is_hired() && (self.is_dead || self.name_id != 0 || self.variant_id != 0 || self.experience != 0)
+        !self.is_hired()
+            && (self.is_dead || self.name_id != 0 || self.variant_id != 0 || self.experience != 0)
     }
 
     pub fn write(&self) -> [u8; 14] {

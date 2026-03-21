@@ -57,10 +57,7 @@ pub(crate) fn compatibility_issues(save: &Save, target: FormatId) -> Vec<Compati
     let mut issues =
         class_compatibility_issues(save.character.class, save.expansion_type(), target);
 
-    if save
-        .items
-        .mercenary_hire_state_changed(save.character.mercenary.is_hired())
-    {
+    if save.items.mercenary_hire_state_changed(save.character.mercenary.is_hired()) {
         issues.push(CompatibilityIssue {
             code: CompatibilityCode::MercenaryHireStateToggleUnsupported,
             blocking: true,
