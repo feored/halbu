@@ -119,7 +119,7 @@ fn encode_v105_empty_items_layout() {
 }
 
 #[test]
-fn encode_rejects_mercenary_hire_state_toggle() {
+fn encode_rejects_mercenary_hire_state_toggle_when_enforced() {
     let mut save = Save::new(FormatId::V105, Class::Barbarian);
     save.character.mercenary.id = 1;
 
@@ -137,6 +137,16 @@ fn encode_rejects_mercenary_hire_state_toggle() {
         issue.code == crate::CompatibilityCode::MercenaryHireStateToggleUnsupported
             && issue.blocking
     }));
+}
+
+#[test]
+fn encode_allows_mercenary_hire_state_toggle_when_ignored() {
+    let mut save = Save::new(FormatId::V105, Class::Barbarian);
+    save.character.mercenary.id = 1;
+
+    let encoded = encode(&save, FormatId::V105, CompatibilityChecks::Ignore)
+        .expect("mercenary hire-state toggle should be force-encodable");
+    assert!(!encoded.is_empty(), "forced encode should still produce bytes");
 }
 
 #[test]

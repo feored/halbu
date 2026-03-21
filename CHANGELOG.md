@@ -5,7 +5,7 @@
 
 
 - **Breaking**: Marked `CompatibilityCode`, `ValidationCode`, `IssueKind`, and `FormatId` as `#[non_exhaustive]` to make room for future variants without repeated semver breaks.
-- **Breaking**: Changing `mercenary.id` between `0` (no mercenary hired) and nonzero (mercenary hired) is now rejected during compatibility checks and encoding, because Halbu does not yet rewrite the mercenary item subsection inside the raw item tail.
+- Changing `mercenary.id` between `0` (no mercenary hired) and nonzero (mercenary hired) now reports a blocking compatibility issue under `CompatibilityChecks::Enforce`, because Halbu does not yet rewrite the mercenary item subsection inside the raw item tail.
 
 - Fixed mercenary encoding to zero the full mercenary header block when no mercenary is hired.
 - Added parse and validation coverage for ghost mercenary data on non-hired mercenaries.

@@ -79,15 +79,6 @@ pub(crate) fn encode(
     let mut skill_bytes = save.skills.to_bytes();
     encoded_bytes.append(&mut skill_bytes);
 
-    if save
-        .items
-        .mercenary_hire_state_changed(character_for_encode.mercenary.is_hired())
-    {
-        return Err(EncodeError::new(
-            "Changing mercenary.id between 0 (no mercenary hired) and nonzero (mercenary hired) is not supported by this version of halbu, because the mercenary item subsection in the raw item tail is not rewritten yet.",
-        ));
-    }
-
     let items_layout = empty_items_layout_for_encode(target, save.expansion_type());
     let mut item_bytes =
         items::generate(&save.items, items_layout, character_for_encode.mercenary.is_hired());

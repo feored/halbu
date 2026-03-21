@@ -201,6 +201,8 @@ When no mercenary is hired, the entire 14-byte mercenary block must be zeroed. S
 
 Halbu does not currently rewrite the jf mercenary item subsection in the post-skills tail. That section is preserved as raw bytes.
 
+As a result, changing `mercenary.id` between `0` and nonzero is reported as a blocking compatibility issue when `CompatibilityChecks::Enforce` is used. Callers can still force encoding with `CompatibilityChecks::Ignore`.
+
 Because merc hire-state also affects the presence and shape of that subsection, changes to `mercenary.id` across the 0/nonzero boundary are rejected during encoding.
 
 
