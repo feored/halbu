@@ -98,26 +98,15 @@ fn encode_v105_empty_items_layout() {
     const CLASSIC_NO_ITEMS: [u8; 4] = [0x4A, 0x4D, 0x00, 0x00];
     const EXPANSION_NO_ITEMS: [u8; 13] =
         [0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x6B, 0x66, 0x00];
-    const EXPANSION_NO_ITEMS_MERC: [u8; 17] = [
-        0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x4A, 0x4D, 0x00, 0x00, 0x6B,
-        0x66, 0x00,
-    ];
     const ROTW_NO_ITEMS: [u8; 19] = [
         0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x6B, 0x66, 0x00, 0x01, 0x00,
         0x6C, 0x66, 0x00, 0x00,
     ];
-    const ROTW_NO_ITEMS_MERC: [u8; 23] = [
-        0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x4A, 0x4D, 0x00, 0x00, 0x6B,
-        0x66, 0x00, 0x01, 0x00, 0x6C, 0x66, 0x00, 0x00,
-    ];
 
-    let cases: [(u8, bool, &[u8]); 6] = [
+    let cases: [(u8, bool, &[u8]); 3] = [
         (MODE_CLASSIC, false, &CLASSIC_NO_ITEMS),
-        (MODE_CLASSIC, true, &CLASSIC_NO_ITEMS),
         (MODE_EXPANSION, false, &EXPANSION_NO_ITEMS),
-        (MODE_EXPANSION, true, &EXPANSION_NO_ITEMS_MERC),
         (MODE_ROTW, false, &ROTW_NO_ITEMS),
-        (MODE_ROTW, true, &ROTW_NO_ITEMS_MERC),
     ];
 
     for (mode_marker, mercenary_hired, expected_suffix) in cases {
@@ -127,6 +116,27 @@ fn encode_v105_empty_items_layout() {
             "unexpected items trailer for mode {mode_marker} (merc hired = {mercenary_hired})"
         );
     }
+}
+
+#[test]
+fn encode_rejects_mercenary_hire_state_toggle() {
+    let mut save = Save::new(FormatId::V105, Class::Barbarian);
+    save.character.mercenary.id = 1;
+
+    let error = encode(&save, FormatId::V105, CompatibilityChecks::Enforce)
+        .expect_err("mercenary hire-state toggle should be rejected");
+    assert!(
+        error
+            .to_string()
+            .contains("Changing mercenary.id between 0"),
+        "unexpected error message: {error}"
+    );
+
+    let issues = save.check_compatibility(FormatId::V105);
+    assert!(issues.iter().any(|issue| {
+        issue.code == crate::CompatibilityCode::MercenaryHireStateToggleUnsupported
+            && issue.blocking
+    }));
 }
 
 #[test]

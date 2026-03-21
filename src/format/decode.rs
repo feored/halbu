@@ -447,7 +447,8 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
         };
     }
 
-    parsed_save.items = items::parse(&bytes[items_offset..]);
+    parsed_save.items =
+        items::parse(&bytes[items_offset..], parsed_save.character.mercenary.is_hired());
 
     Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
 }

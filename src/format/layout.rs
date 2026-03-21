@@ -45,6 +45,7 @@ const FORMAT_COMPATIBILITY_TABLE: [FormatCompatibilityEntry; 2] = [
     FormatCompatibilityEntry { format: FormatId::V105, edition: GameEdition::RotW },
 ];
 
+#[non_exhaustive]
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum FormatId {
     #[default]

@@ -57,6 +57,17 @@ pub(crate) fn compatibility_issues(save: &Save, target: FormatId) -> Vec<Compati
     let mut issues =
         class_compatibility_issues(save.character.class, save.expansion_type(), target);
 
+    if save
+        .items
+        .mercenary_hire_state_changed(save.character.mercenary.is_hired())
+    {
+        issues.push(CompatibilityIssue {
+            code: CompatibilityCode::MercenaryHireStateToggleUnsupported,
+            blocking: true,
+            message: "Changing mercenary.id between 0 (no mercenary hired) and nonzero (mercenary hired) is not supported by this version of halbu, because the mercenary item subsection in the raw item tail is not rewritten yet.".to_string(),
+        });
+    }
+
     if target.edition().is_some_and(|edition| edition != GameEdition::RotW)
         && save.expansion_type() == ExpansionType::RotW
     {

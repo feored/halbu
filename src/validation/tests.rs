@@ -201,15 +201,6 @@ fn validate_reports_impossible_act_selection() {
 }
 
 #[test]
-fn validate_reports_impossible_quest_state() {
-    let mut save = Save::default();
-    save.quests.normal.act1.prologue.state.insert(QuestFlag::Started);
-
-    let report = build_validation_report(&save);
-    assert!(report.issues.iter().any(|issue| issue.code == ValidationCode::QuestStateImpossible));
-}
-
-#[test]
 fn validate_reports_act_iv_completion_without_terrors_end() {
     let mut save = Save::default();
     save.quests.normal.act4.completion.state.insert(QuestFlag::RewardGranted);
@@ -241,10 +232,12 @@ fn validate_reports_mercenary_name_id_out_of_range() {
     save.character.mercenary.experience = mercenary_experience_for_level(1, 130);
 
     let report = build_validation_report(&save);
-    assert!(report
+    let issue = report
         .issues
         .iter()
-        .any(|issue| issue.code == ValidationCode::MercenaryNameIdOutOfRange));
+        .find(|issue| issue.code == ValidationCode::MercenaryNameIdOutOfRange)
+        .expect("name id range warning should be present");
+    assert!(issue.message.contains("Valid ids are 0 through 20."));
 }
 
 #[test]
@@ -289,4 +282,16 @@ fn validate_reports_mercenary_data_without_hire() {
         .issues
         .iter()
         .any(|issue| issue.code == ValidationCode::MercenaryDataWithoutHire));
+}
+
+#[test]
+fn validate_reports_mercenary_hire_state_toggle() {
+    let mut save = Save::default();
+    save.character.mercenary.id = 1;
+
+    let report = build_validation_report(&save);
+    assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == ValidationCode::MercenaryHireStateToggleUnsupported));
 }

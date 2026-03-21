@@ -9,6 +9,7 @@ use std::collections::HashSet;
 use unicode_script::{Script, ScriptExtension};
 use unicode_segmentation::UnicodeSegmentation;
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationCode {
     InvalidCharacterName,
@@ -19,6 +20,7 @@ pub enum ValidationCode {
     ImpossibleDifficultySelection,
     ImpossibleActSelection,
     MercenaryDataWithoutHire,
+    MercenaryHireStateToggleUnsupported,
     MercenaryVariantUnknown,
     MercenaryNameIdOutOfRange,
     MercenaryLevelImpossible,
@@ -177,8 +179,9 @@ fn validate_progression_floor(save: &Save, issues: &mut Vec<ValidationIssue>) {
     issues.push(warning(
         ValidationCode::ProgressionNonCanonical,
         format!(
-            "Progression value {} is below the minimum expected for {:?} difficulty in {:?} mode.",
+            "Progression value {} is below the expected floor of {} for {:?} difficulty in {:?} mode.",
             save.character.progression,
+            minimum_progression,
             save.character.difficulty,
             save.expansion_type()
         ),
@@ -191,10 +194,6 @@ fn quest_reward_granted(quest: &Quest) -> bool {
 
 fn quest_completed(quest: &Quest) -> bool {
     quest_reward_granted(quest) || quest.state.contains(&QuestFlag::CompletedBefore)
-}
-
-fn quest_has_only_reward_granted(quest: &Quest) -> bool {
-    quest.value() & !0x0001 == 0
 }
 
 fn current_difficulty_quests(save: &Save) -> &crate::quests::DifficultyQuests {
@@ -239,6 +238,16 @@ fn act_unlocked(save: &Save, act: Act) -> bool {
     }
 }
 
+fn required_unlock_for_act(act: Act) -> Option<&'static str> {
+    match act {
+        Act::Act1 => None,
+        Act::Act2 => Some("Act I completion in the current difficulty"),
+        Act::Act3 => Some("Act II completion in the current difficulty"),
+        Act::Act4 => Some("Act III completion in the current difficulty"),
+        Act::Act5 => Some("Act IV Quest 2 (Terror's End) in the current difficulty"),
+    }
+}
+
 fn validate_progression(save: &Save, issues: &mut Vec<ValidationIssue>) {
     validate_progression_floor(save, issues);
 
@@ -253,56 +262,19 @@ fn validate_progression(save: &Save, issues: &mut Vec<ValidationIssue>) {
     }
 
     if !act_unlocked(save, save.character.act) {
+        let requirement = required_unlock_for_act(save.character.act)
+            .unwrap_or("the required prior act completion in the current difficulty");
         issues.push(issue(
             ValidationCode::ImpossibleActSelection,
             format!(
-                "Act {:?} is not unlocked for {:?}.",
-                save.character.act, save.character.difficulty
+                "Act {:?} is not unlocked for {:?}. It requires {}.",
+                save.character.act, save.character.difficulty, requirement
             ),
         ));
     }
 }
 
 fn validate_quest_state(save: &Save, issues: &mut Vec<ValidationIssue>) {
-    let true_false_quests = [
-        ("normal act1 prologue", &save.quests.normal.act1.prologue),
-        ("normal act1 completion", &save.quests.normal.act1.completion),
-        ("normal act2 prologue", &save.quests.normal.act2.prologue),
-        ("normal act2 completion", &save.quests.normal.act2.completion),
-        ("normal act3 prologue", &save.quests.normal.act3.prologue),
-        ("normal act3 completion", &save.quests.normal.act3.completion),
-        ("normal act4 prologue", &save.quests.normal.act4.prologue),
-        ("normal act4 completion", &save.quests.normal.act4.completion),
-        ("normal act5 prologue", &save.quests.normal.act5.prologue),
-        ("nightmare act1 prologue", &save.quests.nightmare.act1.prologue),
-        ("nightmare act1 completion", &save.quests.nightmare.act1.completion),
-        ("nightmare act2 prologue", &save.quests.nightmare.act2.prologue),
-        ("nightmare act2 completion", &save.quests.nightmare.act2.completion),
-        ("nightmare act3 prologue", &save.quests.nightmare.act3.prologue),
-        ("nightmare act3 completion", &save.quests.nightmare.act3.completion),
-        ("nightmare act4 prologue", &save.quests.nightmare.act4.prologue),
-        ("nightmare act4 completion", &save.quests.nightmare.act4.completion),
-        ("nightmare act5 prologue", &save.quests.nightmare.act5.prologue),
-        ("hell act1 prologue", &save.quests.hell.act1.prologue),
-        ("hell act1 completion", &save.quests.hell.act1.completion),
-        ("hell act2 prologue", &save.quests.hell.act2.prologue),
-        ("hell act2 completion", &save.quests.hell.act2.completion),
-        ("hell act3 prologue", &save.quests.hell.act3.prologue),
-        ("hell act3 completion", &save.quests.hell.act3.completion),
-        ("hell act4 prologue", &save.quests.hell.act4.prologue),
-        ("hell act4 completion", &save.quests.hell.act4.completion),
-        ("hell act5 prologue", &save.quests.hell.act5.prologue),
-    ];
-
-    for (label, quest) in true_false_quests {
-        if !quest_has_only_reward_granted(quest) {
-            issues.push(issue(
-                ValidationCode::QuestStateImpossible,
-                format!("{label} should only use RewardGranted."),
-            ));
-        }
-    }
-
     for (difficulty_label, quests) in [
         ("normal", &save.quests.normal),
         ("nightmare", &save.quests.nightmare),
@@ -345,8 +317,9 @@ fn validate_mercenary_level(save: &Save, issues: &mut Vec<ValidationIssue>) {
             issues.push(issue(
                 ValidationCode::MercenaryNameIdOutOfRange,
                 format!(
-                    "Mercenary name id {} is out of range for this mercenary type.",
-                    mercenary.name_id
+                    "Mercenary name id {} is out of range for this mercenary type. Valid ids are 0 through {}.",
+                    mercenary.name_id,
+                    name_count.saturating_sub(1)
                 ),
             ));
         }
@@ -370,6 +343,18 @@ fn validate_mercenary_level(save: &Save, issues: &mut Vec<ValidationIssue>) {
     }
 }
 
+fn validate_mercenary_hire_state(save: &Save, issues: &mut Vec<ValidationIssue>) {
+    if save
+        .items
+        .mercenary_hire_state_changed(save.character.mercenary.is_hired())
+    {
+        issues.push(issue(
+            ValidationCode::MercenaryHireStateToggleUnsupported,
+            "Changing mercenary.id between 0 (no mercenary hired) and nonzero (mercenary hired) is not supported by this version of halbu, because the mercenary item subsection in the raw item tail is not rewritten yet.",
+        ));
+    }
+}
+
 /// Build a validation report for a save model.
 pub(crate) fn build_validation_report(save: &Save) -> ValidationReport {
     let mut report = ValidationReport::default();
@@ -380,6 +365,7 @@ pub(crate) fn build_validation_report(save: &Save) -> ValidationReport {
     validate_progression(save, &mut report.issues);
     validate_quest_state(save, &mut report.issues);
     validate_mercenary_level(save, &mut report.issues);
+    validate_mercenary_hire_state(save, &mut report.issues);
 
     report
 }

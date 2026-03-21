@@ -51,11 +51,19 @@ pub enum EmptyLayout {
 pub struct Placeholder {
     #[serde_as(as = "Bytes")]
     data: Vec<u8>,
+    #[serde(default)]
+    original_mercenary_hired: bool,
 }
 
 /// Store item bytes without decoding.
-pub fn parse(byte_vector: &[u8]) -> Placeholder {
-    Placeholder { data: byte_vector.to_vec() }
+pub fn parse(byte_vector: &[u8], mercenary_hired: bool) -> Placeholder {
+    Placeholder { data: byte_vector.to_vec(), original_mercenary_hired: mercenary_hired }
+}
+
+impl Placeholder {
+    pub(crate) fn mercenary_hire_state_changed(&self, mercenary_hired: bool) -> bool {
+        self.original_mercenary_hired != mercenary_hired
+    }
 }
 
 /// Generate item bytes.

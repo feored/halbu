@@ -32,6 +32,8 @@ Some parts of the save format are not yet modeled:
 
 These sections are preserved as raw bytes when possible, but may not round-trip identically after modifications.
 
+Changing `mercenary.id` between `0` (no mercenary hired) and nonzero (mercenary hired) is currently blocked during encoding, because Halbu does not yet rewrite the mercenary item subsection inside the raw item tail.
+
 
 ## Installation
 
@@ -178,6 +180,8 @@ Typical usage:
 ## Notes
 
 - Level is stored in multiple sections; use `save.set_level(...)` to keep it consistent
+- When no mercenary is hired, Halbu normalizes the full mercenary header block to zero on encode
+- Changing `mercenary.id` between `0` and nonzero is currently unsupported during encoding because the mercenary item subsection is still preserved as raw bytes
 - Additional reverse-engineering notes are available in `NOTES.md`
 
 

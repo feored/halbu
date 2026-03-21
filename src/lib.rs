@@ -127,6 +127,7 @@ pub enum IssueSeverity {
 }
 
 /// High-level category for a parse issue in lax mode.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IssueKind {
     TruncatedSection,
@@ -232,6 +233,7 @@ pub enum CompatibilityChecks {
 }
 
 /// Stable identifier for a save compatibility rule.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompatibilityCode {
     WarlockRequiresRotW,
@@ -239,6 +241,7 @@ pub enum CompatibilityCode {
     RotWExpansionRequiresRotWEdition,
     ExpansionClassRequiresExpansionMode,
     UnknownClassRequiresKnownTarget,
+    MercenaryHireStateToggleUnsupported,
 }
 
 /// Compatibility finding for a specific target format.

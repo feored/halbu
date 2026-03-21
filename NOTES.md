@@ -195,6 +195,14 @@ s = floor(761851.992308^(1/3)) = 91
 experience/xp_rate < 761852, therefore level = s - 1 = 90
 ```
 
+### Halbu Implementation Note
+
+When no mercenary is hired, the entire 14-byte mercenary block must be zeroed. Saves with `merc_id = 0` but nonzero merc fields (name, variant, experience) are invalid and may fail to load.
+
+Halbu does not currently rewrite the jf mercenary item subsection in the post-skills tail. That section is preserved as raw bytes.
+
+Because merc hire-state also affects the presence and shape of that subsection, changes to `mercenary.id` across the 0/nonzero boundary are rejected during encoding.
+
 
 ## Quests
 

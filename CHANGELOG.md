@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+
+
+- **Breaking**: Marked `CompatibilityCode`, `ValidationCode`, `IssueKind`, and `FormatId` as `#[non_exhaustive]` to make room for future variants without repeated semver breaks.
+- **Breaking**: Changing `mercenary.id` between `0` (no mercenary hired) and nonzero (mercenary hired) is now rejected during compatibility checks and encoding, because Halbu does not yet rewrite the mercenary item subsection inside the raw item tail.
+
+- Fixed mercenary encoding to zero the full mercenary header block when no mercenary is hired.
+- Added parse and validation coverage for ghost mercenary data on non-hired mercenaries.
+- Added regression tests around mercenary hire-state handling.
+- Removed an over-broad quest-state validation check on prologue/completion markers.
+
 ## 0.2.3
 
 - Fixed a bugged difficulty unlock warning by accepting `CompletedBefore` as a quest completion marker.
