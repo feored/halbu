@@ -53,6 +53,8 @@ The character level shown in the menu preview is the from the attributes section
 Assigned skills have a default value of 0xFF 0xFF 0x00 0x00 before they are set (65535 in lower endian).
 Theoretical skill values can go up to 255 in the save data, but the game clamps them to 99 in-game.
 
+Observed in testing: switching character class while class-specific or otherwise incompatible items are equipped does not prevent the save from loading. The game removes those incompatible equipped items and still loads the save normally.
+
 #### Legacy Character Menu Appearance
 
 32 bytes starting at offset 136.
@@ -195,6 +197,8 @@ s = floor(761851.992308^(1/3)) = 91
 experience/xp_rate < 761852, therefore level = s - 1 = 90
 ```
 
+Observed in testing: switching mercenary type while the mercenary has items equipped that are invalid for the new type does not prevent the save from loading. The game removes those incompatible items and still loads the save normally.
+
 ### Halbu Implementation Note
 
 When no mercenary is hired, the entire 14-byte mercenary block must be zeroed. Saves with `merc_id = 0` but nonzero merc fields (name, variant, experience) are invalid and may fail to load.
@@ -203,7 +207,7 @@ Halbu does not currently rewrite the jf mercenary item subsection in the post-sk
 
 As a result, changing `mercenary.id` between `0` and nonzero is reported as a blocking compatibility issue when `CompatibilityChecks::Enforce` is used. Callers can still force encoding with `CompatibilityChecks::Ignore`.
 
-Because merc hire-state also affects the presence and shape of that subsection, changes to `mercenary.id` across the 0/nonzero boundary are rejected during encoding.
+Because merc hire-state also affects the presence and shape of that subsection, changing `mercenary.id` across the 0/nonzero boundary is unsafe unless the caller explicitly forces encoding.
 
 
 ## Quests
