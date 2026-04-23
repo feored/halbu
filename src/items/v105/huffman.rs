@@ -112,13 +112,27 @@ pub(crate) fn decode_one_char(
 ) -> Result<u8, ParseHardError> {
     let tree = tree();
     let mut current = 0usize;
+    let trace = std::env::var("HALBU_DIAG_HUFF").is_ok();
+    let start_byte = cursor.current_byte;
+    let start_bit = cursor.current_bit;
+    let mut bits_read = String::new();
     loop {
         if let Some(ch) = tree.nodes[current].leaf {
+            if trace {
+                eprintln!("HUFF char={} bits=[{bits_read}] start={start_byte}.{start_bit}", ch as char);
+            }
             return Ok(ch);
         }
         let bit = read_bits(bytes, cursor, 1)?;
+        if trace {
+            bits_read.push(if bit != 0 { '1' } else { '0' });
+        }
         let next = if bit != 0 { tree.nodes[current].one } else { tree.nodes[current].zero };
         if next == NIL {
+            if trace {
+                eprintln!("HUFF FAIL bits=[{bits_read}] start={start_byte}.{start_bit} now={}.{}",
+                    cursor.current_byte, cursor.current_bit);
+            }
             return Err(ParseHardError {
                 message: "Huffman decode hit invalid path (no child for bit).".to_string(),
             });

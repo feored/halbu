@@ -1,0 +1,38 @@
+use halbu::utils::BytePosition;
+
+#[test]
+fn decode_liu_item40_typecode() {
+    // Liu item 40, bytes from rel 1370 onwards.
+    let bytes: Vec<u8> = vec![
+        0x10, 0x08, 0x80, 0x04, 0x05, 0xa0, 0xf5, 0x2a, 0x88, 0x33, 0x12, 0x1b, 0xb4, 0x27, 0x61, 0x09,
+        0x0a, 0xc7, 0x05, 0xf4, 0x3f, 0x02, 0x41, 0x82, 0x1b, 0x28, 0x60, 0xdc, 0x80, 0x92, 0x71, 0x83,
+        0x62, 0xe3, 0x06, 0x14, 0x5e, 0x16, 0x0b, 0x03, 0xa2, 0xb8, 0x34, 0x47, 0x31, 0xa3, 0xbe, 0xc8,
+        0xc8, 0xf8, 0x0f,
+    ];
+    let mut cursor = BytePosition::default();
+    halbu::utils::read_bits(&bytes, &mut cursor, 32).unwrap();
+    halbu::utils::read_bits(&bytes, &mut cursor, 21).unwrap();
+    eprintln!("after 53 bits: byte={} bit={}", cursor.current_byte, cursor.current_bit);
+    match halbu::items::v105::__diag_decode_type_code(&bytes, &mut cursor) {
+        Ok(c) => eprintln!("Liu item 40 type code: {:?}", String::from_utf8_lossy(&c)),
+        Err(e) => eprintln!("Liu item 40 ERR: {}", e.message),
+    }
+}
+
+#[test]
+fn decode_elite_staves_item4_typecode() {
+    let bytes: Vec<u8> = vec![
+        0x10, 0x00, 0x80, 0x00, 0x05, 0x08, 0x74, 0x2f, 0x28, 0x30, 0xc8, 0xd7, 0x66, 0x3d, 0x0b, 0x3c,
+        0x30, 0x12, 0x02, 0x08, 0x30, 0x4c, 0x60, 0x16, 0xc1, 0x92, 0x25, 0x19, 0x46, 0x0b, 0x69, 0x64,
+        0x7f, 0xc2, 0x6c, 0xb1, 0x61, 0xa2, 0xe8, 0x3f,
+    ];
+    let mut cursor = BytePosition::default();
+    halbu::utils::read_bits(&bytes, &mut cursor, 32).unwrap();
+    halbu::utils::read_bits(&bytes, &mut cursor, 21).unwrap();
+    match halbu::items::v105::__diag_decode_type_code(&bytes, &mut cursor) {
+        Ok(c) => eprintln!("EliteStaves item 4 type code: {:?}", String::from_utf8_lossy(&c)),
+        Err(e) => eprintln!("EliteStaves item 4 ERR: {}", e.message),
+    }
+}
+
+

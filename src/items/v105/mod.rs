@@ -39,3 +39,11 @@ pub use model::{
     StandardItem,
 };
 pub use tail::parse_items_tail;
+
+#[doc(hidden)]
+pub fn __diag_decode_type_code(
+    bytes: &[u8],
+    cursor: &mut crate::utils::BytePosition,
+) -> Result<[u8; 4], crate::ParseHardError> {
+    huffman::decode_type_code(bytes, cursor)
+}

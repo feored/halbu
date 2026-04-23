@@ -69,6 +69,12 @@ pub(crate) mod excel;
 pub mod format;
 /// Item section placeholder/raw-preserving support.
 pub mod items;
+
+#[doc(hidden)]
+pub fn __diag_statcost_row(id: u16) -> Option<(String, u8, u32, u8, u8)> {
+    let r = excel::itemstatcost::by_id(id)?;
+    Some((r.name.clone(), r.save_bits, r.save_add, r.save_param_bits, r.encode))
+}
 /// NPC section placeholder/raw-preserving support.
 pub mod npcs;
 /// Quest section model.

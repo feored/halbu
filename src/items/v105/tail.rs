@@ -104,9 +104,32 @@ fn parse_items_inner(
     let mut out: Vec<Item> = Vec::with_capacity(count);
     let mut cursor = BytePosition { current_byte: *byte_off, current_bit: 0 };
     for i in 0..count {
+        let start_byte = cursor.current_byte;
         let item = parse_item(bytes, &mut cursor).map_err(|e| ParseHardError {
             message: format!("{section}: failed parsing item {i}: {}", e.message),
         })?;
+        if std::env::var("HALBU_DIAG_ITEMS").is_ok() {
+            let code = match &item.kind {
+                super::model::ItemKind::Standard(s) => {
+                    String::from_utf8_lossy(&s.type_code).into_owned()
+                }
+                super::model::ItemKind::Ear(_) => "<ear>".to_string(),
+            };
+            let (q, sf, ext_props, sb_lists, rw) = match &item.kind {
+                super::model::ItemKind::Standard(s) => {
+                    let q = s.extended.as_ref().map(|e| format!("{:?}", e.quality));
+                    let ep = s.extended.as_ref().map(|e| e.properties.properties.len());
+                    let sb = s.extended.as_ref().map(|e| e.set_bonus_property_lists.len());
+                    let rw = s.extended.as_ref().and_then(|e| e.runeword.as_ref()).is_some();
+                    (q, s.sockets_filled, ep, sb, rw)
+                }
+                _ => (None, 0, None, None, false),
+            };
+            eprintln!(
+                "DIAG ITEM {i} start_byte={start_byte} code={code:?} quality={q:?} sockets_filled={sf} ext_props={ext_props:?} set_bonus_lists={sb_lists:?} runeword={rw} end_byte={} end_bit={}",
+                cursor.current_byte, cursor.current_bit,
+            );
+        }
         out.push(item);
     }
     *byte_off = cursor.next_byte_offset();

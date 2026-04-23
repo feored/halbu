@@ -34,6 +34,9 @@ pub(crate) fn parse_property_list(
     let mut list = ItemPropertyList::default();
     loop {
         let stat_id = read_bits(bytes, cursor, 9)? as u16;
+        if std::env::var("HALBU_DIAG_STATS").is_ok() {
+            eprintln!("DIAG stat_id={stat_id}");
+        }
         if stat_id == PROPERTY_LIST_TERMINATOR {
             return Ok(list);
         }
@@ -47,8 +50,13 @@ fn parse_one_property(
     cursor: &mut BytePosition,
     stat_id: u16,
 ) -> Result<ItemProperty, ParseHardError> {
-    let row = itemstatcost::by_id(stat_id).ok_or_else(|| ParseHardError {
-        message: format!("Unknown item stat id {stat_id} encountered in property list."),
+    let row = itemstatcost::by_id(stat_id).ok_or_else(|| {
+        if std::env::var("HALBU_DIAG_STATS").is_ok() {
+            eprintln!("DIAG UNKNOWN stat_id={stat_id}");
+        }
+        ParseHardError {
+            message: format!("Unknown item stat id {stat_id} encountered in property list."),
+        }
     })?;
 
     match row.encode {
