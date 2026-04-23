@@ -59,6 +59,14 @@ pub mod attributes;
 pub mod character;
 /// Save-layout detection and top-level encode/decode glue.
 pub mod format;
+/// Embedded v105 Excel reference tables (item codes, types, stat-cost, body-locs).
+///
+/// All items are `pub(crate)` and consumed by upcoming v105 item-handling
+/// tasks (003–007). Until those tasks land, the symbols are reachable only
+/// from in-module unit tests; the `dead_code` lint is suppressed here to
+/// keep warning output clean during the staged rollout.
+#[allow(dead_code)]
+pub(crate) mod excel;
 /// Item section placeholder/raw-preserving support.
 pub mod items;
 /// NPC section placeholder/raw-preserving support.
