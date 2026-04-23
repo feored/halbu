@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D2R Item Binary Format — Version 99 (0x63)</title>
+<style>
+  :root {
+    --border: #d0d7de;
+    --bg-code: #f6f8fa;
+    --bg-table-header: #f0f3f6;
+    --text: #1f2328;
+    --text-muted: #656d76;
+    --accent: #0969da;
+    --accent-light: #ddf4ff;
+    --warning: #9a6700;
+    --warning-bg: #fff8c5;
+    --danger: #cf222e;
+    --danger-bg: #ffebe9;
+    --success: #1a7f37;
+    --success-bg: #dafbe1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+  h2 { font-size: 1.5rem; margin-top: 3rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  h3 { font-size: 1.15rem; margin-top: 2rem; margin-bottom: 0.5rem; color: #444; }
+  h4 { font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.3rem; color: #555; }
+  p { margin-bottom: 0.75rem; }
+  ul, ol { margin-bottom: 0.75rem; padding-left: 1.5rem; }
+  li { margin-bottom: 0.2rem; }
+  a { color: var(--accent); }
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.875em;
+    background: var(--bg-code);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    font-size: 0.84rem;
+    line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; border: none; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 0.4rem 0.65rem; text-align: left; vertical-align: top; }
+  th { background: var(--bg-table-header); font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  td code { font-size: 0.8rem; }
+  .note { border-left: 4px solid var(--accent); background: var(--accent-light); padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .warning { border-left: 4px solid var(--warning); background: var(--warning-bg); padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .success { border-left: 4px solid var(--success); background: var(--success-bg); padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .toc { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.5rem; margin-bottom: 2rem; }
+  .toc h3 { margin-top: 0; }
+  .toc ol { padding-left: 1.3rem; }
+  .toc li { margin-bottom: 0.2rem; font-size: 0.92rem; }
+  .toc ol ol { margin-top: 0.15rem; }
+  .example {
+    background: #fff;
+    border: 1px solid #c8d6e5;
+    border-left: 4px solid #58a6ff;
+    border-radius: 0 6px 6px 0;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .example h4 { margin-top: 0; color: var(--accent); font-size: 0.9rem; margin-bottom: 0.4rem; }
+  .bit-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin: 0.5rem 0 1rem 0;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 0.78rem;
+  }
+  .bit-field {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 40px;
+    text-align: center;
+  }
+  .bit-field .fn { background: var(--bg-table-header); padding: 3px 5px; font-weight: 600; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  .bit-field .fb { padding: 2px 5px; color: var(--text-muted); white-space: nowrap; }
+  .bit-field.cond .fn { background: var(--warning-bg); border-color: #e3b341; }
+  .bit-field.cond { border-color: #e3b341; border-style: dashed; }
+  dl dt { font-weight: 600; margin-top: 0.5rem; }
+  dl dd { margin-left: 1.5rem; color: var(--text-muted); margin-bottom: 0.3rem; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+  .footer { color: var(--text-muted); font-size: 0.82rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+
+<h1>D2R Item Binary Format</h1>
+<p>
+  <strong>Save file version:</strong> 99 (0x63) &mdash; Diablo II: Resurrected 2.4+<br>
+  <strong>Source:</strong> Analysis of <a href="https://github.com/dschu012/d2s"><code>@dschu012/d2s</code></a> TypeScript library &amp; game data files
+</p>
+<p>
+  Items in D2R are stored as a <strong>little-endian packed bitstream</strong>.
+  Fields are not byte-aligned &mdash; they sit back-to-back at the bit level.
+  Only the very end of each item is rounded up to a byte boundary.
+  Every value is stored in LSB-first (least significant bit first) order within each byte.
+</p>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#overview">High-Level Structure</a></li>
+    <li><a href="#list">Item List Container</a></li>
+    <li><a href="#simple-bits">Simple Bits — Present on Every Item</a>
+      <ol>
+        <li><a href="#flags">Flags (32 bits)</a></li>
+        <li><a href="#version">Item Version (3 bits)</a></li>
+        <li><a href="#location">Location Data (18 bits)</a></li>
+        <li><a href="#huffman">Item Type Code (Huffman-encoded)</a></li>
+        <li><a href="#socket-nr">Nr of Socketed Children</a></li>
+      </ol>
+    </li>
+    <li><a href="#extended">Extended Data — Non-Simple Items Only</a>
+      <ol>
+        <li><a href="#basic-ext">ID, Level, Quality</a></li>
+        <li><a href="#quality-data">Quality-Specific Fields</a></li>
+        <li><a href="#runeword-field">Runeword ID</a></li>
+        <li><a href="#personalized">Personalized Name</a></li>
+        <li><a href="#timestamp">Tome &amp; Timestamp</a></li>
+        <li><a href="#base-stats">Base Stats (Defense, Durability, Quantity)</a></li>
+        <li><a href="#total-sockets">Total Sockets</a></li>
+        <li><a href="#plist-flag">Set Bonus Flags</a></li>
+      </ol>
+    </li>
+    <li><a href="#magic-props">Magic Properties</a>
+      <ol>
+        <li><a href="#prop-basic">Basic Encoding</a></li>
+        <li><a href="#prop-multi">Multi-Property Stats</a></li>
+        <li><a href="#prop-cast">Encoding 2: Chance to Cast</a></li>
+        <li><a href="#prop-charges">Encoding 3: Charges</a></li>
+        <li><a href="#prop-param">Param-based Properties</a></li>
+      </ol>
+    </li>
+    <li><a href="#prop-lists">Property List Order (Main, Set, Runeword)</a></li>
+    <li><a href="#alignment">Byte Alignment</a></li>
+    <li><a href="#socketed-children">Socketed Child Items</a></li>
+    <li><a href="#flow">Complete Parsing Flow</a></li>
+    <li><a href="#huffman-ref">Huffman Codec Reference</a></li>
+    <li><a href="#stat-ref">Key Stat IDs Quick Reference</a></li>
+    <li><a href="#worked">Worked Example: Simple Item</a></li>
+  </ol>
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="overview">1. High-Level Structure</h2>
+
+<p>Every item consists of up to three parts:</p>
+
+<div class="bit-row">
+  <div class="bit-field" style="min-width:180px"><div class="fn">SIMPLE BITS</div><div class="fb">Every item. Flags + location + type.</div></div>
+  <div class="bit-field cond" style="min-width:200px"><div class="fn">EXTENDED DATA</div><div class="fb">Only if simple_item == 0</div></div>
+  <div class="bit-field cond" style="min-width:180px"><div class="fn">SOCKETED CHILDREN</div><div class="fb">Only if nr_of_items_in_sockets &gt; 0</div></div>
+</div>
+
+<p>
+  The bitstream for simple bits + extended data is terminated with a <strong>byte-alignment pad</strong>
+  (0–7 zero bits to reach the next byte boundary). Socketed child items follow after that, each
+  also a complete item bitstream with its own alignment.
+</p>
+
+<div class="note">
+  <strong>D2R vs Classic D2 (v96):</strong> In D2R (version &ge; 0x61), individual items do <em>not</em>
+  have a <code>"JM"</code> (0x4A 0x4D) header prefix. Only the <em>item list</em> starts with
+  <code>"JM"</code>. In classic D2 every individual item started with <code>"JM"</code>.
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="list">2. Item List Container</h2>
+
+<p>Items are always grouped inside an item list:</p>
+
+<pre><code>"JM"          2 bytes  ASCII marker (0x4A 0x4D)
+item_count    2 bytes  uint16 little-endian, number of items following
+item[0]       variable byte-aligned item bitstream
+item[1]       ...
+item[N-1]     ...</code></pre>
+
+<p>Item lists appear in multiple places within a save file:</p>
+
+<table>
+  <thead><tr><th>Context</th><th>Preceding Header</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Character inventory/equipped/stash/cube</td><td><code>"JM"</code> + uint16 count</td><td>Main item section</td></tr>
+    <tr><td>Corpse items</td><td><code>"JM"</code> + uint16 corpse_count; then per corpse: 12 bytes + <code>"JM"</code> item list</td><td>12 bytes = unk(4) + x_pos(4) + y_pos(4)</td></tr>
+    <tr><td>Mercenary items</td><td>Section header <code>"jf"</code> (2 bytes), then <code>"JM"</code> item list</td><td>Only present when merc exists</td></tr>
+    <tr><td>Iron Golem item</td><td>Section header <code>"kf"</code> (2 bytes) + has_golem (uint8); then single item</td><td>Necromancer only</td></tr>
+    <tr><td>Stash page (D2R .d2x)</td><td>Per page: 0xAA55AA55 magic (4B) + hardcore(4B) + version(4B) + gold(4B) + size(4B) + 44 padding bytes; then <code>"JM"</code> item list</td><td>One header block per page</td></tr>
+  </tbody>
+</table>
+
+<div class="example">
+  <h4>Example: Item list header with 3 items</h4>
+  <pre><code>4A 4D  03 00
+ "JM"   count=3  (little-endian uint16)</code></pre>
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="simple-bits">3. Simple Bits — Present on Every Item</h2>
+
+<!-- ------------------------------------------------- -->
+<h3 id="flags">3.1 Flags (32 bits)</h3>
+
+<p>The first 32 bits are a packed flag field. All values are single bits unless noted.</p>
+
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">unk</div><div class="fb">4 bits<br>b0–b3</div></div>
+  <div class="bit-field"><div class="fn">identified</div><div class="fb">1 bit<br>b4</div></div>
+  <div class="bit-field"><div class="fn">unk</div><div class="fb">6 bits<br>b5–b10</div></div>
+  <div class="bit-field"><div class="fn">socketed</div><div class="fb">1 bit<br>b11</div></div>
+  <div class="bit-field"><div class="fn">unk</div><div class="fb">1 bit<br>b12</div></div>
+  <div class="bit-field"><div class="fn">new</div><div class="fb">1 bit<br>b13</div></div>
+  <div class="bit-field"><div class="fn">unk</div><div class="fb">2 bits<br>b14–b15</div></div>
+  <div class="bit-field"><div class="fn">is_ear</div><div class="fb">1 bit<br>b16</div></div>
+  <div class="bit-field"><div class="fn">starter</div><div class="fb">1 bit<br>b17</div></div>
+  <div class="bit-field"><div class="fn">unk</div><div class="fb">3 bits<br>b18–b20</div></div>
+  <div class="bit-field"><div class="fn">simple</div><div class="fb">1 bit<br>b21</div></div>
+  <div class="bit-field"><div class="fn">ethereal</div><div class="fb">1 bit<br>b22</div></div>
+  <div class="bit-field"><div class="fn">unk(1)</div><div class="fb">1 bit<br>b23</div></div>
+  <div class="bit-field"><div class="fn">personal.</div><div class="fb">1 bit<br>b24</div></div>
+  <div class="bit-field"><div class="fn">unk</div><div class="fb">1 bit<br>b25</div></div>
+  <div class="bit-field"><div class="fn">runeword</div><div class="fb">1 bit<br>b26</div></div>
+  <div class="bit-field"><div class="fn">unk</div><div class="fb">5 bits<br>b27–b31</div></div>
+</div>
+
+<table>
+  <thead><tr><th>Bit(s)</th><th>Name</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td>0–3</td><td><code>unknown</code></td><td>Reserved; preserved as-is when writing</td></tr>
+    <tr><td>4</td><td><code>identified</code></td><td>1 = item has been identified</td></tr>
+    <tr><td>5–10</td><td><code>unknown</code></td><td>Reserved</td></tr>
+    <tr><td>11</td><td><code>socketed</code></td><td>1 = item has socket holes (may or may not be filled)</td></tr>
+    <tr><td>12</td><td><code>unknown</code></td><td>Reserved</td></tr>
+    <tr><td>13</td><td><code>new</code></td><td>1 = item was just picked up and not yet placed</td></tr>
+    <tr><td>14–15</td><td><code>unknown</code></td><td>Reserved</td></tr>
+    <tr><td>16</td><td><code>is_ear</code></td><td>1 = item is an ear (PvP trophy from killing another player). Changes the rest of the format significantly — no type code, instead stores the dead player's class/level/name.</td></tr>
+    <tr><td>17</td><td><code>starter_item</code></td><td>1 = starting item granted at character creation</td></tr>
+    <tr><td>18–20</td><td><code>unknown</code></td><td>Reserved</td></tr>
+    <tr><td>21</td><td><code>simple_item</code></td><td>1 = no extended data follows. Potions, scrolls, keys, gold, gems (when not socketed), and ears use this flag.</td></tr>
+    <tr><td>22</td><td><code>ethereal</code></td><td>1 = item is ethereal (semi-transparent; weapons deal extra damage; cannot be repaired)</td></tr>
+    <tr><td>23</td><td><code>unknown</code></td><td>Believed to always be 1; internally may be <code>IFLAG_JUSTSAVED</code></td></tr>
+    <tr><td>24</td><td><code>personalized</code></td><td>1 = item has been named after the character via Anya's personalization quest reward</td></tr>
+    <tr><td>25</td><td><code>unknown</code></td><td>Reserved; possibly <code>IFLAG_LOWQUALITY</code> internally</td></tr>
+    <tr><td>26</td><td><code>given_runeword</code></td><td>1 = a runeword is active on this item</td></tr>
+    <tr><td>27–31</td><td><code>unknown</code></td><td>Reserved</td></tr>
+  </tbody>
+</table>
+
+<!-- ------------------------------------------------- -->
+<h3 id="version">3.2 Item Version (3 bits, bits 32–34)</h3>
+
+<p>
+  In D2R (save file version &ge; 0x61), the item version stored inside the item itself is
+  <strong>3 bits</strong>, read as a binary string. The most common observed value is <code>101</code>
+  (binary for 5).
+</p>
+
+<div class="warning">
+  <strong>Classic D2 difference:</strong> In save version 96 (0x60 = D2 LoD 1.10–1.14d), the item version
+  was a <strong>10-bit</strong> decimal value:
+  0 = pre-1.08, 1 = 1.08/1.09 normal, 2 = 1.10 normal, 100 = expansion 1.08/1.09, 101 = expansion 1.10.
+</div>
+
+<!-- ------------------------------------------------- -->
+<h3 id="location">3.3 Location Data (18 bits, bits 35–52)</h3>
+
+<p>Five fields that describe where the item currently resides:</p>
+
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">location_id</div><div class="fb">3 bits</div></div>
+  <div class="bit-field"><div class="fn">equipped_id</div><div class="fb">4 bits</div></div>
+  <div class="bit-field"><div class="fn">position_x</div><div class="fb">4 bits</div></div>
+  <div class="bit-field"><div class="fn">position_y</div><div class="fb">4 bits</div></div>
+  <div class="bit-field"><div class="fn">alt_position_id</div><div class="fb">3 bits</div></div>
+</div>
+
+<table>
+  <thead><tr><th>Field</th><th>Bits</th><th>Values</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>location_id</code></td><td>3</td>
+      <td>0 = Stored in a container (grid position given by x/y/alt_pos)<br>
+          1 = Equipped on the body (body slot given by equipped_id)<br>
+          2 = In the belt<br>
+          4 = Cursor / being moved<br>
+          6 = Socketed inside another item</td>
+    </tr>
+    <tr>
+      <td><code>equipped_id</code></td><td>4</td>
+      <td>Only meaningful when location_id = 1:<br>
+          1=Helmet, 2=Amulet, 3=Body Armor, 4=Right Hand, 5=Left Hand,
+          6=Right Ring, 7=Left Ring, 8=Belt, 9=Boots, 10=Gloves,
+          11=Right Hand (swap), 12=Left Hand (swap)</td>
+    </tr>
+    <tr>
+      <td><code>position_x</code></td><td>4</td>
+      <td>Column (0-indexed) in the container grid. Max 9 for stash.</td>
+    </tr>
+    <tr>
+      <td><code>position_y</code></td><td>4</td>
+      <td>Row (0-indexed) in the container grid.</td>
+    </tr>
+    <tr>
+      <td><code>alt_position_id</code></td><td>3</td>
+      <td>Which container:<br>
+          0 = Not in a grid (equipped or belt)<br>
+          1 = Inventory<br>
+          4 = Horadric Cube<br>
+          5 = Stash</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="example">
+  <h4>Example: Item stored in Stash at column 3, row 2</h4>
+  <pre><code>location_id     = 0   (000)   -- stored in a container
+equipped_id     = 0   (0000)  -- not used
+position_x      = 3   (0011)  -- column 3
+position_y      = 2   (0010)  -- row 2
+alt_position_id = 5   (101)   -- stash
+
+Total 18 bits: 000 0000 0011 0010 101
+               ^^^                    location_id
+                   ^^^^               equipped_id
+                        ^^^^          position_x
+                             ^^^^     position_y
+                                 ^^^  alt_position_id</code></pre>
+</div>
+
+<div class="note">
+  <strong>Significance for item moving:</strong> These 18 bits at a fixed offset (bits 35–52) are the
+  only fields that need to change when repositioning an item. Flags (bits 0–31), version (32–34),
+  and everything after bit 52 remain untouched.
+</div>
+
+<!-- ------------------------------------------------- -->
+<h3 id="huffman">3.4 Item Type Code (Huffman-encoded, bits 53+)</h3>
+
+<p>
+  In D2R, the four-character item type code (e.g., <code>hax </code> for Hand Axe,
+  <code>rin </code> for Ring, <code>r01 </code> for El Rune) is stored using
+  <strong>Huffman coding</strong> rather than 4 raw ASCII bytes.
+  Each character is decoded by traversing a binary tree, reading one bit at a time
+  (0 = go left, 1 = go right) until reaching a leaf node that contains the character.
+  This is done four times to recover all four characters.
+</p>
+<p>
+  Because different characters have different path lengths, the total bits for the type code
+  varies: from 8 bits (e.g., two 4-bit characters) up to 36 bits (four 9-bit characters like <code>j</code>).
+  Common codes like <code>rin </code> (ring) or <code>hax </code> (hand axe) use around 17–19 bits.
+</p>
+
+<div class="warning">
+  <strong>Classic D2 difference:</strong> In version 96 (0x60), the type was always 4 raw ASCII bytes = 32 bits.
+  In D2R it is variable length (8–36 bits). This means you cannot skip the type field without either
+  decoding it or having the Huffman tree available.
+</div>
+
+<h4>Huffman Tree Structure</h4>
+<p>
+  The tree below shows the full decoding tree. Characters with shorter paths are more frequent
+  in type codes. Reading 0 goes left, 1 goes right.
+</p>
+
+<svg viewBox="0 0 960 600" style="width:100%;max-width:960px;margin:0.75rem 0 1rem;font-family:SFMono-Regular,Consolas,monospace">
+  <style>
+    .tn { fill:#f6f8fa; stroke:#d0d7de; stroke-width:1.5 }
+    .tl { fill:#dafbe1; stroke:#1a7f37; stroke-width:1.5 }
+    .te { stroke:#999; stroke-width:1.2; fill:none }
+    .tb { font-size:10px; fill:#1f2328; text-anchor:middle; dominant-baseline:central }
+    .tc { font-size:9px; fill:#656d76; text-anchor:middle }
+    .td { font-size:8.5px; fill:#0969da; font-weight:bold }
+  </style>
+
+  <!-- Root -->
+  <circle cx="480" cy="30" r="11" class="tn"/>
+  <text x="480" y="30" class="tb">*</text>
+
+  <!-- L0 edges -->
+  <line x1="469" y1="38" x2="220" y2="88" class="te"/>
+  <text x="330" y="59" class="td">0</text>
+  <line x1="491" y1="38" x2="740" y2="88" class="te"/>
+  <text x="630" y="59" class="td">1</text>
+
+  <!-- Level 1 nodes -->
+  <circle cx="220" cy="98" r="11" class="tn"/>
+  <text x="220" y="98" class="tb">*</text>
+  <circle cx="740" cy="98" r="11" class="tn"/>
+  <text x="740" y="98" class="tb">*</text>
+
+  <!-- L1-left edges -->
+  <line x1="209" y1="106" x2="100" y2="156" class="te"/>
+  <text x="145" y="127" class="td">0</text>
+  <line x1="231" y1="106" x2="340" y2="156" class="te"/>
+  <text x="295" y="127" class="td">1</text>
+
+  <!-- L1-right: ' ' at [1][0] -->
+  <line x1="729" y1="106" x2="620" y2="156" class="te"/>
+  <text x="665" y="127" class="td">0</text>
+  <line x1="751" y1="106" x2="860" y2="156" class="te"/>
+  <text x="815" y="127" class="td">1</text>
+
+  <rect x="603" y="144" width="34" height="22" rx="4" class="tl"/>
+  <text x="620" y="155" class="tb" style="fill:#1a7f37">&#x27; &#x27;</text>
+  <text x="620" y="174" class="tc">10 (2b)</text>
+
+  <!-- Level 2 nodes -->
+  <circle cx="100" cy="166" r="11" class="tn"/>
+  <text x="100" y="166" class="tb">*</text>
+  <circle cx="340" cy="166" r="11" class="tn"/>
+  <text x="340" y="166" class="tb">*</text>
+  <circle cx="860" cy="166" r="11" class="tn"/>
+  <text x="860" y="166" class="tb">*</text>
+
+  <!-- L2-left-left: w,u / 8,y,5,j / h -->
+  <line x1="89" y1="174" x2="50" y2="224" class="te"/>
+  <text x="62" y="196" class="td">0</text>
+  <line x1="111" y1="174" x2="150" y2="224" class="te"/>
+  <text x="138" y="196" class="td">1</text>
+
+  <!-- w at [0][0][0][0][0] -->
+  <circle cx="50" cy="234" r="11" class="tn"/>
+  <text x="50" y="234" class="tb">*</text>
+  <text x="50" y="252" class="tc">w,u,8…</text>
+
+  <!-- s at [0][1][0] -->
+  <line x1="329" y1="174" x2="270" y2="224" class="te"/>
+  <text x="292" y="196" class="td">0</text>
+  <line x1="351" y1="174" x2="410" y2="224" class="te"/>
+  <text x="388" y="196" class="td">1</text>
+
+  <rect x="253" y="212" width="34" height="22" rx="4" class="tl"/>
+  <text x="270" y="223" class="tb" style="fill:#1a7f37">s</text>
+  <text x="270" y="242" class="tc">0010 (4b)</text>
+
+  <circle cx="410" cy="234" r="11" class="tn"/>
+  <text x="410" y="234" class="tb">*</text>
+  <text x="410" y="252" class="tc">2,n / x</text>
+
+  <!-- L2-right-left: c,k,f / b / t,m / 9,7 -->
+  <line x1="149" y1="174" x2="105" y2="224" class="te"/>
+  <text x="120" y="198" class="td">0</text>
+  <line x1="161" y1="174" x2="198" y2="224" class="te"/>
+  <text x="185" y="198" class="td">1</text>
+
+  <circle cx="105" cy="234" r="11" class="tn"/>
+  <text x="105" y="234" class="tb">*</text>
+  <text x="105" y="252" class="tc">c,k / f</text>
+
+  <circle cx="198" cy="234" r="11" class="tn"/>
+  <text x="198" y="234" class="tb">*</text>
+  <text x="198" y="252" class="tc">b / t,m,9,7</text>
+
+  <!-- b leaf -->
+  <line x1="193" y1="243" x2="162" y2="290" class="te"/>
+  <text x="172" y="264" class="td">0</text>
+  <line x1="203" y1="243" x2="234" y2="290" class="te"/>
+  <text x="224" y="264" class="td">1</text>
+
+  <rect x="145" y="278" width="34" height="22" rx="4" class="tl"/>
+  <text x="162" y="289" class="tb" style="fill:#1a7f37">b</text>
+  <text x="162" y="308" class="tc">0101 (4b)</text>
+
+  <circle cx="234" cy="300" r="11" class="tn"/>
+  <text x="234" y="300" class="tb">*</text>
+  <text x="234" y="318" class="tc">t,m / 9,7</text>
+
+  <!-- t leaf -->
+  <line x1="224" y1="309" x2="200" y2="355" class="te"/>
+  <text x="206" y="330" class="td">0</text>
+  <line x1="244" y1="309" x2="268" y2="355" class="te"/>
+  <text x="258" y="330" class="td">1</text>
+
+  <rect x="183" y="343" width="34" height="22" rx="4" class="tl"/>
+  <text x="200" y="354" class="tb" style="fill:#1a7f37">t</text>
+  <text x="200" y="373" class="tc">01100 (5b)</text>
+
+  <rect x="251" y="343" width="34" height="22" rx="4" class="tl"/>
+  <text x="268" y="354" class="tb" style="fill:#1a7f37">m</text>
+  <text x="268" y="373" class="tc">01101 (5b)</text>
+
+  <!-- Right branch level 2: e,d,p / g,z,q,3,v,6 / r,l / a / 1,4,0 / i,o -->
+  <line x1="849" y1="174" x2="790" y2="224" class="te"/>
+  <text x="813" y="196" class="td">0</text>
+  <line x1="871" y1="174" x2="930" y2="224" class="te"/>
+  <text x="908" y="196" class="td">1</text>
+
+  <circle cx="790" cy="234" r="11" class="tn"/>
+  <text x="790" y="234" class="tb">*</text>
+  <text x="790" y="252" class="tc">e,d,p / g,…</text>
+
+  <circle cx="930" cy="234" r="11" class="tn"/>
+  <text x="930" y="234" class="tb">*</text>
+  <text x="930" y="252" class="tc">r,l / a,1,4,0,i,o</text>
+
+  <!-- r and l leaves from right-->
+  <line x1="919" y1="243" x2="880" y2="290" class="te"/>
+  <text x="892" y="264" class="td">0</text>
+  <line x1="941" y1="243" x2="960" y2="270" class="te"/>
+  <text x="958" y="262" class="td">1</text>
+
+  <rect x="863" y="278" width="34" height="22" rx="4" class="tl"/>
+  <text x="880" y="289" class="tb" style="fill:#1a7f37">r</text>
+  <text x="880" y="308" class="tc">11100 (5b)</text>
+
+  <!-- Legend box -->
+  <rect x="20" y="450" width="920" height="130" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="40" y="472" style="font-size:12px;font-weight:bold;fill:#1f2328">Bit lengths for all characters (D2R Huffman codec)</text>
+  <text x="40" y="492" class="tc" style="text-anchor:start;font-size:10.5px">2 bits:  ' ' (space)</text>
+  <text x="40" y="508" class="tc" style="text-anchor:start;font-size:10.5px">4 bits:  b  s</text>
+  <text x="40" y="524" class="tc" style="text-anchor:start;font-size:10.5px">5 bits:  7  9  a  c  g  h  l  m  p  r  t  u  w  x</text>
+  <text x="40" y="540" class="tc" style="text-anchor:start;font-size:10.5px">6 bits:  2  8  d  e  f  k  n</text>
+  <text x="40" y="556" class="tc" style="text-anchor:start;font-size:10.5px">7 bits:  1  3  i  o  v  y</text>
+  <text x="440" y="492" class="tc" style="text-anchor:start;font-size:10.5px">8 bits:  0  4  5  q  z</text>
+  <text x="440" y="508" class="tc" style="text-anchor:start;font-size:10.5px">9 bits:  j</text>
+  <text x="440" y="530" class="tc" style="text-anchor:start;font-size:10.5px">Type code = 4 characters  →  total 8–36 bits  (vs fixed 32 in classic D2)</text>
+  <text x="440" y="546" class="tc" style="text-anchor:start;font-size:10.5px">Most codes are 17–22 bits (e.g. "rin " = 5+5+5+2 = 17 bits)</text>
+  <text x="440" y="562" class="tc" style="text-anchor:start;font-size:10.5px">Codes are always padded to 4 chars with trailing spaces before encoding</text>
+</svg>
+
+<div class="example">
+  <h4>Example: Encoding "hax " (Hand Axe)</h4>
+  <pre><code>Char  Path          Bits  Value (LSB first)
+'h'   left×4,right  5b    00011
+'a'   right×4,left  5b    11110  (well: 1→1→1→1→0 = 11110)
+'x'   left×2,right,left,right,left  5b  00111
+' '   right,left    2b    10
+
+Total: 5+5+5+2 = 17 bits  (classic D2 always used 32 bits for this)</code></pre>
+</div>
+
+<div class="example">
+  <h4>Example: Encoding "r01 " (El Rune)</h4>
+  <pre><code>Char  Bits  Notes
+'r'   5b    common character
+'0'   8b    rare character — long path
+'1'   7b    moderate
+' '   2b    space always 2 bits
+
+Total: 5+8+7+2 = 22 bits</code></pre>
+</div>
+
+<!-- ------------------------------------------------- -->
+<h3 id="socket-nr">3.5 Nr of Socketed Children / Ear Data / Quest Items</h3>
+
+<p>After the type code, parsing branches based on item type:</p>
+
+<table>
+  <thead><tr><th>Condition</th><th>What is read</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>is_ear == 1</code></td>
+      <td>Instead of a type code + socket count, reads:<br>
+        <code>class</code> (3 bits) + <code>level</code> (7 bits) + null-terminated name in 7-bit characters (up to 15 chars).
+        No socket count, no extended data.
+      </td>
+    </tr>
+    <tr>
+      <td>Item category includes <code>"Quest"</code></td>
+      <td><code>quest_difficulty</code> (2 bits, using <code>magical_properties[356]</code>), then <code>nr_of_items_in_sockets</code> as <strong>1 bit</strong></td>
+    </tr>
+    <tr>
+      <td><code>simple_item == 1</code></td>
+      <td><code>nr_of_items_in_sockets</code> as <strong>1 bit</strong></td>
+    </tr>
+    <tr>
+      <td><code>simple_item == 0</code> (complex/non-simple)</td>
+      <td><code>nr_of_items_in_sockets</code> as <strong>3 bits</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warning">
+  <code>nr_of_items_in_sockets</code> is the count of gems/runes/jewels currently <em>inserted</em> into
+  this item. It is not the total number of socket holes (that is stored later in <code>total_nr_of_sockets</code>).
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="extended">4. Extended Data — Non-Simple Items Only</h2>
+
+<p>
+  If <code>simple_item == 0</code>, the following extended data immediately follows the simple bits
+  (no gap, still bit-packed). Simple items (potions, scrolls, keys, gold, unsocketed gems) end
+  at the byte-aligned boundary after their simple bits.
+</p>
+
+<!-- ------------------------------------------------- -->
+<h3 id="basic-ext">4.1 ID, Level, Quality (45 bits minimum)</h3>
+
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">id</div><div class="fb">32 bits</div></div>
+  <div class="bit-field"><div class="fn">level</div><div class="fb">7 bits</div></div>
+  <div class="bit-field"><div class="fn">quality</div><div class="fb">4 bits</div></div>
+  <div class="bit-field"><div class="fn">multi_pic</div><div class="fb">1 bit</div></div>
+  <div class="bit-field cond"><div class="fn">picture_id</div><div class="fb">3 bits if multi_pic</div></div>
+  <div class="bit-field"><div class="fn">class_specific</div><div class="fb">1 bit</div></div>
+  <div class="bit-field cond"><div class="fn">auto_affix_id</div><div class="fb">11 bits if class_spec</div></div>
+</div>
+
+<table>
+  <thead><tr><th>Field</th><th>Bits</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>32</td><td>Unique item identifier (random uint32). Used to distinguish two otherwise-identical items.</td></tr>
+    <tr><td><code>level</code></td><td>7</td><td>Item level (ilvl 1–99). Determines which affixes could have rolled on the item.</td></tr>
+    <tr><td><code>quality</code></td><td>4</td><td>Quality tier. See table below.</td></tr>
+    <tr><td><code>multiple_pictures</code></td><td>1</td><td>1 = this base item type has alternate graphic variants.</td></tr>
+    <tr><td><code>picture_id</code></td><td>3 (conditional)</td><td>Which graphic variant. Only present when <code>multiple_pictures == 1</code>.</td></tr>
+    <tr><td><code>class_specific</code></td><td>1</td><td>1 = this is a class-specific item (Paladin shield, Druid pelt, etc.)</td></tr>
+    <tr><td><code>auto_affix_id</code></td><td>11 (conditional)</td><td>The class-specific auto-applied affix. Only present when <code>class_specific == 1</code>.</td></tr>
+  </tbody>
+</table>
+
+<table>
+  <thead><tr><th>Quality value</th><th>Name</th><th>In-game colour</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Low Quality</td><td>White (dim)</td><td>Cracked Sash, Damaged Short Sword</td></tr>
+    <tr><td>2</td><td>Normal</td><td>White</td><td>Leather Armor, Short Sword</td></tr>
+    <tr><td>3</td><td>Superior</td><td>White (bright)</td><td>Superior Dusk Shroud</td></tr>
+    <tr><td>4</td><td>Magic</td><td>Blue</td><td>Jade Small Charm of Sustenance</td></tr>
+    <tr><td>5</td><td>Set</td><td>Green</td><td>Tal Rasha's Guardianship</td></tr>
+    <tr><td>6</td><td>Rare</td><td>Yellow</td><td>Cruel Colossus Blade of Quickness</td></tr>
+    <tr><td>7</td><td>Unique</td><td>Gold</td><td>Harlequin Crest (Shako)</td></tr>
+    <tr><td>8</td><td>Crafted</td><td>Orange</td><td>Blood Gloves of Dexterity</td></tr>
+  </tbody>
+</table>
+
+<!-- ------------------------------------------------- -->
+<h3 id="quality-data">4.2 Quality-Specific Fields</h3>
+
+<p>Immediately after the basic fields, quality-specific data is embedded:</p>
+
+<h4>Quality 1 — Low</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">low_quality_id</div><div class="fb">3 bits</div></div>
+</div>
+<p>Identifies which low-quality variant: Crude (0), Cracked (1), Damaged (2), Low Quality (3).</p>
+
+<h4>Quality 2 — Normal</h4>
+<p>No additional fields.</p>
+
+<h4>Quality 3 — Superior</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">file_index</div><div class="fb">3 bits</div></div>
+</div>
+<p>Index for the superior bonus type (Enhanced Defense, Enhanced Damage, Increased Durability, Enhanced Attack Rating).</p>
+
+<h4>Quality 4 — Magic</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">magic_prefix</div><div class="fb">11 bits</div></div>
+  <div class="bit-field"><div class="fn">magic_suffix</div><div class="fb">11 bits</div></div>
+</div>
+<p>Index into the MagicPrefix / MagicSuffix tables. A value of 0 means no prefix or suffix on that slot.</p>
+
+<div class="example">
+  <h4>Example: "Merciless War Axe of Quickness"</h4>
+  <pre><code>magic_prefix = 562  (11 bits) -- "Merciless" (+300-340% Enhanced Damage)
+magic_suffix = 2    (11 bits) -- "of Quickness" (+20% Increased Attack Speed)</code></pre>
+</div>
+
+<h4>Quality 5 — Set</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">set_id</div><div class="fb">12 bits</div></div>
+</div>
+<p>Index into the SetItems data table, identifying which specific set item this is (e.g., Tal Rasha's Lidless Eye).</p>
+
+<h4>Quality 6 — Rare &amp; Quality 8 — Crafted</h4>
+<p>Both rare and crafted use the same structure:</p>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">rare_name_id</div><div class="fb">8 bits</div></div>
+  <div class="bit-field"><div class="fn">rare_name_id2</div><div class="fb">8 bits</div></div>
+  <div class="bit-field"><div class="fn">prefix_flag[0]</div><div class="fb">1 bit</div></div>
+  <div class="bit-field cond"><div class="fn">prefix_id[0]</div><div class="fb">11 bits if flag=1</div></div>
+  <div class="bit-field" style="font-size:0.7em;padding:4px"><div class="fn">…×6</div><div class="fb">Repeat ×5 more</div></div>
+</div>
+<p>
+  The two name IDs index into the RareName table to form the two-word item name.
+  Then 6 affix slots follow in order. Each slot is 1-bit flag; if the flag is 1,
+  an 11-bit affix ID follows (prefix or suffix alternating by slot position).
+</p>
+<pre><code>rare_name_id   = read 8 bits   -- first word (e.g. "Havoc")
+rare_name_id2  = read 8 bits   -- second word (e.g. "Bane")
+for i = 0 to 5:
+    has_affix = read 1 bit
+    if has_affix:
+        affix_id = read 11 bits</code></pre>
+
+<div class="example">
+  <h4>Example: Rare with 3 affixes</h4>
+  <pre><code>rare_name_id  = 42  "Havoc"
+rare_name_id2 = 17  "Bane"
+slot 0: 1 + 11 bits (prefix)
+slot 1: 1 + 11 bits (suffix)
+slot 2: 1 + 11 bits (prefix)
+slot 3: 1 bit = 0 (no affix)
+slot 4: 1 bit = 0
+slot 5: 1 bit = 0
+
+Total quality-specific bits: 8+8 + 6*1 + 3*11 = 16+6+33 = 55 bits</code></pre>
+</div>
+
+<h4>Quality 7 — Unique</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">unique_id</div><div class="fb">12 bits</div></div>
+</div>
+<p>Index into the UniqueItems table.</p>
+
+<div class="example">
+  <h4>Example: Harlequin Crest</h4>
+  <pre><code>quality   = 7      (Unique)
+unique_id = 332    (12 bits) → index 332 in UniqueItems table = "Harlequin Crest"</code></pre>
+</div>
+
+<!-- ------------------------------------------------- -->
+<h3 id="runeword-field">4.3 Runeword ID (16 bits, conditional)</h3>
+
+<p>Present only when <code>given_runeword == 1</code> in the flags:</p>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">runeword_id</div><div class="fb">12 bits</div></div>
+  <div class="bit-field"><div class="fn">padding</div><div class="fb">4 bits (always 5)</div></div>
+</div>
+<p>
+  The runeword_id indexes into the Runes table. The 4-bit padding field appears to always be written as 5.
+  (Exception: Delirium runeword has a known quirk where ID 2718 must be remapped to 48.)
+</p>
+
+<!-- ------------------------------------------------- -->
+<h3 id="personalized">4.4 Personalized Name (conditional)</h3>
+
+<p>Present only when <code>personalized == 1</code> in the flags:</p>
+<p>
+  A null-terminated string stored in <strong>8-bit characters</strong> (D2R version &gt; 0x61).
+  Maximum 16 characters including the null terminator.
+</p>
+<pre><code>for i = 0 to 15:
+    char_byte = read 8 bits
+    if char_byte == 0x00:
+        break
+    name += char_byte</code></pre>
+
+<div class="warning">
+  <strong>Classic D2 difference:</strong> Version &le; 0x60 (classic D2) used 7-bit characters for the personalized name.
+  D2R (version &gt; 0x61) uses 8-bit characters.
+</div>
+
+<!-- ------------------------------------------------- -->
+<h3 id="timestamp">4.5 Tome Data &amp; Timestamp</h3>
+
+<p>
+  <strong>Tome data (5 bits, conditional):</strong> Only present when the item type is
+  <code>tbk</code> (Tome of Town Portal) or <code>ibk</code> (Tome of Identify).
+  The 5-bit value distinguishes the two tome types at the binary level.
+</p>
+
+<p>
+  <strong>Timestamp / realm data (1 bit):</strong> Always present for non-simple items.
+  This single bit is used as a realm data flag.
+</p>
+
+<!-- ------------------------------------------------- -->
+<h3 id="base-stats">4.6 Base Stats (Defense, Durability, Quantity)</h3>
+
+<p>These fields are conditionally present based on the item type category:</p>
+
+<h4>Defense Rating — Armor items only</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">defense_rating (raw)</div><div class="fb">11 bits (sB=11)</div></div>
+</div>
+<pre><code>raw_value     = read 11 bits
+defense_rating = raw_value - 10        (sA = 10, stat ID 31: armorclass)</code></pre>
+<p>
+  The offset of 10 allows representing a defense of 0 (raw = 10) without needing a sign bit.
+  This field uses the bit-width from <code>magical_properties[31].sB = 11</code>.
+</p>
+
+<div class="example">
+  <h4>Example: Archon Plate base defense</h4>
+  <pre><code>11-bit raw value = 487
+defense_rating   = 487 - 10 = 477</code></pre>
+</div>
+
+<h4>Durability — Armor &amp; Weapon items</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">max_durability</div><div class="fb">8 bits (sB=8)</div></div>
+  <div class="bit-field cond"><div class="fn">current_durability</div><div class="fb">9 bits (if max_dur &gt; 0)</div></div>
+</div>
+<pre><code>max_durability  = read 8 bits   (stat ID 73: maxdurability, sB=8, sA=0)
+if max_durability > 0:
+    current_durability = read 9 bits  (stat ID 72: durability, sB=9, sA=0)</code></pre>
+<p>
+  Items with <code>max_durability == 0</code> are indestructible base types (phase blades, etc.)
+  and do not have the <code>current_durability</code> field.
+</p>
+
+<h4>Quantity — Stackable items only</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">quantity</div><div class="fb">9 bits</div></div>
+</div>
+<p>
+  Present only for items listed in the stackables table: arrows, bolts, throwing knives,
+  throwing axes, and javelins.
+</p>
+
+<!-- ------------------------------------------------- -->
+<h3 id="total-sockets">4.7 Total Sockets (4 bits, conditional)</h3>
+
+<p>Present only when <code>socketed == 1</code> in the flags:</p>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">total_nr_of_sockets</div><div class="fb">4 bits</div></div>
+</div>
+<p>
+  The total number of socket holes in the item (0–6), regardless of how many are currently filled.
+  This is distinct from <code>nr_of_items_in_sockets</code> in the simple bits which counts the
+  filled sockets.
+</p>
+
+<!-- ------------------------------------------------- -->
+<h3 id="plist-flag">4.8 Set Bonus Flags (5 bits, conditional)</h3>
+
+<p>Present only when <code>quality == 5</code> (Set item):</p>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">plist_flag</div><div class="fb">5 bits</div></div>
+</div>
+<p>
+  A 5-bit bitmask. Each set bit indicates one additional set-bonus property list follows after the
+  main magic properties. The number of extra lists equals the popcount (number of set bits) of this field.
+</p>
+<pre><code>plist_flag = read 5 bits
+extra_list_count = popcount(plist_flag)
+
+// Example: plist_flag = 0b00111 = 3 extra lists
+//          wearing 2-piece, 3-piece, and 4-piece bonuses are active</code></pre>
+
+<!-- ===================================================================== -->
+<h2 id="magic-props">5. Magic Properties</h2>
+
+<p>
+  Magic properties encode all item modifiers: stat bonuses, skill bonuses, on-hit effects, and more.
+  They are stored as a <strong>variable-length list</strong> terminated by a 9-bit sentinel value
+  <code>0x1FF</code> (decimal 511). Each entry starts with the 9-bit stat ID, then reads a
+  variable number of additional bits determined by the stat definition from <code>ItemStatCost.txt</code>.
+</p>
+
+<!-- ------------------------------------------------- -->
+<h3 id="prop-basic">5.1 Basic Property Encoding</h3>
+
+<pre><code>while true:
+    stat_id = read 9 bits
+    if stat_id == 0x1FF:   // 511 = terminator
+        break
+
+    prop = magical_properties[stat_id]   // look up bit widths from game data
+
+    if prop.sP is defined:               // save param bits
+        param = read prop.sP bits
+        // decode param (see §5.3 and §5.4)
+
+    raw_value = read prop.sB bits        // save bits
+    value = raw_value - prop.sA          // save add (signed offset)</code></pre>
+
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">stat_id</div><div class="fb">9 bits (0x000–0x1FE valid, 0x1FF = end)</div></div>
+  <div class="bit-field cond"><div class="fn">param</div><div class="fb">sP bits (only if sP defined)</div></div>
+  <div class="bit-field"><div class="fn">value (raw)</div><div class="fb">sB bits</div></div>
+</div>
+
+<p>Key fields in each property definition (<code>ItemStatCost.txt</code>):</p>
+<dl>
+  <dt><code>sB</code> — Save Bits</dt>
+  <dd>Number of bits used to store the stat value. Varies per stat (6–16 bits typically).</dd>
+  <dt><code>sA</code> — Save Add</dt>
+  <dd>Offset subtracted from the raw value after reading. Encodes signed ranges without explicit sign bits.
+    E.g. <code>sA=32</code> means a raw value of 32 represents an actual value of 0.</dd>
+  <dt><code>sP</code> — Save Param Bits</dt>
+  <dd>Extra parameter bits before the value (e.g. skill ID for "chance to cast" effects).</dd>
+  <dt><code>e</code> — Encoding</dt>
+  <dd>Special encoding type: 0/absent = standard, 2 = chance-to-cast, 3 = charges.</dd>
+  <dt><code>np</code> — Num Properties</dt>
+  <dd>How many consecutive stat slots this one ID covers. E.g. fire damage reads min+max under one ID.</dd>
+  <dt><code>dF</code> — Desc Func</dt>
+  <dd>Display formatting function. dF=14 has special param decoding for skill-tab bonuses.</dd>
+</dl>
+
+<div class="example">
+  <h4>Example: "+20 to Strength" (stat ID 0)</h4>
+  <pre><code>stat_id       = 0          (9 bits)   → "strength"
+prop.sB       = 8          → read 8 bits
+prop.sA       = 32         → subtract 32
+
+raw_value     = 52
+actual_value  = 52 - 32 = 20
+
+Stored in binary: 000000000 (stat_id=0) + 00110100 (raw 52)
+                  = 17 bits total for this property</code></pre>
+</div>
+
+<div class="example">
+  <h4>Example: "+50 to Life" (stat ID 7, maxhp)</h4>
+  <pre><code>stat_id       = 7          (9 bits)   → "maxhp"
+prop.sB       = 9          → read 9 bits
+prop.sA       = 32         → subtract 32
+
+raw_value     = 82
+actual_value  = 82 - 32 = 50
+
+Total bits: 9 (stat_id) + 9 (value) = 18 bits</code></pre>
+</div>
+
+<div class="example">
+  <h4>Example: "10% Enhanced Defense" (stat ID 16)</h4>
+  <pre><code>stat_id       = 16         (9 bits)   → "item_armor_percent"
+prop.sB       = 9          → read 9 bits
+prop.sA       = 0          → no offset
+
+raw_value     = 10
+actual_value  = 10
+
+Total bits: 9 + 9 = 18 bits</code></pre>
+</div>
+
+<!-- ------------------------------------------------- -->
+<h3 id="prop-multi">5.2 Multi-Property Stats (np &gt; 1)</h3>
+
+<p>
+  Some stats consume multiple consecutive stat ID slots. A single <code>stat_id</code> read
+  triggers reading <code>np</code> sub-entries (using IDs <code>stat_id</code>, <code>stat_id+1</code>,
+  …, <code>stat_id+np-1</code>). Each sub-entry reads its own <code>sB</code> bits.
+  No additional <code>stat_id</code> reads happen for the sub-entries.
+</p>
+
+<table>
+  <thead><tr><th>Stat ID</th><th>Name</th><th>np</th><th>What is read</th></tr></thead>
+  <tbody>
+    <tr><td>17</td><td>item_maxdamage_percent</td><td>2</td><td>ID 17 (9b): min% Enhanced Damage; ID 18 (9b): max% Enhanced Damage</td></tr>
+    <tr><td>48</td><td>firemindam</td><td>2</td><td>ID 48 (8b): fire min; ID 49 (8b): fire max</td></tr>
+    <tr><td>50</td><td>lightmindam</td><td>2</td><td>ID 50 (6b): lightning min; ID 51 (10b): lightning max</td></tr>
+    <tr><td>52</td><td>magicmindam</td><td>2</td><td>ID 52 (8b): magic min; ID 53 (8b): magic max</td></tr>
+    <tr><td>54</td><td>coldmindam</td><td>3</td><td>ID 54 (8b): cold min; ID 55 (8b): cold max; ID 56 (8b): cold length (frames)</td></tr>
+    <tr><td>57</td><td>poisonmindam</td><td>3</td><td>ID 57 (10b): poison min; ID 58 (10b): poison max; ID 59 (10b): poison length</td></tr>
+  </tbody>
+</table>
+
+<div class="example">
+  <h4>Example: "Adds 15–45 Fire Damage"</h4>
+  <pre><code>stat_id = 48 (9 bits)    → firemindam, np=2
+
+  sub-entry 0 (ID 48): sB=8, sA=0 → read 8 bits = 15  (fire min)
+  sub-entry 1 (ID 49): sB=8, sA=0 → read 8 bits = 45  (fire max)
+
+Total bits: 9 + 8 + 8 = 25 bits for "Adds 15–45 Fire Damage"</code></pre>
+</div>
+
+<div class="example">
+  <h4>Example: "Adds 27–129 Cold Damage (4 second duration)"</h4>
+  <pre><code>stat_id = 54 (9 bits)    → coldmindam, np=3
+
+  sub-entry 0 (ID 54): sB=8, sA=0 → read 8 bits = 27   (cold min)
+  sub-entry 1 (ID 55): sB=8, sA=0 → read 8 bits = 129  (cold max)
+  sub-entry 2 (ID 56): sB=8, sA=0 → read 8 bits = 100  (length in frames; 100/25 = 4 sec)
+
+Total bits: 9 + 8 + 8 + 8 = 33 bits</code></pre>
+</div>
+
+<!-- ------------------------------------------------- -->
+<h3 id="prop-cast">5.3 Encoding 2: Chance to Cast / Skill on Event</h3>
+
+<p>
+  Stats with <code>e=2</code> (e.g., stat IDs 195–201: <code>item_skillonattack</code>,
+  <code>item_skillonhit</code>, etc.) pack skill identity and probability together:
+</p>
+<pre><code>stat_id    = read 9 bits       (e.g. 198 = item_skillonhit)
+// prop.sP = 16, prop.sB = 7, e = 2
+
+param      = read 16 bits (sP)
+skill_level = param &amp; 0x3F          // lower 6 bits
+skill_id    = (param >> 6) &amp; 0x3FF  // next 10 bits
+
+chance     = read 7 bits (sB)       // percentage (raw - sA)</code></pre>
+
+<div class="example">
+  <h4>Example: "5% Chance to Cast Level 3 Chain Lightning on Striking"</h4>
+  <pre><code>stat_id = 198 (9 bits, item_skillonhit)
+param   = 0x00C3 (16 bits)
+  skill_level = 0xC3 &amp; 0x3F = 3
+  skill_id    = (0xC3 >> 6)  = 3   (Chain Lightning)
+chance  = 5 (7 bits)
+
+Total bits: 9 + 16 + 7 = 32 bits</code></pre>
+</div>
+
+<!-- ------------------------------------------------- -->
+<h3 id="prop-charges">5.4 Encoding 3: Charges</h3>
+
+<p>
+  Stats with <code>e=3</code> (stat ID 204: <code>item_charged_skill</code>) pack
+  skill identity, current charges, and max charges:
+</p>
+<pre><code>stat_id    = read 9 bits       (204 = item_charged_skill)
+// prop.sP = 16, prop.sB = 16, e = 3
+
+param      = read 16 bits (sP)
+skill_level = param &amp; 0x3F          // lower 6 bits
+skill_id    = (param >> 6) &amp; 0x3FF  // next 10 bits
+
+value      = read 16 bits (sB)
+current_charges = value &amp; 0xFF       // lower 8 bits
+max_charges     = (value >> 8) &amp; 0xFF // upper 8 bits</code></pre>
+
+<div class="example">
+  <h4>Example: "Level 12 Teleport (20/20 Charges)"</h4>
+  <pre><code>stat_id = 204 (9 bits, item_charged_skill)
+param   = encodes: skill_level=12, skill_id=[Teleport ID]
+value   = 0x1414 (hex): current=20, max=20
+
+Total bits: 9 + 16 + 16 = 41 bits</code></pre>
+</div>
+
+<!-- ------------------------------------------------- -->
+<h3 id="prop-param">5.5 Param-based Properties (sP, standard encoding)</h3>
+
+<p>Many properties use <code>sP</code> for a parameter that gives context to the value:</p>
+
+<h4>Skill Tab Bonus (dF = 14)</h4>
+<p>Used for "+X to Combat Skills (Paladin)":</p>
+<pre><code>param = read sP bits
+tab   = param &amp; 0x7          // skill tab within class (0, 1, or 2)
+class = (param >> 3) &amp; 0x1FFF // class index
+value = read sB bits - sA    // bonus amount</code></pre>
+
+<h4>Specific Skill Bonus</h4>
+<p>Used for "+X to Teleport (Sorceress Only)":</p>
+<pre><code>param    = read sP bits   // skill ID
+value    = read sB bits - sA   // bonus levels</code></pre>
+
+<!-- ===================================================================== -->
+<h2 id="prop-lists">6. Property List Order</h2>
+
+<p>For non-simple items, magic properties appear in a specific order:</p>
+
+<ol>
+  <li><strong>Main magic properties</strong> — Always present. Terminated by <code>0x1FF</code> (9 bits).</li>
+  <li><strong>Set bonus properties</strong> (0–5 additional lists) — Only for quality 5 (Set items). One list per set bit in <code>plist_flag</code>. Each terminated by <code>0x1FF</code>.</li>
+  <li><strong>Runeword properties</strong> (1 additional list) — Only when <code>given_runeword == 1</code>. Terminated by <code>0x1FF</code>.</li>
+</ol>
+
+<div class="example">
+  <h4>Example: Set Item with 3 set-bonus lists (plist_flag = 0b00111)</h4>
+  <pre><code>[main properties...]   0x1FF   -- item's own always-active stats
+[set bonus list 1...]  0x1FF   -- bonus when 2 set pieces are worn
+[set bonus list 2...]  0x1FF   -- bonus when 3 set pieces are worn
+[set bonus list 3...]  0x1FF   -- bonus when 4 set pieces are worn</code></pre>
+</div>
+
+<div class="example">
+  <h4>Example: Runeword Item (Enigma: Jah + Ith + Ber)</h4>
+  <pre><code>[main properties...]        0x1FF  -- base item's inherent stats (defense etc.)
+[runeword properties...]    0x1FF  -- Enigma's runeword bonuses (Teleport, str%, etc.)</code></pre>
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="alignment">7. Byte Alignment</h2>
+
+<p>
+  After all property lists are written (or after simple bits for simple items), the bitstream is
+  <strong>padded to the next byte boundary</strong>. Between 0 and 7 zero bits are inserted to
+  ensure the next item (or the end of the stream) starts on a byte boundary.
+</p>
+
+<pre><code>// After writing all item data:
+padding_bits = (8 - (current_bit_offset % 8)) % 8
+write padding_bits zero bits</code></pre>
+
+<div class="example">
+  <h4>Example</h4>
+  <pre><code>If a simple item ends at bit offset 73:
+  73 % 8 = 1 → need 7 more bits to reach 80
+  Padding: 7 zero bits
+  Final size: 80 bits = 10 bytes</code></pre>
+</div>
+
+<div class="note">
+  This byte alignment is critical: it means that even though the item internals are bit-packed,
+  each item as a whole is byte-aligned. Socketed child items also start on byte boundaries.
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="socketed-children">8. Socketed Child Items</h2>
+
+<p>
+  If <code>nr_of_items_in_sockets &gt; 0</code> and <code>simple_item == 0</code>,
+  that many complete child items follow immediately after the parent's byte-aligned end.
+  Each child item is fully parsed recursively using the same format.
+</p>
+
+<pre><code>// After parent item byte alignment:
+for i = 0 to nr_of_items_in_sockets - 1:
+    parse child_item[i]     // complete item, recursively
+    // child is also byte-aligned at its end</code></pre>
+
+<p>
+  Inserted gems, runes, and jewels are typically simple items (gems, runes) or non-simple
+  items with their own magic properties (jewels). Each has its own byte-aligned boundary.
+</p>
+
+<!-- ===================================================================== -->
+<h2 id="flow">9. Complete Parsing Flow</h2>
+
+<p>Full decision tree for parsing a single D2R v99 item:</p>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│ PARSE ITEM                                                                  │
+│                                                                             │
+│  [32 bits] Read FLAGS                                                       │
+│  [3 bits]  Read ITEM VERSION                                                │
+│  [3 bits]  Read location_id                                                 │
+│  [4 bits]  Read equipped_id                                                 │
+│  [4 bits]  Read position_x                                                  │
+│  [4 bits]  Read position_y                                                  │
+│  [3 bits]  Read alt_position_id                                             │
+│                                                                             │
+│  IF is_ear:                                                                 │
+│    [3 bits]  Read ear_class                                                 │
+│    [7 bits]  Read ear_level                                                 │
+│    [7b×n]    Read ear_name (null-terminated 7-bit chars)                    │
+│    → GOTO ALIGN                                                             │
+│                                                                             │
+│  ELSE:                                                                      │
+│    [var]   Decode HUFFMAN TYPE CODE (4 characters, 8–36 bits total)         │
+│    Determine item category from type code                                   │
+│                                                                             │
+│    IF Quest item:                                                           │
+│      [2 bits] Read quest_difficulty                                         │
+│      [1 bit]  Read nr_of_items_in_sockets                                  │
+│    ELIF simple_item:                                                        │
+│      [1 bit]  Read nr_of_items_in_sockets                                  │
+│    ELSE:                                                                    │
+│      [3 bits] Read nr_of_items_in_sockets                                  │
+│                                                                             │
+│  IF NOT simple_item:                                                        │
+│    [32b] Read id                                                            │
+│    [7b]  Read level                                                         │
+│    [4b]  Read quality                                                       │
+│    [1b]  Read multiple_pictures                                             │
+│    IF multiple_pictures: [3b] Read picture_id                               │
+│    [1b]  Read class_specific                                                │
+│    IF class_specific: [11b] Read auto_affix_id                              │
+│                                                                             │
+│    SWITCH quality:                                                          │
+│      1 Low:      [3b]  low_quality_id                                       │
+│      2 Normal:   (nothing)                                                  │
+│      3 Superior: [3b]  file_index                                           │
+│      4 Magic:    [11b] magic_prefix + [11b] magic_suffix                    │
+│      5 Set:      [12b] set_id                                               │
+│      6 Rare:     [8b] name_id + [8b] name_id2 + 6×(1b flag + ?[11b] affix) │
+│      7 Unique:   [12b] unique_id                                            │
+│      8 Crafted:  same as Rare                                               │
+│                                                                             │
+│    IF given_runeword: [12b] runeword_id + [4b] padding                     │
+│    IF personalized:   [8b×n] name (null-terminated)                        │
+│    IF type is tbk/ibk: [5b] tome_data                                      │
+│    [1b]  Read timestamp                                                     │
+│                                                                             │
+│    IF Armor category:                                                       │
+│      [11b] Read defense (raw), subtract 10                                  │
+│    IF Armor OR Weapon:                                                      │
+│      [8b]  Read max_durability                                              │
+│      IF max_durability > 0: [9b] Read current_durability                   │
+│    IF Stackable: [9b] Read quantity                                         │
+│    IF socketed flag: [4b] Read total_nr_of_sockets                         │
+│    IF Set: [5b] Read plist_flag; extra_lists = popcount(plist_flag)        │
+│                                                                             │
+│    Read MAGIC PROPERTIES list (9b stat_id + variable data, until 0x1FF)   │
+│    FOR each set bit in plist_flag:                                          │
+│      Read SET BONUS PROPERTIES list (until 0x1FF)                          │
+│    IF given_runeword:                                                       │
+│      Read RUNEWORD PROPERTIES list (until 0x1FF)                           │
+│                                                                             │
+│ ALIGN:                                                                      │
+│  Pad to next byte boundary                                                  │
+│                                                                             │
+│  IF nr_of_items_in_sockets > 0 AND NOT simple_item:                        │
+│    FOR each socketed child:                                                 │
+│      PARSE ITEM  (recursive)                                                │
+└─────────────────────────────────────────────────────────────────────────────┘</code></pre>
+
+<!-- ===================================================================== -->
+<h2 id="huffman-ref">10. Huffman Codec Full Reference</h2>
+
+<p>Complete encoding table for all characters used in D2R item type codes:</p>
+
+<table>
+  <thead><tr><th>Char</th><th>Bits</th><th>Value (decimal)</th><th>Bit pattern (LSB first)</th><th>Char</th><th>Bits</th><th>Value</th><th>Bit pattern (LSB first)</th></tr></thead>
+  <tbody>
+    <tr><td><code>' '</code> (space)</td><td>2</td><td>1</td><td><code>10</code></td>         <td><code>n</code></td><td>6</td><td>44</td><td><code>001011</code></td></tr>
+    <tr><td><code>b</code></td><td>4</td><td>10</td><td><code>0101</code></td>                <td><code>o</code></td><td>7</td><td>127</td><td><code>1111111</code></td></tr>
+    <tr><td><code>s</code></td><td>4</td><td>4</td><td><code>0010</code></td>                 <td><code>p</code></td><td>5</td><td>19</td><td><code>11001</code></td></tr>
+    <tr><td><code>7</code></td><td>5</td><td>30</td><td><code>01111</code></td>               <td><code>r</code></td><td>5</td><td>7</td><td><code>11100</code></td></tr>
+    <tr><td><code>9</code></td><td>5</td><td>14</td><td><code>01110</code></td>               <td><code>t</code></td><td>5</td><td>6</td><td><code>01100</code></td></tr>
+    <tr><td><code>a</code></td><td>5</td><td>15</td><td><code>11110</code></td>               <td><code>u</code></td><td>5</td><td>16</td><td><code>00001</code></td></tr>
+    <tr><td><code>c</code></td><td>5</td><td>2</td><td><code>01000</code></td>                <td><code>w</code></td><td>5</td><td>0</td><td><code>00000</code></td></tr>
+    <tr><td><code>g</code></td><td>5</td><td>11</td><td><code>11010</code></td>               <td><code>x</code></td><td>5</td><td>28</td><td><code>00111</code></td></tr>
+    <tr><td><code>h</code></td><td>5</td><td>24</td><td><code>00011</code></td>               <td><code>2</code></td><td>6</td><td>12</td><td><code>001100</code></td></tr>
+    <tr><td><code>l</code></td><td>5</td><td>23</td><td><code>11101</code></td>               <td><code>8</code></td><td>6</td><td>8</td><td><code>000100</code></td></tr>
+    <tr><td><code>m</code></td><td>5</td><td>22</td><td><code>01101</code></td>               <td><code>d</code></td><td>6</td><td>35</td><td><code>110001</code></td></tr>
+    <tr><td><code>f</code></td><td>6</td><td>50</td><td><code>010011</code></td>              <td><code>e</code></td><td>6</td><td>3</td><td><code>110000</code></td></tr>
+    <tr><td><code>k</code></td><td>6</td><td>18</td><td><code>010010</code></td>              <td><code>i</code></td><td>7</td><td>63</td><td><code>1111110</code></td></tr>
+    <tr><td><code>1</code></td><td>7</td><td>31</td><td><code>1111100</code></td>             <td><code>v</code></td><td>7</td><td>59</td><td><code>1101110</code></td></tr>
+    <tr><td><code>3</code></td><td>7</td><td>91</td><td><code>1101011</code></td>             <td><code>y</code></td><td>7</td><td>40</td><td><code>0001010</code></td></tr>
+    <tr><td><code>4</code></td><td>8</td><td>95</td><td><code>11111010</code></td>            <td><code>0</code></td><td>8</td><td>223</td><td><code>11111011</code></td></tr>
+    <tr><td><code>5</code></td><td>8</td><td>104</td><td><code>00010110</code></td>           <td><code>q</code></td><td>8</td><td>155</td><td><code>11011010</code></td></tr>
+    <tr><td><code>z</code></td><td>8</td><td>27</td><td><code>11011000</code></td>            <td><code>j</code></td><td>9</td><td>232</td><td><code>000101110</code></td></tr>
+  </tbody>
+</table>
+
+<p>
+  <strong>Encoding:</strong> To encode a character, look up its value and bit-length.
+  Write exactly <code>l</code> bits of the value in LSB-first order.<br>
+  <strong>Decoding:</strong> Starting at the tree root, read one bit at a time (0=left, 1=right)
+  until reaching a leaf node.
+</p>
+
+<!-- ===================================================================== -->
+<h2 id="stat-ref">11. Key Stat IDs Quick Reference</h2>
+
+<table>
+  <thead><tr><th>ID</th><th>Stat Name</th><th>sB</th><th>sA</th><th>sP</th><th>e</th><th>np</th><th>Usage</th></tr></thead>
+  <tbody>
+    <tr><td>0</td><td>strength</td><td>8</td><td>32</td><td>—</td><td>—</td><td>1</td><td>+N to Strength</td></tr>
+    <tr><td>1</td><td>energy</td><td>7</td><td>32</td><td>—</td><td>—</td><td>1</td><td>+N to Energy</td></tr>
+    <tr><td>2</td><td>dexterity</td><td>7</td><td>32</td><td>—</td><td>—</td><td>1</td><td>+N to Dexterity</td></tr>
+    <tr><td>3</td><td>vitality</td><td>7</td><td>32</td><td>—</td><td>—</td><td>1</td><td>+N to Vitality</td></tr>
+    <tr><td>7</td><td>maxhp</td><td>9</td><td>32</td><td>—</td><td>—</td><td>1</td><td>+N to Life</td></tr>
+    <tr><td>9</td><td>maxmana</td><td>8</td><td>32</td><td>—</td><td>—</td><td>1</td><td>+N to Mana</td></tr>
+    <tr><td>16</td><td>item_armor_percent</td><td>9</td><td>0</td><td>—</td><td>—</td><td>1</td><td>+N% Enhanced Defense</td></tr>
+    <tr><td>17</td><td>item_maxdamage_percent</td><td>9</td><td>0</td><td>—</td><td>—</td><td>2</td><td>+N% Enhanced Damage (reads 2 sub-entries)</td></tr>
+    <tr><td>31</td><td>armorclass</td><td>11</td><td>10</td><td>—</td><td>—</td><td>1</td><td>Defense (base stat, not a magic property)</td></tr>
+    <tr><td>48</td><td>firemindam</td><td>8</td><td>0</td><td>—</td><td>—</td><td>2</td><td>Adds N–M Fire Damage</td></tr>
+    <tr><td>50</td><td>lightmindam</td><td>6</td><td>0</td><td>—</td><td>—</td><td>2</td><td>Adds N–M Lightning Damage</td></tr>
+    <tr><td>52</td><td>magicmindam</td><td>8</td><td>0</td><td>—</td><td>—</td><td>2</td><td>Adds N–M Magic Damage</td></tr>
+    <tr><td>54</td><td>coldmindam</td><td>8</td><td>0</td><td>—</td><td>—</td><td>3</td><td>Adds N–M Cold Damage (3 sub-entries incl. duration)</td></tr>
+    <tr><td>57</td><td>poisonmindam</td><td>10</td><td>0</td><td>—</td><td>—</td><td>3</td><td>Adds N–M Poison Damage (3 sub-entries)</td></tr>
+    <tr><td>72</td><td>durability</td><td>9</td><td>0</td><td>—</td><td>—</td><td>1</td><td>Current durability (base stat)</td></tr>
+    <tr><td>73</td><td>maxdurability</td><td>8</td><td>0</td><td>—</td><td>—</td><td>1</td><td>Max durability (base stat)</td></tr>
+    <tr><td>105</td><td>item_fastercastrate</td><td>8</td><td>0</td><td>—</td><td>—</td><td>1</td><td>+N% Faster Cast Rate</td></tr>
+    <tr><td>195</td><td>item_skillonattack</td><td>7</td><td>0</td><td>16</td><td>2</td><td>1</td><td>N% Chance to Cast Level X on Attack</td></tr>
+    <tr><td>198</td><td>item_skillonhit</td><td>7</td><td>0</td><td>16</td><td>2</td><td>1</td><td>N% Chance to Cast Level X on Striking</td></tr>
+    <tr><td>201</td><td>item_skillongethit</td><td>7</td><td>0</td><td>16</td><td>2</td><td>1</td><td>N% Chance to Cast Level X when Struck</td></tr>
+    <tr><td>204</td><td>item_charged_skill</td><td>16</td><td>0</td><td>16</td><td>3</td><td>1</td><td>Level X [Skill] (Y/Y Charges)</td></tr>
+    <tr><td>356</td><td>questitemdifficulty</td><td>2</td><td>0</td><td>—</td><td>—</td><td>1</td><td>Quest item difficulty (0=Normal,1=NM,2=Hell)</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================================================================== -->
+<h2 id="worked">12. Worked Example: Simple Item (Minor Healing Potion)</h2>
+
+<p>
+  Let's trace the parsing of a D2R simple item — a Minor Healing Potion
+  (<code>hp1</code>) stored in inventory at position (0,0).
+</p>
+
+<div class="example">
+  <h4>Raw bytes (10 bytes, 80 bits)</h4>
+  <pre><code>Hex: 10 00 A0 00 05 E4 04 4F B4 00
+
+In binary (LSB of each byte first, as the bit reader sees it):
+Byte 0 (0x10): 0,0,0,0,1,0,0,0
+Byte 1 (0x00): 0,0,0,0,0,0,0,0
+Byte 2 (0xA0): 0,0,0,0,0,1,0,1
+Byte 3 (0x00): 0,0,0,0,0,0,0,0
+...
+(remaining bytes encode location + huffman type + socket count + padding)</code></pre>
+
+  <h4>Step 1: Flags (bits 0–31)</h4>
+  <pre><code>b0–b3  (4 bits): 0000   unknown
+b4     (1 bit):  0      NOT identified
+b5–b10 (6 bits): 000000 unknown
+b11    (1 bit):  0      NOT socketed
+b12    (1 bit):  0      unknown
+b13    (1 bit):  0      NOT new
+b14–15 (2 bits): 00     unknown
+b16    (1 bit):  0      NOT ear
+b17    (1 bit):  0      NOT starter
+b18–20 (3 bits): 000    unknown
+b21    (1 bit):  1      ← SIMPLE ITEM
+b22    (1 bit):  0      NOT ethereal
+b23    (1 bit):  1      unknown (always 1)
+b24    (1 bit):  0      NOT personalized
+b25    (1 bit):  0      unknown
+b26    (1 bit):  0      NOT runeword
+b27–31 (5 bits): 00000  unknown</code></pre>
+
+  <h4>Step 2: Item version (bits 32–34)</h4>
+  <pre><code>3 bits: 101  → version "101" (D2R format)</code></pre>
+
+  <h4>Step 3: Location (bits 35–52)</h4>
+  <pre><code>location_id      (3 bits): 000 = 0  → stored in container
+equipped_id      (4 bits): 0000 = 0 → not equipped
+position_x       (4 bits): 0000 = 0 → column 0
+position_y       (4 bits): 0000 = 0 → row 0
+alt_position_id  (3 bits): 001  = 1 → inventory</code></pre>
+
+  <h4>Step 4: Item type code (Huffman decode, bits 53+)</h4>
+  <pre><code>Decode 4 characters using Huffman tree:
+  'h': read bits until leaf → 5 bits  → 'h'
+  'p': read bits until leaf → 5 bits  → 'p'
+  '1': read bits until leaf → 7 bits  → '1'
+  ' ': read bits until leaf → 2 bits  → ' '
+  Total: 19 bits  →  type = "hp1 "  → trimmed: "hp1"</code></pre>
+
+  <h4>Step 5: Socket count (bit 72)</h4>
+  <pre><code>simple_item = 1, so read 1 bit:
+  nr_of_items_in_sockets = 0</code></pre>
+
+  <h4>Step 6: Byte alignment</h4>
+  <pre><code>Bits used: 32 + 3 + 18 + 19 + 1 = 73 bits
+Next byte boundary: 80 bits
+Padding added: 7 zero bits
+Final item size: 10 bytes</code></pre>
+
+  <h4>Result</h4>
+  <pre><code>type            = "hp1"  (Minor Healing Potion)
+simple_item     = 1      (no extended data)
+location_id     = 0      (stored)
+alt_position_id = 1      (inventory)
+position_x      = 0
+position_y      = 0
+size            = 10 bytes</code></pre>
+</div>
+
+<hr>
+<p class="footer">
+  Generated from analysis of <a href="https://github.com/dschu012/d2s"><code>@dschu012/d2s</code></a> v2.0.36 (TypeScript).<br>
+  Huffman encoding and tree credited to <a href="https://github.com/d07RiV/d07riv.github.io/blob/master/d2r.html">d07riv</a>.<br>
+  Stat definitions sourced from <code>ItemStatCost.txt</code> embedded in <code>src/data/versions/99_constant_data.ts</code>.<br>
+  Save file version: 99 (0x63) — Diablo II: Resurrected 2.4+.
+</p>
+
+</body>
+</html>

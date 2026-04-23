@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moving Items Between Save Files — D2R Format Analysis</title>
+<style>
+  :root {
+    --border: #d0d7de;
+    --bg-code: #f6f8fa;
+    --bg-table-header: #f0f3f6;
+    --text: #1f2328;
+    --text-muted: #656d76;
+    --accent: #0969da;
+    --accent-light: #ddf4ff;
+    --warning: #9a6700;
+    --warning-bg: #fff8c5;
+    --success: #1a7f37;
+    --success-bg: #dafbe1;
+    --danger: #cf222e;
+    --danger-bg: #ffebe9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text);
+    line-height: 1.65;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; margin-top: 3rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  h3 { font-size: 1.15rem; margin-top: 2rem; margin-bottom: 0.5rem; color: #444; }
+  h4 { font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem; color: #555; }
+  p { margin-bottom: 0.75rem; }
+  ul, ol { margin-bottom: 0.75rem; padding-left: 1.5rem; }
+  li { margin-bottom: 0.25rem; }
+  a { color: var(--accent); }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.875em;
+    background: var(--bg-code);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    font-size: 0.84rem;
+    line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; border: none; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 0.4rem 0.65rem; text-align: left; vertical-align: top; }
+  th { background: var(--bg-table-header); font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  td code { font-size: 0.8rem; }
+
+  .note    { border-left: 4px solid var(--accent);   background: var(--accent-light);  padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .warning { border-left: 4px solid var(--warning);  background: var(--warning-bg);    padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .success { border-left: 4px solid var(--success);  background: var(--success-bg);    padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .danger  { border-left: 4px solid var(--danger);   background: var(--danger-bg);     padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+
+  .toc { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.5rem; margin-bottom: 2rem; }
+  .toc h3 { margin-top: 0; }
+  .toc ol { padding-left: 1.3rem; }
+  .toc li { margin-bottom: 0.2rem; font-size: 0.92rem; }
+  .toc ol ol { margin-top: 0.15rem; }
+
+  .example {
+    background: #fff;
+    border: 1px solid #c8d6e5;
+    border-left: 4px solid #58a6ff;
+    border-radius: 0 6px 6px 0;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .example h4 { margin-top: 0; color: var(--accent); font-size: 0.9rem; margin-bottom: 0.4rem; }
+
+  /* Answer cards for the TL;DR section */
+  .answer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 600px) { .answer-grid { grid-template-columns: 1fr; } }
+  .answer-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .answer-card .card-q {
+    padding: 0.5rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+    background: var(--bg-table-header);
+    border-bottom: 1px solid var(--border);
+  }
+  .answer-card .card-a {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.88rem;
+  }
+  .answer-card.yes .card-q { border-left: 4px solid var(--success); }
+  .answer-card.partial .card-q { border-left: 4px solid var(--warning); }
+  .answer-card.no .card-q { border-left: 4px solid var(--danger); }
+  .badge {
+    display: inline-block;
+    padding: 0.1em 0.5em;
+    border-radius: 2em;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-right: 0.3rem;
+  }
+  .badge-yes     { background: var(--success-bg); color: var(--success); }
+  .badge-partial { background: var(--warning-bg); color: var(--warning); }
+  .badge-no      { background: var(--danger-bg);  color: var(--danger); }
+
+  /* Bit layout strip */
+  .bit-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin: 0.6rem 0 1rem 0;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 0.78rem;
+  }
+  .bit-field { border: 1px solid var(--border); border-radius: 3px; overflow: hidden; min-width: 42px; text-align: center; }
+  .bit-field .fn { background: var(--bg-table-header); padding: 3px 5px; font-weight: 600; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  .bit-field .fb { padding: 2px 5px; color: var(--text-muted); white-space: nowrap; }
+  .bit-field.fixed .fn { background: #dafbe1; border-bottom-color: #9be9a8; }
+  .bit-field.fixed { border-color: #9be9a8; }
+  .bit-field.target .fn { background: #fff3b0; border-bottom-color: #e3b341; }
+  .bit-field.target { border-color: #e3b341; border-width: 2px; }
+  .bit-field.variable .fn { background: #ffebe9; border-bottom-color: #f97583; }
+  .bit-field.variable { border-color: #f97583; }
+  .bit-field.cond .fn { background: var(--warning-bg); border-bottom-color: #e3b341; }
+  .bit-field.cond { border-color: #e3b341; border-style: dashed; }
+
+  .legend {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+    color: var(--text-muted);
+  }
+  .legend span { display: flex; align-items: center; gap: 0.3rem; }
+  .legend .dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Walk levels diagram */
+  .walk-steps { counter-reset: walk-step; margin-bottom: 1.5rem; }
+  .walk-step {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    align-items: flex-start;
+  }
+  .walk-step-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.1rem;
+  }
+  .walk-step-body { flex: 1; }
+  .walk-step-body strong { display: block; margin-bottom: 0.15rem; }
+
+  /* Requirement pills */
+  .req-pill {
+    display: inline-block;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 2em;
+    padding: 0.15em 0.65em;
+    font-size: 0.8rem;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    margin: 0.1em 0.2em;
+    white-space: nowrap;
+  }
+  .req-pill.needed { background: var(--warning-bg); border-color: #e3b341; }
+  .req-pill.not-needed { background: var(--success-bg); border-color: #9be9a8; text-decoration: line-through; color: var(--text-muted); }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+  .footer { color: var(--text-muted); font-size: 0.82rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+
+<h1>Moving Items Between Save Files</h1>
+<p style="color:var(--text-muted);margin-bottom:0.4rem">D2R Save File Format Analysis — Version 99 (0x63)</p>
+<p>
+  This document analyses whether it is possible to extract an item from one D2R save file and
+  insert it into another <em>without</em> fully parsing all of the item's properties. The focus
+  is on the <strong>binary format</strong> of the save file, not on how any specific library
+  implements item handling.
+</p>
+<p>
+  See also: <a href="items/index.html">D2R Item Binary Format Reference</a>
+</p>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#tldr">TL;DR — Quick Answer</a></li>
+    <li><a href="#part1">Part 1: Changing Item Position (Easiest Case)</a>
+      <ol>
+        <li><a href="#fixed-offset">Location Fields Are at a Fixed Bit Offset</a></li>
+        <li><a href="#in-practice">What This Means in Practice</a></li>
+        <li><a href="#caveat-start">Caveat: Finding the Item's Start Position</a></li>
+      </ol>
+    </li>
+    <li><a href="#part2">Part 2: Finding Item Boundaries</a>
+      <ol>
+        <li><a href="#no-length">There Is No Length Prefix</a></li>
+        <li><a href="#walk-level1">Level 1 — Simple Bits (Always Parseable)</a></li>
+        <li><a href="#walk-level2">Level 2 — Type Code (Requires Huffman Tree)</a></li>
+        <li><a href="#walk-level3">Level 3 — Socket Count and Branch</a></li>
+        <li><a href="#walk-level4">Level 4 — Extended Data (Complex Items)</a></li>
+        <li><a href="#walk-level5">Level 5 — Magic Properties (Requires ItemStatCost)</a></li>
+        <li><a href="#walk-level6">Level 6 — Alignment and Socketed Children</a></li>
+      </ol>
+    </li>
+    <li><a href="#part3">Part 3: What a Minimal Move Parser Would Need</a></li>
+    <li><a href="#part4">Part 4: Conclusion</a></li>
+    <li><a href="#appendix">Appendix: Fixed vs. Variable Fields Summary</a></li>
+  </ol>
+</div>
+
+<!-- ================================================================== -->
+<h2 id="tldr">1. TL;DR — Quick Answer</h2>
+
+<div class="answer-grid">
+  <div class="answer-card yes">
+    <div class="card-q"><span class="badge badge-yes">Yes</span> Change item position (x/y/container)</div>
+    <div class="card-a">
+      Location fields sit at a <strong>fixed bit offset (35–52)</strong> in every item.
+      Patch those 18 bits and leave everything else untouched.
+      No knowledge of the item's type, quality, or properties is needed.
+    </div>
+  </div>
+
+  <div class="answer-card partial">
+    <div class="card-q"><span class="badge badge-partial">Partial</span> Find where an item ends in the bitstream</div>
+    <div class="card-a">
+      You must walk the structure sequentially. You don't need to <em>interpret</em> values,
+      but you do need the <strong>Huffman tree</strong> and the
+      <strong>ItemStatCost bit-width table</strong> to advance past each field correctly.
+    </div>
+  </div>
+
+  <div class="answer-card partial">
+    <div class="card-q"><span class="badge badge-partial">Partial</span> Extract and insert an item between saves</div>
+    <div class="card-a">
+      Requires the structural walk above to find the item's byte boundaries, then a raw
+      copy of those bytes. The walk is much simpler than a full semantic parse — values
+      are skipped, not decoded.
+    </div>
+  </div>
+
+  <div class="answer-card no">
+    <div class="card-q"><span class="badge badge-no">No</span> Blind byte copy without any parsing</div>
+    <div class="card-a">
+      Not possible. The format has no length field, no item-end sentinel, and no offset
+      table. There is no way to know where one item ends and the next begins without
+      walking the structure.
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<h2 id="part1">2. Part 1: Changing Item Position (Easiest Case)</h2>
+
+<h3 id="fixed-offset">2.1 Location Fields Are at a Fixed Bit Offset</h3>
+
+<p>
+  Every D2R (version &ge; 0x61) item begins with an identical fixed-width header before any
+  variable-length content appears:
+</p>
+
+<div class="bit-row">
+  <div class="bit-field fixed"><div class="fn">flags</div><div class="fb">32 bits<br>b0–b31</div></div>
+  <div class="bit-field fixed"><div class="fn">version</div><div class="fb">3 bits<br>b32–b34</div></div>
+  <div class="bit-field target"><div class="fn">location_id</div><div class="fb">3 bits<br>b35–b37</div></div>
+  <div class="bit-field target"><div class="fn">equipped_id</div><div class="fb">4 bits<br>b38–b41</div></div>
+  <div class="bit-field target"><div class="fn">position_x</div><div class="fb">4 bits<br>b42–b45</div></div>
+  <div class="bit-field target"><div class="fn">position_y</div><div class="fb">4 bits<br>b46–b49</div></div>
+  <div class="bit-field target"><div class="fn">alt_position_id</div><div class="fb">3 bits<br>b50–b52</div></div>
+  <div class="bit-field variable"><div class="fn">type code…</div><div class="fb">8–36 bits<br>b53+</div></div>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#dafbe1;border:1px solid #9be9a8"></span> Fixed offset, always present</span>
+  <span><span class="dot" style="background:#fff3b0;border:2px solid #e3b341"></span> Location fields to patch</span>
+  <span><span class="dot" style="background:#ffebe9;border:1px solid #f97583"></span> Variable length (starts here)</span>
+</div>
+
+<p>
+  The flags (32 bits) and item version (3 bits) always occupy the same positions. The five
+  location fields always follow at bit 35, totalling 18 bits. <strong>These offsets are constant
+  across every item in D2R</strong> regardless of quality, type, number of sockets, or any
+  other property.
+</p>
+
+<table>
+  <thead><tr><th>Field</th><th>Bit offset</th><th>Width</th><th>Values</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>location_id</code></td><td>35</td><td>3 bits</td>
+      <td>0 = stored in grid, 1 = equipped, 2 = belt, 4 = cursor, 6 = socketed in another item</td>
+    </tr>
+    <tr>
+      <td><code>equipped_id</code></td><td>38</td><td>4 bits</td>
+      <td>Body slot: 1=head, 2=amulet, 3=armor, 4=right hand, 5=left hand, 6=right ring, 7=left ring, 8=belt, 9=boots, 10=gloves, 11/12=swap hands</td>
+    </tr>
+    <tr>
+      <td><code>position_x</code></td><td>42</td><td>4 bits</td>
+      <td>Column (0-indexed) in the container grid</td>
+    </tr>
+    <tr>
+      <td><code>position_y</code></td><td>46</td><td>4 bits</td>
+      <td>Row (0-indexed) in the container grid</td>
+    </tr>
+    <tr>
+      <td><code>alt_position_id</code></td><td>50</td><td>3 bits</td>
+      <td>Container: 0 = none (equipped/belt), 1 = inventory, 4 = Horadric Cube, 5 = stash</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="in-practice">2.2 What This Means in Practice</h3>
+
+<p>To move an item from stash slot (2, 3) to inventory slot (0, 0):</p>
+
+<ol>
+  <li>Find the item's start position in the bitstream (see <a href="#caveat-start">§2.3</a>).</li>
+  <li>Patch <strong>bits 35–52</strong> (18 bits) with the new location values.</li>
+  <li>Leave all other bits untouched.</li>
+</ol>
+
+<div class="example">
+  <h4>Example: Repositioning to inventory (0, 0)</h4>
+  <pre><code>// Old values (stash slot 2,3):
+location_id     = 0  (000)   stored
+equipped_id     = 0  (0000)  not equipped
+position_x      = 2  (0010)  column 2
+position_y      = 3  (0011)  row 3
+alt_position_id = 5  (101)   stash
+
+// New values (inventory slot 0,0):
+location_id     = 0  (000)   stored
+equipped_id     = 0  (0000)  not equipped
+position_x      = 0  (0000)  column 0
+position_y      = 0  (0000)  row 0
+alt_position_id = 1  (001)   inventory
+
+// Only bits 35–52 change. Everything else in the bitstream is untouched.</code></pre>
+</div>
+
+<div class="note">
+  <strong>No knowledge of item type, quality, or magic properties is needed</strong> for this
+  patch. The only flag worth checking first is <code>is_ear</code> (bit 16) — ears still have
+  the same location fields at the same offsets, but you would normally want to confirm you have
+  the intended item before overwriting.
+</div>
+
+<h3 id="caveat-start">2.3 Caveat: Finding the Item's Start Position</h3>
+
+<p>
+  If you're working with a full save file, items are stored back-to-back in an item list with
+  no index table:
+</p>
+
+<pre><code>"JM"         2 bytes   -- item list marker
+item_count   2 bytes   -- number of items (uint16 LE)
+item[0]      ? bytes   -- starts at byte 4; length unknown without parsing
+item[1]      ? bytes   -- starts right after item[0] ends
+...
+item[N-1]    ? bytes</code></pre>
+
+<p>
+  To find item N's start offset, you must walk through items 0 through N−1 and determine
+  where each ends. This requires the structural walk described in Part 2. Once you know an
+  item's start position, patching its location is trivial — the offset arithmetic is fixed.
+</p>
+
+<!-- ================================================================== -->
+<h2 id="part2">3. Part 2: Finding Item Boundaries</h2>
+
+<h3 id="no-length">3.1 There Is No Length Prefix</h3>
+
+<p>
+  Items have <strong>no length field, no size header, and no end-of-item sentinel</strong>.
+  The only structural markers in the format are:
+</p>
+<ul>
+  <li>The byte-alignment padding at the end of each item (0–7 zero bits to reach a byte boundary)</li>
+  <li>The 9-bit value <code>0x1FF</code> (511) which terminates each <em>property list</em> — not the item itself</li>
+  <li>The 2-byte ASCII string <code>"JM"</code> which is an item <em>list</em> header, not an item header</li>
+</ul>
+
+<div class="danger">
+  The byte-alignment padding is indistinguishable from regular data — you cannot scan for it.
+  You must parse forward through the item's structure to know when the content ends and the
+  padding begins.
+</div>
+
+<p>
+  To find where an item ends, you must walk its structure level by level. Here is what each
+  level requires:
+</p>
+
+<!-- Walk levels -->
+<h3 id="walk-level1">3.2 Level 1 — Simple Bits (Always Parseable, No External Data)</h3>
+
+<div class="walk-steps">
+  <div class="walk-step">
+    <div class="walk-step-num">1</div>
+    <div class="walk-step-body">
+      <strong>Read 32-bit flags (bits 0–31)</strong>
+      No external data needed. Yields <code>is_ear</code>, <code>simple_item</code>,
+      <code>given_runeword</code>, <code>personalized</code>, <code>socketed</code>.
+    </div>
+  </div>
+  <div class="walk-step">
+    <div class="walk-step-num">2</div>
+    <div class="walk-step-body">
+      <strong>Read 3-bit item version (bits 32–34)</strong>
+      Always 3 bits in D2R. Always parseable.
+    </div>
+  </div>
+  <div class="walk-step">
+    <div class="walk-step-num">3</div>
+    <div class="walk-step-body">
+      <strong>Read 18-bit location data (bits 35–52)</strong>
+      Always 18 bits. This is also where you'd write the new position if that's all you need.
+    </div>
+  </div>
+</div>
+
+<p>
+  After 53 bits you have everything needed to branch: <code>is_ear</code>, <code>simple_item</code>,
+  <code>given_runeword</code>, <code>personalized</code>, <code>socketed</code>.
+</p>
+
+<h3 id="walk-level2">3.3 Level 2 — Type Code (Requires Huffman Tree)</h3>
+
+<p>
+  If <code>is_ear == 0</code>, the item type code follows at bit 53.
+  In D2R it is <strong>Huffman-encoded</strong>: each of the 4 characters is encoded with a
+  variable number of bits (2–9 bits per character). The total length of the type code is
+  therefore 8–36 bits and <strong>cannot be known without decoding it</strong>.
+</p>
+
+<div class="warning">
+  <strong>You cannot skip the type code without the Huffman tree.</strong> There is no length
+  prefix before the code, and no fixed-bit representation to skip over. Each character must be
+  decoded bit by bit until a leaf node is reached in the tree, four times.
+</div>
+
+<p>
+  If <code>is_ear == 1</code>, there is no type code. Instead: class (3 bits) + level (7 bits)
+  + null-terminated name in 7-bit characters. Self-delimiting (null byte terminates the name),
+  so no Huffman tree is needed for ears.
+</p>
+
+<p>Once the type code is decoded, you can determine:</p>
+<ul>
+  <li>Whether the item is <strong>Armor</strong>, <strong>Weapon</strong>, or <strong>Other</strong>
+      (needed later to know if defense/durability fields are present)</li>
+  <li>Whether the item is <strong>stackable</strong> (needed to know if a quantity field is present)</li>
+  <li>Whether it is a <strong>quest item</strong> (affects the socket count field width)</li>
+</ul>
+
+<h3 id="walk-level3">3.4 Level 3 — Socket Count and Branch</h3>
+
+<p>After the type code, the socket count follows:</p>
+
+<table>
+  <thead><tr><th>Condition</th><th>Fields to read</th></tr></thead>
+  <tbody>
+    <tr><td>Quest item</td><td>2 bits (quest_difficulty) + 1 bit (socket count)</td></tr>
+    <tr><td><code>simple_item == 1</code></td><td>1 bit (socket count)</td></tr>
+    <tr><td><code>simple_item == 0</code></td><td>3 bits (socket count)</td></tr>
+  </tbody>
+</table>
+
+<div class="success">
+  <strong>Simple items end here.</strong> If <code>simple_item == 1</code>, byte-align to the
+  next byte boundary and you have found the end of this item's own data.
+  Any socketed children (gems inserted in the item) follow after the alignment, but simple
+  items never have socketed children in practice.
+</div>
+
+<h3 id="walk-level4">3.5 Level 4 — Extended Data (Complex Items, No ItemStatCost Needed)</h3>
+
+<p>
+  For complex (<code>simple_item == 0</code>) items, extended data follows immediately.
+  The good news: most extended data fields before the magic properties have <strong>fixed sizes
+  or are self-delimiting</strong>, requiring only the values already read to navigate:
+</p>
+
+<table>
+  <thead><tr><th>Section</th><th>Fixed?</th><th>What you need to skip it</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code> (32b) + <code>level</code> (7b) + <code>quality</code> (4b)</td><td>Fixed</td><td>Nothing — always 43 bits</td></tr>
+    <tr><td><code>multiple_pictures</code> (1b) + optional <code>picture_id</code> (3b)</td><td>Conditional</td><td>The 1-bit flag (just read)</td></tr>
+    <tr><td><code>class_specific</code> (1b) + optional <code>auto_affix_id</code> (11b)</td><td>Conditional</td><td>The 1-bit flag (just read)</td></tr>
+    <tr>
+      <td>Quality-specific data</td><td>Variable</td>
+      <td>
+        The quality value (already read). Sizes per quality:
+        Low=3b, Normal=0b, Superior=3b, Magic=22b, Set=12b, Unique=12b,
+        Rare/Crafted=16b + 6×(1b + conditional 11b)
+      </td>
+    </tr>
+    <tr><td>Runeword ID (12b) + padding (4b)</td><td>Conditional</td><td><code>given_runeword</code> flag (already known from flags)</td></tr>
+    <tr><td>Personalized name</td><td>Variable (null-terminated)</td><td>Read 8-bit chars until 0x00; self-delimiting</td></tr>
+    <tr><td>Tome data (5b)</td><td>Conditional</td><td>Type code (already decoded): only for <code>tbk</code> / <code>ibk</code></td></tr>
+    <tr><td>Timestamp (1b)</td><td>Fixed</td><td>Nothing</td></tr>
+    <tr><td>Defense (11b)</td><td>Conditional</td><td>Item is Armor category (known from type code)</td></tr>
+    <tr><td>Max durability (8b) + current durability (9b)</td><td>Conditional</td><td>Armor or Weapon category; current only if max_dur &gt; 0</td></tr>
+    <tr><td>Quantity (9b)</td><td>Conditional</td><td>Item is in the stackable set (known from type code)</td></tr>
+    <tr><td>Total sockets (4b)</td><td>Conditional</td><td><code>socketed</code> flag (already known from flags)</td></tr>
+    <tr><td>Set bonus flags (5b)</td><td>Conditional</td><td>quality == 5 (Set) — already read</td></tr>
+  </tbody>
+</table>
+
+<p>
+  None of the extended data fields above require <code>ItemStatCost.txt</code>. They are either
+  fixed widths, determined by flags already read, or self-delimiting (null-terminated string).
+</p>
+
+<h3 id="walk-level5">3.6 Level 5 — Magic Properties (Requires ItemStatCost Bit-Width Table)</h3>
+
+<p>
+  This is the section that makes a truly "blind" skip impossible without external data.
+  Properties are stored as a variable-length list of variable-width entries:
+</p>
+
+<pre><code>while true:
+    stat_id = read 9 bits
+    if stat_id == 0x1FF:          // sentinel: end of this property list
+        break
+    prop = lookup(stat_id)        // ← REQUIRES ItemStatCost.txt
+    if prop.sP is defined:
+        skip prop.sP bits         // param bits (e.g. skill ID)
+    skip prop.sB bits             // value bits
+    if prop.np > 1:               // multi-property stat
+        for i = 1 to prop.np - 1:
+            sub = lookup(stat_id + i)
+            skip sub.sB bits</code></pre>
+
+<div class="warning">
+  <strong>You cannot advance past a property without knowing its bit widths.</strong>
+  Specifically, you need <code>sB</code> (save bits), <code>sP</code> (save param bits),
+  and <code>np</code> (num properties) for each stat ID. These are defined in
+  <code>ItemStatCost.txt</code>, embedded in this library as
+  <code>src/data/versions/99_constant_data.ts</code>.
+</div>
+
+<p>
+  However — and this is the key distinction — you do <strong>not</strong> need to interpret
+  the values. The task is simply: read <code>sP + sB</code> bits and discard them.
+  This is fundamentally simpler than a full semantic parse:
+</p>
+
+<ul>
+  <li>You do not need <code>sA</code> (the signed offset for interpreting the value)</li>
+  <li>You do not need <code>dF</code> (the display function)</li>
+  <li>You do not need <code>e</code> (the encoding type, for chance-to-cast or charges)</li>
+  <li>You do not need any string data, affix names, or localization tables</li>
+</ul>
+
+<p>The number of property lists to walk past depends on flags already known:</p>
+
+<table>
+  <thead><tr><th>List</th><th>Count</th><th>Condition</th></tr></thead>
+  <tbody>
+    <tr><td>Main magic properties</td><td>Always 1</td><td>All complex items</td></tr>
+    <tr><td>Set bonus property lists</td><td>0–5 (popcount of plist_flag)</td><td>Only when quality == Set (5)</td></tr>
+    <tr><td>Runeword property list</td><td>1</td><td>Only when <code>given_runeword == 1</code></td></tr>
+  </tbody>
+</table>
+
+<h3 id="walk-level6">3.7 Level 6 — Byte Alignment and Socketed Children</h3>
+
+<p>
+  After all property lists, the bitstream is padded to the next byte boundary (0–7 zero bits).
+  After that alignment, any socketed child items follow sequentially — each is a complete item
+  parsed recursively with the same rules.
+</p>
+
+<pre><code>// After the last property list's 0x1FF terminator:
+align to next byte boundary
+
+// Socketed children (if any):
+for i = 0 to nr_of_items_in_sockets - 1:
+    walk child item recursively   // each child also byte-aligned at its end</code></pre>
+
+<div class="note">
+  The socketed child items (gems, runes, jewels) are themselves complete items. Gems and runes
+  are simple items and end quickly after Level 3. Jewels are complex items and require the full
+  Level 5 property walk. The recursion depth is at most 1 in practice (you cannot socket an
+  item inside a socketed item).
+</div>
+
+<!-- ================================================================== -->
+<h2 id="part3">4. Part 3: What a Minimal Move Parser Would Need</h2>
+
+<p>
+  A minimal implementation capable of extracting and reinserting items between save files,
+  with no semantic interpretation of item data:
+</p>
+
+<h3>Required Data Inputs</h3>
+
+<ol>
+  <li>
+    <strong>The Huffman tree</strong> — constant, does not change between game versions.
+    This is the same tree used by the game engine and is small enough to hardcode.
+    <br><span class="req-pill needed">needed: decode type code + measure its bit length</span>
+  </li>
+  <li>
+    <strong>Stat bit-width table</strong> — specifically only three fields per stat from
+    <code>ItemStatCost.txt</code>: <code>sB</code>, <code>sP</code>, <code>np</code>.
+    This table has ~500 entries and is compact. No value offsets, no display strings, no formulas.
+    <br><span class="req-pill needed">needed: skip past magic properties</span>
+  </li>
+  <li>
+    <strong>Stackable item type set</strong> — a small set of type codes (arrows, bolts, javelins,
+    throwing weapons) indicating which items have a 9-bit quantity field.
+    <br><span class="req-pill needed">needed: skip quantity field conditionally</span>
+  </li>
+  <li>
+    <strong>Armor / weapon type classification</strong> — a map from type code to category
+    (Armor, Weapon, Other). Determines whether defense and durability fields are present.
+    <br><span class="req-pill needed">needed: skip defense/durability conditionally</span>
+  </li>
+</ol>
+
+<h3>What the Minimal Parser Reads (but Does Not Interpret)</h3>
+
+<ul>
+  <li><strong>Flags</strong>: extract 5 flag bits (<code>is_ear</code>, <code>simple_item</code>, <code>given_runeword</code>, <code>personalized</code>, <code>socketed</code>) — no interpretation needed beyond their boolean values</li>
+  <li><strong>Item version</strong>: discard; always 3 bits</li>
+  <li><strong>Location fields</strong>: read and optionally overwrite; 18 bits at fixed offset</li>
+  <li><strong>Type code</strong>: decode 4 characters using Huffman tree; use only to classify (armor/weapon/stackable/quest) then discard the code</li>
+  <li><strong>Extended header</strong>: read <code>quality</code> and conditional flags to branch correctly; values are not needed for any formula</li>
+  <li><strong>Quality-specific bits</strong>: advance by the correct number of bits based on quality value; raw bits discarded</li>
+  <li><strong>Property list entries</strong>: read 9-bit stat ID, look up <code>sB + sP + np</code>, skip that many bits; the actual property values are never used</li>
+</ul>
+
+<h3>What the Minimal Parser Does NOT Need</h3>
+
+<ul>
+  <li>
+    <span class="req-pill not-needed">sA — save add / signed offset</span>
+    <span class="req-pill not-needed">dF — display function</span>
+    <span class="req-pill not-needed">e — encoding type (chance-to-cast, charges)</span>
+  </li>
+  <li>
+    <span class="req-pill not-needed">affix names</span>
+    <span class="req-pill not-needed">set / unique / runeword names</span>
+    <span class="req-pill not-needed">localization strings</span>
+  </li>
+  <li>
+    <span class="req-pill not-needed">damage formulas</span>
+    <span class="req-pill not-needed">stat interaction logic</span>
+    <span class="req-pill not-needed">game balance data</span>
+  </li>
+</ul>
+
+<!-- ================================================================== -->
+<h2 id="part4">5. Part 4: Conclusion</h2>
+
+<h3>Can you move items without parsing the full item?</h3>
+
+<p>
+  <strong>For changing position only:</strong> Yes, unconditionally. The location fields sit
+  at a fixed bit offset (bits 35–52) in every item. Once you know where the item starts in the
+  bitstream, you overwrite 18 bits and you're done. No understanding of the item's type or
+  properties is needed.
+</p>
+
+<p>
+  <strong>For finding an item's bit boundaries</strong> (needed to extract a complete item and
+  insert it into another save): A structural walk is required. You must advance through the
+  bitstream field by field. This walk requires the Huffman tree and the ItemStatCost bit-width
+  table. However, you only need to <em>read</em> the values — never <em>interpret</em> them.
+  This is substantially less complex than a full semantic parse.
+</p>
+
+<p>
+  <strong>For blind byte copying without any parsing:</strong> Not possible. The format
+  contains no length fields, no item-end markers, and no offset tables. Items are stored
+  sequentially with no mechanism for random access.
+</p>
+
+<h3>Key Insight</h3>
+
+<p>
+  The D2R item format is a <strong>tightly packed bitstream optimised for storage space</strong>,
+  not for random access. Variable-length fields (Huffman-coded type, variable-width stat
+  properties) eliminate redundant bits at the cost of requiring sequential navigation. This is
+  the same trade-off made in compression formats like DEFLATE.
+</p>
+
+<p>
+  Any implementation that wants to extract or reorder items must do at least a structural walk.
+  But the gap between a "structural walk" and a "full semantic parse" is significant: the walk
+  only needs a compact table of bit widths, while a full parse needs name tables, display logic,
+  damage formulas, and value-range validation.
+</p>
+
+<p>The minimum viable "item mover" can be summarised as three components:</p>
+
+<div class="example">
+  <h4>Minimal implementation sketch</h4>
+  <pre><code>function findItemEnd(bits, startOffset, huffmanTree, statWidths, itemTypes):
+    offset = startOffset + 32 + 3  // skip flags + version
+    flags = readFlags(bits, startOffset)
+
+    // Location (could patch here):
+    offset += 18
+
+    if flags.is_ear:
+        offset += 3 + 7   // class + level
+        while readBits(bits, offset, 7) != 0: offset += 7
+        offset += 7       // null terminator
+        return byteAlign(offset)
+
+    // Type code:
+    typeName = ""
+    for i = 0 to 3:
+        char, bitsConsumed = huffmanDecode(bits, offset, huffmanTree)
+        typeName += char
+        offset += bitsConsumed
+    category = itemTypes[typeName]   // armor / weapon / stackable / quest
+
+    // Socket count:
+    offset += category.isQuest ? 3 : flags.simple_item ? 1 : 3
+
+    if flags.simple_item:
+        return byteAlign(offset)
+
+    // Extended data header (no external table needed):
+    offset += 32 + 7 + 4 + 1        // id + level + quality + multi_pic
+    if readBit(bits, offset-1): offset += 3   // picture_id
+    offset += 1                     // class_specific
+    if readBit(bits, offset-1): offset += 11  // auto_affix_id
+
+    quality = readBits(bits, startOffset + 32 + 3 + 18 + typeBits + socketBits + 32 + 7, 4)
+    offset += qualityDataSize(quality, bits, offset)
+
+    if flags.given_runeword: offset += 16
+    if flags.personalized:
+        while readBits(bits, offset, 8) != 0: offset += 8
+        offset += 8   // null terminator
+    if typeName == "tbk" or typeName == "ibk": offset += 5
+    offset += 1   // timestamp
+
+    if category == ARMOR: offset += 11
+    if category == ARMOR or WEAPON:
+        maxDur = readBits(bits, offset, 8); offset += 8
+        if maxDur > 0: offset += 9
+    if category.isStackable: offset += 9
+    if flags.socketed: offset += 4
+
+    plistFlag = 0
+    if quality == SET: plistFlag = readBits(bits, offset, 5); offset += 5
+
+    // Skip property lists (REQUIRES statWidths table):
+    offset = skipPropertyList(bits, offset, statWidths)
+    for each set bit in plistFlag:
+        offset = skipPropertyList(bits, offset, statWidths)
+    if flags.given_runeword:
+        offset = skipPropertyList(bits, offset, statWidths)
+
+    offset = byteAlign(offset)
+
+    // Socketed children:
+    nrSockItems = /* read earlier */
+    for i = 0 to nrSockItems - 1:
+        offset = findItemEnd(bits, offset, huffmanTree, statWidths, itemTypes)
+
+    return offset
+
+function skipPropertyList(bits, offset, statWidths):
+    while true:
+        statId = readBits(bits, offset, 9); offset += 9
+        if statId == 0x1FF: return offset
+        w = statWidths[statId]
+        offset += w.sP + w.sB
+        for i = 1 to w.np - 1:
+            offset += statWidths[statId + i].sB
+</code></pre>
+</div>
+
+<!-- ================================================================== -->
+<h2 id="appendix">6. Appendix: Fixed vs. Variable Fields Summary</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Bit offset</th>
+      <th>Size</th>
+      <th>Fixed?</th>
+      <th>What determines its presence / length</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Flags</td><td>0</td><td>32b</td><td>Fixed</td><td>—</td></tr>
+    <tr><td>Item version</td><td>32</td><td>3b</td><td>Fixed</td><td>—</td></tr>
+    <tr><td><code>location_id</code></td><td>35</td><td>3b</td><td>Fixed</td><td>—</td></tr>
+    <tr><td><code>equipped_id</code></td><td>38</td><td>4b</td><td>Fixed</td><td>—</td></tr>
+    <tr><td><code>position_x</code></td><td>42</td><td>4b</td><td>Fixed</td><td>—</td></tr>
+    <tr><td><code>position_y</code></td><td>46</td><td>4b</td><td>Fixed</td><td>—</td></tr>
+    <tr><td><code>alt_position_id</code></td><td>50</td><td>3b</td><td>Fixed</td><td>—</td></tr>
+    <tr><td>Type code</td><td>53</td><td>8–36b</td><td><strong>Variable</strong></td><td>Huffman tree (character path lengths)</td></tr>
+    <tr><td>Socket count</td><td>53 + type bits</td><td>1 or 3b</td><td>Conditional</td><td><code>simple_item</code> flag + quest category</td></tr>
+    <tr><td>Extended header (id+level+quality…)</td><td>after socket count</td><td>~43b base</td><td>Mostly fixed</td><td>Plus conditional <code>picture_id</code> and <code>auto_affix_id</code></td></tr>
+    <tr><td>Quality-specific data</td><td>varies</td><td>0–55b</td><td>Variable</td><td>Quality value (Low/Normal/Superior/Magic/Set/Rare/Unique/Crafted)</td></tr>
+    <tr><td>Runeword ID + padding</td><td>varies</td><td>16b</td><td>Conditional</td><td><code>given_runeword</code> flag</td></tr>
+    <tr><td>Personalized name</td><td>varies</td><td>16–128b</td><td><strong>Variable</strong></td><td><code>personalized</code> flag; length determined by null terminator</td></tr>
+    <tr><td>Tome data</td><td>varies</td><td>5b</td><td>Conditional</td><td>Type code is <code>tbk</code> or <code>ibk</code></td></tr>
+    <tr><td>Timestamp</td><td>varies</td><td>1b</td><td>Fixed (conditional on complex)</td><td>Always present for complex items</td></tr>
+    <tr><td>Defense rating</td><td>varies</td><td>11b</td><td>Conditional</td><td>Item is in Armor category</td></tr>
+    <tr><td>Max durability</td><td>varies</td><td>8b</td><td>Conditional</td><td>Item is Armor or Weapon</td></tr>
+    <tr><td>Current durability</td><td>varies</td><td>9b</td><td>Conditional</td><td>Armor/Weapon AND max_durability &gt; 0</td></tr>
+    <tr><td>Quantity</td><td>varies</td><td>9b</td><td>Conditional</td><td>Item type is in the stackable set</td></tr>
+    <tr><td>Total sockets</td><td>varies</td><td>4b</td><td>Conditional</td><td><code>socketed</code> flag</td></tr>
+    <tr><td>Set bonus flags (plist_flag)</td><td>varies</td><td>5b</td><td>Conditional</td><td>quality == Set (5)</td></tr>
+    <tr><td>Magic properties list</td><td>varies</td><td>Variable</td><td><strong>Variable</strong></td><td>ItemStatCost.txt: <code>sB</code>, <code>sP</code>, <code>np</code> per stat ID; terminated by 0x1FF</td></tr>
+    <tr><td>Set bonus property lists</td><td>varies</td><td>Variable</td><td>Conditional × 0–5</td><td>popcount(<code>plist_flag</code>); each terminated by 0x1FF</td></tr>
+    <tr><td>Runeword property list</td><td>varies</td><td>Variable</td><td>Conditional × 1</td><td><code>given_runeword</code> flag; terminated by 0x1FF</td></tr>
+    <tr><td>Byte alignment padding</td><td>end of lists</td><td>0–7b</td><td>Variable</td><td>Current bit offset modulo 8</td></tr>
+    <tr><td>Socketed child items</td><td>after align</td><td>Variable</td><td>Conditional</td><td><code>nr_of_items_in_sockets</code>; each child recurses</td></tr>
+  </tbody>
+</table>
+
+<hr>
+<p class="footer">
+  Generated from analysis of <a href="https://github.com/dschu012/d2s"><code>@dschu012/d2s</code></a> v2.0.36 (TypeScript).<br>
+  See also: <a href="items/index.html">D2R Item Binary Format Reference</a> &mdash;
+  full bit-level layout of every item field.<br>
+  Save file version: 99 (0x63) — Diablo II: Resurrected 2.4+.
+</p>
+
+</body>
+</html>

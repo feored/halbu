@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v99 vs v105 Item Format Comparison &mdash; D2R &amp; Reign of the Warlock</title>
+<style>
+  :root {
+    --border: #d0d7de;
+    --bg-code: #f6f8fa;
+    --bg-table-header: #f0f3f6;
+    --text: #1f2328;
+    --text-muted: #656d76;
+    --accent: #0969da;
+    --accent-light: #ddf4ff;
+    --warning: #9a6700;
+    --warning-bg: #fff8c5;
+    --danger: #cf222e;
+    --danger-bg: #ffebe9;
+    --success: #1a7f37;
+    --success-bg: #dafbe1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text);
+    line-height: 1.65;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+  h2 { font-size: 1.5rem; margin-top: 3rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  h3 { font-size: 1.15rem; margin-top: 2rem; margin-bottom: 0.5rem; color: #444; }
+  h4 { font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem; color: #555; }
+  p { margin-bottom: 0.75rem; }
+  ul, ol { margin-bottom: 0.75rem; padding-left: 1.5rem; }
+  li { margin-bottom: 0.25rem; }
+  a { color: var(--accent); }
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.875em;
+    background: var(--bg-code);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    font-size: 0.84rem;
+    line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; border: none; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 0.4rem 0.65rem; text-align: left; vertical-align: top; }
+  th { background: var(--bg-table-header); font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  td code { font-size: 0.8rem; }
+  .note    { border-left: 4px solid var(--accent);   background: var(--accent-light);  padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .warning { border-left: 4px solid var(--warning);  background: var(--warning-bg);    padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .success { border-left: 4px solid var(--success);  background: var(--success-bg);    padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .danger  { border-left: 4px solid var(--danger);   background: var(--danger-bg);     padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0 6px 6px 0; }
+  .toc { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.5rem; margin-bottom: 2rem; }
+  .toc h3 { margin-top: 0; }
+  .toc ol { padding-left: 1.3rem; }
+  .toc li { margin-bottom: 0.2rem; font-size: 0.92rem; }
+  .toc ol ol { margin-top: 0.15rem; }
+  .example {
+    background: #fff;
+    border: 1px solid #c8d6e5;
+    border-left: 4px solid #58a6ff;
+    border-radius: 0 6px 6px 0;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .example h4 { margin-top: 0; color: var(--accent); font-size: 0.9rem; margin-bottom: 0.4rem; }
+  /* Bit-field diagrams */
+  .bit-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin: 0.6rem 0 1rem 0;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 0.78rem;
+  }
+  .bit-field {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 42px;
+    text-align: center;
+  }
+  .bit-field .fn { background: var(--bg-table-header); padding: 3px 5px; font-weight: 600; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  .bit-field .fb { padding: 2px 5px; color: var(--text-muted); white-space: nowrap; }
+  .bit-field.cond .fn { background: var(--warning-bg); border-bottom-color: #e3b341; }
+  .bit-field.cond { border-color: #e3b341; border-style: dashed; }
+  .bit-field.new105 .fn { background: #f3e8fd; border-bottom-color: #8250df; }
+  .bit-field.new105 { border-color: #8250df; border-width: 2px; }
+  .bit-field.same .fn { background: var(--success-bg); border-bottom-color: #9be9a8; }
+  .bit-field.same { border-color: #9be9a8; }
+  .legend {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+    color: var(--text-muted);
+  }
+  .legend span { display: flex; align-items: center; gap: 0.3rem; }
+  .legend .dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+  .footer { color: var(--text-muted); font-size: 0.82rem; margin-top: 2rem; }
+  /* Confidence badges */
+  .conf {
+    display: inline-block;
+    padding: 0.1em 0.55em;
+    border-radius: 2em;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+  }
+  .conf-confirmed { background: var(--success-bg); color: var(--success); }
+  .conf-likely    { background: var(--warning-bg); color: var(--warning); }
+  .conf-unknown   { background: var(--bg-code);    color: var(--text-muted); border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<h1>v99 vs v105: Item Format Comparison</h1>
+<p>
+  <strong>Scope:</strong> Binary-level differences between D2R Legacy (v99 / 0x63) and Reign of the Warlock (v105 / 0x69) save files,
+  with emphasis on the item bitstream format.<br>
+  <strong>Purpose:</strong> Groundwork for adding full item parsing support to the
+  <a href="https://github.com/feored/halbu">halbu</a> library, which currently stores items as raw bytes.
+</p>
+
+<div class="warning">
+  <strong>Source quality notice:</strong> v105 differences are derived from a single incomplete open PR
+  (<a href="https://github.com/dschu012/d2s/pull/86">dschu012/d2s&nbsp;PR&nbsp;#86</a>) and one code review comment.
+  No other public documentation of v105&rsquo;s binary format was found as of April 2026.
+  Each v105-specific finding is tagged with a confidence marker:
+  <span class="conf conf-confirmed">Confirmed</span> Verified in code + reviewer corroboration &mdash;
+  <span class="conf conf-likely">Likely</span> Consistent with code but not independently verified &mdash;
+  <span class="conf conf-unknown">Unknown</span> Uncertain, needs further research.
+</div>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#eras">Three Format Eras</a></li>
+    <li><a href="#save-level">Save-File-Level Differences (Non-Item)</a>
+      <ol>
+        <li><a href="#header-offsets">Header Offsets</a></li>
+        <li><a href="#empty-trailer">Empty Item Trailer</a></li>
+        <li><a href="#warlock">Warlock Class</a></li>
+      </ol>
+    </li>
+    <li><a href="#unchanged">Item Format: What&rsquo;s Unchanged</a></li>
+    <li><a href="#diff1">Difference #1 &mdash; Extra Bit After Durability</a></li>
+    <li><a href="#diff2">Difference #2 &mdash; Quantity Trailer Before Alignment</a></li>
+    <li><a href="#flow">Updated Parsing Flow (v105 Annotated)</a></li>
+    <li><a href="#implications">Implications for halbu</a></li>
+    <li><a href="#open">Open Questions</a></li>
+  </ol>
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="eras">1. Three Format Eras</h2>
+
+<p>The D2 save file format has evolved through three distinct eras, each with different item encoding:</p>
+
+<table>
+  <thead>
+    <tr><th>Era</th><th>Save Versions</th><th>Game</th><th>Key Item Traits</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Classic D2</strong></td>
+      <td>v96 (0x60)</td>
+      <td>D2 LoD 1.10&ndash;1.14d</td>
+      <td>Per-item <code>"JM"</code> header; raw 32-bit ASCII type codes; 10-bit item version; 7-bit personalized name chars</td>
+    </tr>
+    <tr>
+      <td><strong>D2R Legacy</strong></td>
+      <td>v97&ndash;v99 (0x61&ndash;0x63)</td>
+      <td>D2R 2.0&ndash;2.x</td>
+      <td>No per-item <code>"JM"</code>; Huffman-encoded type codes; 3-bit item version; 8-bit personalized name chars</td>
+    </tr>
+    <tr>
+      <td><strong>RotW</strong></td>
+      <td>v105 (0x69)</td>
+      <td>D2R: Reign of the Warlock</td>
+      <td>Same as D2R Legacy <strong>plus</strong> 1 extra bit after durability + 1+8 bit quantity trailer. New Warlock class (ID&nbsp;7)</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <strong>Key takeaway:</strong> The jump from v99 to v105 is remarkably small at the item-bitstream level.
+  Only <strong>two</strong> binary-level changes were identified in the item encoding.
+  The overwhelming majority of the format is unchanged.
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="save-level">2. Save-File-Level Differences (Non-Item)</h2>
+
+<p>
+  These are the header and structure differences between v99 and v105. They affect the bytes
+  <em>surrounding</em> the item section, not the item bitstream itself.
+</p>
+
+<h3 id="header-offsets">2.1 Header Offsets</h3>
+
+<table>
+  <thead>
+    <tr><th>Field</th><th>v99 (0x63)</th><th>v105 (0x69)</th><th>Confidence</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Character name offset</td>
+      <td>Byte 267</td>
+      <td>Byte 299</td>
+      <td><span class="conf conf-confirmed">Confirmed</span></td>
+    </tr>
+    <tr>
+      <td>Character status byte offset</td>
+      <td>Byte 36</td>
+      <td>Byte 20</td>
+      <td><span class="conf conf-confirmed">Confirmed</span></td>
+    </tr>
+    <tr>
+      <td>Post-mercenary padding</td>
+      <td>144 bytes (at offset 0xBF)</td>
+      <td>228 bytes (at offset 0xBF)</td>
+      <td><span class="conf conf-confirmed">Confirmed</span></td>
+    </tr>
+    <tr>
+      <td>Expansion type byte (character section offset 232)</td>
+      <td>1 = Classic, 2 = Expansion</td>
+      <td>1 = Classic, 2 = Expansion, 3 = RotW</td>
+      <td><span class="conf conf-confirmed">Confirmed</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="empty-trailer">2.2 Empty Item Trailer</h3>
+
+<p>
+  The empty-item trailer is the byte sequence emitted when a save has no items.
+  It contains section markers for the item list, corpse, mercenary items, and golem sections.
+  v105 RotW saves add an extra <code>"lf"</code> (0x6C 0x66) section after <code>"kf"</code>:
+</p>
+
+<pre><code>// v99 Expansion (with merc)  &mdash; 17 bytes
+4A 4D 00 00   // "JM" + item_count=0  (character items)
+4A 4D 00 00   // "JM" + item_count=0  (corpse items)
+6A 66         // "jf"                 (merc section header)
+4A 4D 00 00   // "JM" + item_count=0  (merc items)
+6B 66 00      // "kf" + has_golem=0
+
+// v105 RotW (with merc)  &mdash; 23 bytes
+4A 4D 00 00   // "JM" + item_count=0  (character items)
+4A 4D 00 00   // "JM" + item_count=0  (corpse items)
+6A 66         // "jf"                 (merc section header)
+4A 4D 00 00   // "JM" + item_count=0  (merc items)
+6B 66 00      // "kf" + has_golem=0
+01 00         // ??? purpose unknown
+6C 66         // "lf"                 (new RotW section)
+00 00         // 2 bytes (empty)</code></pre>
+
+<div class="note">
+  The <code>"lf"</code> section is only present in RotW expansion saves (<code>ExpansionType::RotW</code>).
+  Classic and non-RotW expansion v105 saves use the same trailer structure as v99.
+  See <code>src/items/mod.rs</code> for the full set of byte sequences.
+</div>
+
+<h3 id="warlock">2.3 Warlock Class</h3>
+
+<p>
+  The Warlock (class ID 7, code <code>"war"</code>) is added in RotW.
+  Its starting stats are: Strength 15, Dexterity 20, Intelligence 20, Vitality 25, Stamina 86.
+  The three skill trees and their example skills:
+</p>
+
+<table>
+  <thead><tr><th>Tree</th><th>Skills (partial list)</th></tr></thead>
+  <tbody>
+    <tr><td>Demon</td><td>Summon Goatman, Demonic Mastery, Death Mark, Summon Tainted, Summon Defiler, Blood Oath, Engorge, Blood Boil, Consume, Bind Demon</td></tr>
+    <tr><td>Eldritch</td><td>Levitate, Eldritch Blast, Hex Bane, Hex Siphon, Psychic Ward, Echoing Strike, Hex Purge, Blade Warp</td></tr>
+    <tr><td>Chaos</td><td>Cleave, Mirrored Blades, Sigil Lethargy, Ring of Fire, Miasma Bolt, Sigil Rancor, Enhanced Entropy, Flame Wave, Miasma Chains, Sigil Death, Apocalypse, Abyss</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================================================================== -->
+<h2 id="unchanged">3. Item Format: What&rsquo;s Unchanged</h2>
+
+<p>
+  The vast majority of the item binary format is <strong>identical</strong> between v99 and v105.
+  This section lists everything that does <em>not</em> change, to establish the baseline before
+  presenting the two differences in sections 4 and 5.
+</p>
+
+<h3>3.1 Bitstream Fundamentals</h3>
+<ul>
+  <li><strong>LSB-first packed bitstream</strong> &mdash; fields sit back-to-back at the bit level, least significant bit first within each byte.</li>
+  <li><strong>No per-item <code>"JM"</code> header</strong> &mdash; only the item list wrapper carries <code>"JM"</code> + uint16 count.</li>
+  <li><strong>Byte alignment</strong> at item boundaries &mdash; each item (and each socketed child) ends padded with 0&ndash;7 zero bits.</li>
+  <li><strong>Item list structure</strong> &mdash; <code>"JM"</code> + uint16 count + sequential items, used for inventory, corpse, mercenary, and stash contexts.
+    The Iron Golem section is <em>not</em> a <code>"JM"</code> list: it uses a <code>"kf"</code> (2-byte) header followed by a uint8 <code>has_golem</code> flag; if the flag is non-zero, a <strong>single</strong> item follows directly with no count field.</li>
+</ul>
+
+<h3>3.2 Simple Bits (present on every item)</h3>
+
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">flags</div><div class="fb">32 bits<br>b0&ndash;b31</div></div>
+  <div class="bit-field"><div class="fn">version</div><div class="fb">3 bits<br>b32&ndash;b34</div></div>
+  <div class="bit-field"><div class="fn">location_id</div><div class="fb">3 bits<br>b35&ndash;b37</div></div>
+  <div class="bit-field"><div class="fn">equipped_id</div><div class="fb">4 bits<br>b38&ndash;b41</div></div>
+  <div class="bit-field"><div class="fn">position_x</div><div class="fb">4 bits<br>b42&ndash;b45</div></div>
+  <div class="bit-field"><div class="fn">position_y</div><div class="fb">4 bits<br>b46&ndash;b49</div></div>
+  <div class="bit-field"><div class="fn">alt_position_id</div><div class="fb">3 bits<br>b50&ndash;b52</div></div>
+  <div class="bit-field"><div class="fn">type (Huffman)</div><div class="fb">8&ndash;36 bits<br>b53+</div></div>
+  <div class="bit-field cond"><div class="fn">socket_count</div><div class="fb">1 or 3 bits</div></div>
+</div>
+
+<ul>
+  <li><strong>32-bit flags</strong> (bits 0&ndash;31) &mdash; same layout; <code>identified</code> (b4), <code>socketed</code> (b11), <code>is_ear</code> (b16), <code>simple_item</code> (b21), <code>ethereal</code> (b22), <code>personalized</code> (b24), <code>given_runeword</code> (b26), and all reserved bits are at the same positions.</li>
+  <li><strong>3-bit item version</strong> at bits 32&ndash;34 &mdash; unchanged.</li>
+  <li><strong>18-bit location block</strong> at bits 35&ndash;52 &mdash; fixed offset, unchanged.</li>
+  <li><strong>Huffman-encoded type code</strong> &mdash; same tree, same character bit lengths (2&ndash;9 bits per char), same 4-character decode. <span class="conf conf-likely">Likely unchanged; the PR does not modify the tree.</span></li>
+  <li><strong>Socket count branching</strong> &mdash; quest item: 2+1 bits; simple item: 1 bit; extended item: 3 bits. Unchanged.</li>
+</ul>
+
+<h3>3.3 Extended Data Fields (non-simple items, <code>simple_item == 0</code>)</h3>
+<ul>
+  <li><code>id</code> (32b), <code>level</code> (7b), <code>quality</code> (4b) &mdash; unchanged.</li>
+  <li><code>multiple_pictures</code> (1b) + conditional <code>picture_id</code> (3b) &mdash; unchanged.</li>
+  <li><code>class_specific</code> (1b) + conditional <code>auto_affix_id</code> (11b) &mdash; unchanged.</li>
+  <li>Quality-specific fields: Low (3b), Normal (0b), Superior (3b), Magic (11+11b), Set (12b), Rare/Crafted (8+8b + 6 affix slots), Unique (12b) &mdash; all unchanged.</li>
+  <li>Runeword block: <code>runeword_id</code> (12b) + padding (4b) &mdash; unchanged.</li>
+  <li>Personalized name: null-terminated 8-bit chars (up to 15 + null) &mdash; unchanged.</li>
+  <li>Tome data (5b if type is <code>tbk</code>/<code>ibk</code>) and timestamp (1b) &mdash; unchanged.</li>
+  <li>Defense rating (11b, armor only) &mdash; unchanged.</li>
+  <li><code>max_durability</code> (8b) and conditional <code>current_durability</code> (9b) for armor and weapons &mdash; unchanged.</li>
+</ul>
+
+<h3>3.4 Remainder of Extended Data</h3>
+<ul>
+  <li>Stackable <code>quantity</code> (9b, for arrows, bolts, throwing weapons) &mdash; unchanged.</li>
+  <li><code>total_nr_of_sockets</code> (4b, if socketed flag) &mdash; unchanged.</li>
+  <li>Set <code>plist_flag</code> (5b, if quality == Set) &mdash; unchanged.</li>
+</ul>
+
+<h3>3.5 Magic Properties</h3>
+<ul>
+  <li>9-bit stat ID + <code>sB</code>/<code>sP</code> bits per entry &mdash; encoding unchanged.</li>
+  <li><code>0x1FF</code> sentinel (9 bits, value 511) terminates each property list &mdash; unchanged.</li>
+  <li>Property list order: main, then set bonus lists (0&ndash;5), then runeword list &mdash; unchanged.</li>
+  <li>Multi-property stats (<code>np &gt; 1</code>) and special encodings (e=2 chance-to-cast, e=3 charges) &mdash; unchanged.</li>
+</ul>
+
+<h3>3.6 Socketed Children</h3>
+<ul>
+  <li>Read recursively after the parent item&rsquo;s byte alignment &mdash; unchanged.</li>
+</ul>
+
+<div class="success">
+  <strong>Bottom line:</strong> If you have a working v99 item parser, supporting v105 requires only
+  two small version-gated additions. Both are described in the next two sections.
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="diff1">4. Difference #1 &mdash; Extra Bit After Durability <span class="conf conf-confirmed">Confirmed</span></h2>
+
+<p>
+  In v105, a <strong>single unknown bit</strong> is inserted after the durability fields and
+  before the stackable quantity field. This only fires for <strong>extended items</strong>
+  (<code>simple_item == 0</code>).
+</p>
+
+<h3>4.1 Exact Location</h3>
+
+<p>
+  In v99, after reading <code>max_durability</code> (and optionally <code>current_durability</code>),
+  the parser proceeds directly to the stackable quantity check.
+  In v105, one additional bit is read (and discarded) between these two points:
+</p>
+
+<pre><code>// v99 and v105 (shared):
+if item_is_armor_or_weapon:
+    max_durability = read 8 bits          // stat ID 73: sB=8
+    if max_durability &gt; 0:
+        current_durability = read 9 bits  // stat ID 72: sB=9
+
+// v105 ONLY &mdash; NEW:
+if version == 105:
+    unknown_bit = read 1 bit              // purpose unknown; read and preserve
+
+// v99 and v105 (shared):
+if item_type in stackables:
+    quantity = read 9 bits</code></pre>
+
+<h3>4.2 Bit-Field Diagram</h3>
+
+<h4>v99 baseline</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">max_durability</div><div class="fb">8 bits</div></div>
+  <div class="bit-field cond"><div class="fn">current_dur</div><div class="fb">9 bits (if max&gt;0)</div></div>
+  <div class="bit-field cond"><div class="fn">quantity</div><div class="fb">9 bits (if stackable)</div></div>
+  <div class="bit-field cond"><div class="fn">total_sockets</div><div class="fb">4 bits (if socketed)</div></div>
+  <div class="bit-field cond"><div class="fn">plist_flag</div><div class="fb">5 bits (if Set)</div></div>
+</div>
+
+<h4>v105 (with inserted bit)</h4>
+<div class="bit-row">
+  <div class="bit-field same"><div class="fn">max_durability</div><div class="fb">8 bits</div></div>
+  <div class="bit-field same cond"><div class="fn">current_dur</div><div class="fb">9 bits (if max&gt;0)</div></div>
+  <div class="bit-field new105"><div class="fn">unknown</div><div class="fb">1 bit</div></div>
+  <div class="bit-field same cond"><div class="fn">quantity</div><div class="fb">9 bits (if stackable)</div></div>
+  <div class="bit-field same cond"><div class="fn">total_sockets</div><div class="fb">4 bits (if socketed)</div></div>
+  <div class="bit-field same cond"><div class="fn">plist_flag</div><div class="fb">5 bits (if Set)</div></div>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#dafbe1;border:1px solid #9be9a8;"></span> Unchanged from v99</span>
+  <span><span class="dot" style="background:#f3e8fd;border:2px solid #8250df;"></span> New in v105</span>
+</div>
+
+<h3>4.3 Source Evidence</h3>
+
+<p>
+  From <a href="https://github.com/dschu012/d2s/pull/86">dschu012/d2s PR #86</a>,
+  <code>src/d2/items.ts</code> (context: inside the extended-item block, after the durability reads):
+</p>
+
+<pre><code>    if (item.max_durability &gt; 0) {
+      item.current_durability = reader.ReadUInt16(constants.magical_properties[72].sB)
+                                 - constants.magical_properties[72].sA;
+    }
+  }
++ if (version === 105) {
++   reader.SkipBits(1);
++ }
+
+  if (constants.stackables[item.type]) {
+    item.quantity = reader.ReadUInt16(9);</code></pre>
+
+<div class="warning">
+  <strong>Purpose unknown.</strong> The bit is skipped without comment in the PR.
+  It could be a flag for a new field, padding, or a placeholder. For round-trip fidelity in halbu,
+  store the bit&rsquo;s value in the item model even though its semantics are currently unknown.
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="diff2">5. Difference #2 &mdash; Quantity Trailer Before Alignment <span class="conf conf-confirmed">Confirmed</span></h2>
+
+<p>
+  In v105, a <strong>1-bit flag followed by a conditional 8-bit quantity</strong> is written after all
+  magic property lists and before the byte-alignment step.
+  This applies to <strong>all items</strong> &mdash; both simple (<code>simple_item == 1</code>)
+  and extended.
+</p>
+
+<h3>5.1 Exact Location</h3>
+
+<pre><code>// v99 and v105 (shared): property lists finished
+// For extended items: after main props + set bonus lists + runeword list
+// For simple items: immediately after socket count
+
+// v105 ONLY &mdash; NEW:
+if version == 105:
+    has_quantity = read 1 bit
+    if has_quantity:
+        quantity = read 8 bits    // stack count for RotW stash stackables
+
+// v99 and v105 (shared):
+reader.Align()   // pad to next byte boundary</code></pre>
+
+<h3>5.2 Bit-Field Diagram</h3>
+
+<h4>v99 baseline (end of item)</h4>
+<div class="bit-row">
+  <div class="bit-field"><div class="fn">&hellip;last 0x1FF&hellip;</div><div class="fb">9 bits</div></div>
+  <div class="bit-field"><div class="fn">byte align</div><div class="fb">0&ndash;7 bits</div></div>
+  <div class="bit-field cond"><div class="fn">socketed children</div><div class="fb">recursive</div></div>
+</div>
+
+<h4>v105 (with quantity trailer)</h4>
+<div class="bit-row">
+  <div class="bit-field same"><div class="fn">&hellip;last 0x1FF&hellip;</div><div class="fb">9 bits</div></div>
+  <div class="bit-field new105"><div class="fn">has_quantity</div><div class="fb">1 bit</div></div>
+  <div class="bit-field new105 cond"><div class="fn">quantity</div><div class="fb">8 bits (if flag=1)</div></div>
+  <div class="bit-field same"><div class="fn">byte align</div><div class="fb">0&ndash;7 bits</div></div>
+  <div class="bit-field same cond"><div class="fn">socketed children</div><div class="fb">recursive</div></div>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#dafbe1;border:1px solid #9be9a8;"></span> Unchanged from v99</span>
+  <span><span class="dot" style="background:#f3e8fd;border:2px solid #8250df;"></span> New in v105</span>
+</div>
+
+<h3>5.3 Source Evidence</h3>
+
+<p>
+  From <a href="https://github.com/dschu012/d2s/pull/86">dschu012/d2s PR #86</a>,
+  <code>src/d2/items.ts</code> (outside the extended-item block, just before <code>reader.Align()</code>):
+</p>
+
+<pre><code>    }   // end of if (!simple_item) block
+
++ if (version === 105 &amp;&amp; reader.ReadBit()) {
++     reader.SkipBits(8);
++ }
+  reader.Align();</code></pre>
+
+<h3>5.4 Reviewer Explanation</h3>
+
+<p>
+  Reviewer <strong>hyperremix</strong> commented on this hunk
+  (<a href="https://github.com/dschu012/d2s/pull/86">PR #86</a>, Mar 11 2026):
+</p>
+
+<blockquote style="border-left: 3px solid var(--border); padding: 0.5rem 1rem; margin-bottom: 1rem; color: var(--text-muted); font-style: italic;">
+  &ldquo;For Diablo II save files at version 105, item quantity is being silently discarded
+  (<code>SkipBits(8)</code>) instead of parsed. This causes quantity data to be lost when reading
+  stackable items (materials, gems, runes, etc.) from v105 saves. The following change fixes this
+  issue and correctly parses quantities in the new stash tabs in Diablo 2: Reign of the Warlock.&rdquo;
+</blockquote>
+
+<p>The suggested fix replaces <code>reader.SkipBits(8)</code> with <code>item.quantity = reader.ReadUInt8(8)</code>.</p>
+
+<div class="note">
+  <strong>Semantics:</strong> The 8-bit value is the stack count for stackable items stored in
+  RotW&rsquo;s new stash tabs. The 1-bit flag distinguishes items that carry a quantity from those
+  that do not. This is a <em>separate</em> field from the existing 9-bit <code>quantity</code>
+  inside the extended data section (used for arrows, bolts, javelins, etc.).
+</div>
+
+<div class="warning">
+  <strong>Applies to ALL items, including simple ones.</strong> This trailer is read <em>outside</em>
+  the <code>if (!simple_item)</code> block in the PR. A simple potion, rune, or gem in a v105 save
+  also has the 1-bit flag (and the 8-bit quantity if the flag is set). Factor this into the
+  implementation: the check must not be guarded by <code>simple_item == 0</code>.
+</div>
+
+<!-- ===================================================================== -->
+<h2 id="flow">6. Updated Parsing Flow (v105 Annotated)</h2>
+
+<p>
+  The complete v105 item parsing flow. Lines marked <strong>NEW-v105</strong> are the only
+  additions relative to the v99 flow in
+  <a href="item-details.html#flow">item-details.html &sect;9</a>.
+</p>
+
+<pre><code>&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474; PARSE ITEM (v99 unchanged + v105 additions marked)                         &#9474;
+&#9474;                                                                             &#9474;
+&#9474;  [32 bits] Read FLAGS                                                       &#9474;
+&#9474;  [3 bits]  Read ITEM VERSION                                                &#9474;
+&#9474;  [3 bits]  Read location_id      &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9510;             &#9474;
+&#9474;  [4 bits]  Read equipped_id      &#9474; Fixed at bits 35-52 in all versions.  &#9474;             &#9474;
+&#9474;  [4 bits]  Read position_x       &#9474; Patch these 18 bits to move an item.  &#9474;             &#9474;
+&#9474;  [4 bits]  Read position_y       &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9518;             &#9474;
+&#9474;  [3 bits]  Read alt_position_id                                             &#9474;
+&#9474;                                                                             &#9474;
+&#9474;  IF is_ear:                                                                 &#9474;
+&#9474;    [3b] ear_class  [7b] ear_level  [7b&#215;n] ear_name (null-terminated)       &#9474;
+&#9474;    &#8594; GOTO TRAILER                                                          &#9474;
+&#9474;                                                                             &#9474;
+&#9474;  ELSE:                                                                      &#9474;
+&#9474;    [var]  Decode HUFFMAN TYPE CODE (4 chars, 8&#8211;36 bits, same tree)          &#9474;
+&#9474;    Classify type: Armor / Weapon / Other / Quest / Stackable                &#9474;
+&#9474;    IF Quest:      [2b] quest_difficulty + [1b] nr_of_items_in_sockets       &#9474;
+&#9474;    ELIF simple:   [1b] nr_of_items_in_sockets                               &#9474;
+&#9474;    ELSE:          [3b] nr_of_items_in_sockets                               &#9474;
+&#9474;                                                                             &#9474;
+&#9474;  IF NOT simple_item:                                                        &#9474;
+&#9474;    [32b] id  [7b] level  [4b] quality                                       &#9474;
+&#9474;    [1b] multi_pic; IF set: [3b] picture_id                                  &#9474;
+&#9474;    [1b] class_spec; IF set: [11b] auto_affix_id                             &#9474;
+&#9474;    Quality-specific data (Low=3b, Normal=0b, Superior=3b, Magic=22b,        &#9474;
+&#9474;      Set=12b, Unique=12b, Rare/Crafted=16b+6&#215;(1b+?11b))                    &#9474;
+&#9474;    IF given_runeword: [12b] runeword_id + [4b] padding                     &#9474;
+&#9474;    IF personalized:   [8b&#215;n] name (null-terminated)                        &#9474;
+&#9474;    IF tbk/ibk:        [5b] tome_data                                       &#9474;
+&#9474;    [1b] timestamp                                                           &#9474;
+&#9474;    IF Armor: [11b] defense                                                  &#9474;
+&#9474;    IF Armor OR Weapon:                                                      &#9474;
+&#9474;      [8b] max_durability                                                    &#9474;
+&#9474;      IF max_dur &gt; 0: [9b] current_durability                               &#9474;
+&#9474;    &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488; &#9474;
+&#9474;    &#9474; NEW-v105 [1b] unknown_bit (preserve value; purpose unknown)         &#9474; &#9474;
+&#9474;    &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9518; &#9474;
+&#9474;    IF Stackable: [9b] quantity                                              &#9474;
+&#9474;    IF socketed:  [4b] total_nr_of_sockets                                  &#9474;
+&#9474;    IF Set:       [5b] plist_flag                                            &#9474;
+&#9474;                                                                             &#9474;
+&#9474;    Read MAGIC PROPERTIES list (9b stat_id + var data, until 0x1FF)         &#9474;
+&#9474;    FOR each set bit in plist_flag:                                          &#9474;
+&#9474;      Read SET BONUS PROPERTIES list (until 0x1FF)                           &#9474;
+&#9474;    IF given_runeword:                                                       &#9474;
+&#9474;      Read RUNEWORD PROPERTIES list (until 0x1FF)                            &#9474;
+&#9474;                                                                             &#9474;
+&#9474; TRAILER:                                                                    &#9474;
+&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9474;
+&#9474;  &#9474; NEW-v105 [1b] has_quantity flag (applies to ALL items)              &#9474;  &#9474;
+&#9474;  &#9474; NEW-v105 IF has_quantity: [8b] quantity (RotW stash stack count)     &#9474;  &#9474;
+&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9518;  &#9474;
+&#9474;                                                                             &#9474;
+&#9474; ALIGN:                                                                      &#9474;
+&#9474;  Pad to next byte boundary (0&#8211;7 zero bits)                                 &#9474;
+&#9474;                                                                             &#9474;
+&#9474;  IF nr_of_items_in_sockets &gt; 0 AND NOT simple_item:                        &#9474;
+&#9474;    FOR each socketed child: PARSE ITEM (recursive)                          &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</code></pre>
+
+<!-- ===================================================================== -->
+<h2 id="implications">7. Implications for halbu</h2>
+
+<p>
+  Currently halbu stores items as raw bytes (<code>Placeholder</code> in <code>src/items/mod.rs</code>).
+  When full item parsing is added, here is what v105 specifically requires:
+</p>
+
+<h3>7.1 Required Changes for v105 Support</h3>
+
+<table>
+  <thead>
+    <tr><th>Change</th><th>Location in parser</th><th>Complexity</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Read 1 unknown bit after durability</td>
+      <td>Extended item path, after <code>current_durability</code> read</td>
+      <td>Trivial &mdash; 1 <code>FormatId</code> check + 1 bit read</td>
+    </tr>
+    <tr>
+      <td>Write 1 unknown bit on encode (round-trip)</td>
+      <td>Extended item encode path, matching position</td>
+      <td>Trivial &mdash; emit the stored bit value</td>
+    </tr>
+    <tr>
+      <td>Read 1+8 bit quantity trailer</td>
+      <td>After all property lists, before <code>Align()</code></td>
+      <td>Trivial &mdash; 1 check + 1 bit read + conditional 8-bit read</td>
+    </tr>
+    <tr>
+      <td>Write 1+8 bit quantity trailer on encode</td>
+      <td>After all property lists, before <code>Align()</code></td>
+      <td>Trivial &mdash; emit flag + conditional quantity</td>
+    </tr>
+    <tr>
+      <td>Version-aware branching at parse entry</td>
+      <td>Item parser entry point</td>
+      <td>None extra &mdash; <code>FormatId::V99</code> vs <code>FormatId::V105</code> already exist</td>
+    </tr>
+    <tr>
+      <td>Verify ItemStatCost bit widths are unchanged</td>
+      <td>Constants table (static data)</td>
+      <td>Medium &mdash; diff <code>magical_properties</code> between v99 and v105 constant data</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>7.2 Architecture Notes</h3>
+
+<ul>
+  <li>
+    The Huffman tree is a single compile-time constant. No version branching is needed for
+    type code decoding (the tree is <span class="conf conf-likely">likely</span> unchanged across all D2R versions).
+  </li>
+  <li>
+    The quantity trailer (Difference #2) must be read <em>outside</em> any
+    <code>if format == simple</code> guard. It applies unconditionally to all items.
+  </li>
+  <li>
+    The unknown bit (Difference #1) is inside the extended data block and fires only when
+    <code>simple_item == 0</code> and the item has durability fields (i.e., armor or weapon).
+    Based on the PR code it fires after <em>all</em> durability reads for any extended item,
+    including items where <code>max_durability == 0</code> (indestructible). Verify this
+    against real saves.
+  </li>
+  <li>
+    For round-trip fidelity, store the unknown bit in the item model. A field such as
+    <code>v105_unknown_after_durability: bool</code> keeps the bit preserved through
+    encode/decode cycles until its semantics are understood.
+  </li>
+  <li>
+    The existing <code>src/utils.rs</code> <code>read_bits</code>/<code>write_bits</code>
+    infrastructure handles all necessary bit-level I/O for these additions.
+  </li>
+</ul>
+
+<!-- ===================================================================== -->
+<h2 id="open">8. Open Questions</h2>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Question</th><th>Confidence</th><th>Impact if Wrong</th><th>How to Resolve</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>What is the unknown bit after durability?</td>
+      <td><span class="conf conf-unknown">Unknown</span></td>
+      <td>Low &mdash; round-trip is safe even without understanding it</td>
+      <td>Examine v105 save files with known weapon/armor items; check if the bit correlates with any item property</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Does the Diff #1 bit fire for ALL extended items or only armor/weapon items?</td>
+      <td><span class="conf conf-unknown">Unknown</span></td>
+      <td>High &mdash; misplacement shifts all subsequent bits</td>
+      <td>The PR code places the skip after the durability block, which only fires for armor/weapon items. Test with v105 non-armor non-weapon extended items (e.g. a rare ring) to confirm.</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Are the <code>sB</code>/<code>sP</code>/<code>np</code> values in ItemStatCost unchanged in v105?</td>
+      <td><span class="conf conf-likely">Likely unchanged</span></td>
+      <td>High &mdash; wrong bit widths corrupt every property parse</td>
+      <td>Diff the <code>magical_properties</code> arrays between <code>99_constant_data.ts</code> and <code>105_constant_data.ts</code> in dschu012/d2s</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Are there new stat IDs in v105?</td>
+      <td><span class="conf conf-likely">Likely yes</span> (new class, new skills)</td>
+      <td>Medium &mdash; unknown IDs cause parse failures if encountered on items</td>
+      <td>Check the length of <code>magical_properties</code> in <code>105_constant_data.ts</code> vs v99; extract new entries</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Does the Huffman tree change in v105?</td>
+      <td><span class="conf conf-likely">Likely unchanged</span></td>
+      <td>High &mdash; wrong tree corrupts every type code decode</td>
+      <td>PR does not modify the Huffman tree. Verify by parsing a v105 save and checking decoded type codes against known items.</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Are there new item type codes unique to v105/Warlock?</td>
+      <td><span class="conf conf-likely">Likely yes</span></td>
+      <td>Low &mdash; Huffman decoding works for any 4-char code; only category classification tables need updating</td>
+      <td>Extract <code>armor_items</code>, <code>weapon_items</code>, <code>other_items</code> from <code>105_constant_data.ts</code> and diff against v99</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Does the <code>"lf"</code> section contain item list data for RotW stash tabs, or is it a fixed header?</td>
+      <td><span class="conf conf-unknown">Unknown</span></td>
+      <td>Medium &mdash; if it contains items, a new item list entry point is needed</td>
+      <td>Compare empty vs non-empty v105 RotW saves; check if bytes after <code>6C 66</code> contain <code>JM</code> + item lists</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+<p class="footer">
+  Sources:
+  <a href="https://github.com/dschu012/d2s/pull/86">dschu012/d2s PR #86</a> (viniciusrezende, Feb 2026) &mdash;
+  hyperremix review comment on that PR (Mar 2026) &mdash;
+  <a href="https://github.com/d07RiV/d07riv.github.io/blob/master/d2r.html">d07RiV d2r.html</a> (v96&harr;v97/v98 reference, Huffman tree) &mdash;
+  halbu <code>src/items/mod.rs</code> (empty-trailer byte sequences)<br>
+  See also: <a href="item-details.html">D2R Item Binary Format Reference (v99)</a> &middot;
+  <a href="parsing-items.html">Parsing D2R Items Step by Step (v99)</a> &middot;
+  <a href="moving-items.html">Moving Items Between Save Files (v99)</a><br>
+  Save file versions covered: 99 (0x63) and 105 (0x69).
+</p>
+
+</body>
+</html>
