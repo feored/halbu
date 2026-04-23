@@ -1,0 +1,102 @@
+{
+    "name": "Alfonz Journey",
+    "rules": [
+        {
+            "name": "Hide things",
+            "enabled": true,
+            "ruleType": "hide",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "lowQuality"
+            ],
+            "itemCategory": [
+                "ammo",
+                "scrlt"
+            ],
+            "itemCode": [
+                "hp2",
+                "gfg",
+                "mp4",
+                "gsw",
+                "gsb",
+                "hp1",
+                "gfv",
+                "mp1",
+                "gfw",
+                "skf",
+                "gfr",
+                "gfy",
+                "gcb",
+                "gcv",
+                "vps",
+                "mp3",
+                "gsg",
+                "wms",
+                "gsy",
+                "gcy",
+                "gsr",
+                "gfb",
+                "hp4",
+                "sku",
+                "gsv",
+                "gcw",
+                "skc",
+                "gcr",
+                "mp2",
+                "gcg",
+                "yps",
+                "hp3"
+            ],
+            "goldFilterValue": 479
+        },
+        {
+            "name": "Hide All",
+            "enabled": false,
+            "ruleType": "hide",
+            "filterEtherealSocketed": true,
+            "equipmentRarity": [
+                "rare",
+                "lowQuality",
+                "magic",
+                "hiQuality",
+                "normal"
+            ],
+            "equipmentQuality": [
+                "normal",
+                "exceptional",
+                "elite"
+            ]
+        },
+        {
+            "name": "Show CS",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": true,
+            "equipmentRarity": [
+                "normal"
+            ],
+            "equipmentItemCode": [
+                "bsd",
+                "crs"
+            ]
+        },
+        {
+            "name": "Show Charms",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentCategory": [
+                "charm"
+            ]
+        },
+        {
+            "name": "Runes",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "runes"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,199 @@
+{
+    "name": "Shiva",
+    "rules": [
+        {
+            "name": "Show Potions",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "mp4",
+                "hp5",
+                "mp5",
+                "yps",
+                "rvs",
+                "rvl"
+            ]
+        },
+        {
+            "name": "Show Scrolls",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "scrlt"
+            ]
+        },
+        {
+            "name": "Show Gems",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "gpw",
+                "gzv",
+                "gpb",
+                "gpy",
+                "gpr",
+                "gly",
+                "gpv",
+                "gpg",
+                "glr",
+                "skz"
+            ]
+        },
+        {
+            "name": "Show Keys",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "keysr"
+            ]
+        },
+        {
+            "name": "Show Class Items",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentCategory": [
+                "sorce",
+                "wands",
+                "daggs",
+                "palad",
+                "warlo",
+                "necro",
+                "scept",
+                "stave"
+            ]
+        },
+        {
+            "name": "Show All Socketed",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": true,
+            "equipmentQuality": [
+                "normal",
+                "exceptional",
+                "elite"
+            ]
+        },
+        {
+            "name": "Show Elite Bases",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": true,
+            "equipmentRarity": [
+                "hiQuality",
+                "normal"
+            ],
+            "equipmentQuality": [
+                "elite"
+            ]
+        },
+        {
+            "name": "Show Magic",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "magic"
+            ],
+            "equipmentQuality": [
+                "elite"
+            ]
+        },
+        {
+            "name": "Show Rares",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "rare"
+            ],
+            "equipmentQuality": [
+                "normal",
+                "exceptional",
+                "elite"
+            ]
+        },
+        {
+            "name": "Show Sets",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "set"
+            ],
+            "equipmentQuality": [
+                "normal",
+                "exceptional",
+                "elite"
+            ]
+        },
+        {
+            "name": "Show Uniques",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "unique"
+            ],
+            "equipmentQuality": [
+                "normal",
+                "exceptional",
+                "elite"
+            ]
+        },
+        {
+            "name": "Show Runes",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "runes"
+            ]
+        },
+        {
+            "name": "Show Jewelry",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "rare",
+                "magic",
+                "unique",
+                "set"
+            ],
+            "equipmentCategory": [
+                "acce"
+            ]
+        },
+        {
+            "name": "Show Materials",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "uberm",
+                "terrt",
+                "absol"
+            ]
+        },
+        {
+            "name": "Hide All",
+            "enabled": true,
+            "ruleType": "hide",
+            "filterEtherealSocketed": false,
+            "equipmentQuality": [
+                "normal",
+                "exceptional",
+                "elite"
+            ],
+            "itemCategory": [
+                "misc"
+            ],
+            "goldFilterValue": 5743
+        }
+    ]
+}

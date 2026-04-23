@@ -1,0 +1,182 @@
+{
+    "name": "Starter",
+    "rules": [
+        {
+            "name": "Low Potions",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "hp2",
+                "mp3",
+                "mp4",
+                "wms",
+                "hp5",
+                "hp4",
+                "rvs",
+                "mp1",
+                "mp5",
+                "mp2",
+                "yps",
+                "vps",
+                "hp3",
+                "rvl"
+            ]
+        },
+        {
+            "name": "Rejuv Potions",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "rvs",
+                "rvl"
+            ]
+        },
+        {
+            "name": "Misc Potions",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "wms",
+                "yps"
+            ]
+        },
+        {
+            "name": "Super Potions",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "hp5",
+                "mp5",
+                "rvl"
+            ]
+        },
+        {
+            "name": "All Gems",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "gems"
+            ]
+        },
+        {
+            "name": "Flawless Gems",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "gpw",
+                "skl",
+                "gzv",
+                "gpb",
+                "gpy",
+                "gly",
+                "glb",
+                "gpr",
+                "glw",
+                "glg",
+                "gpg",
+                "gpv",
+                "skz",
+                "glr"
+            ]
+        },
+        {
+            "name": "Perfect Gems",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "gpw",
+                "gpb",
+                "gpy",
+                "gpr",
+                "gpg",
+                "gpv",
+                "skz"
+            ]
+        },
+        {
+            "name": "Runes All",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "runes"
+            ]
+        },
+        {
+            "name": "Runes Um plus",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "r28",
+                "r29",
+                "r25",
+                "r24",
+                "r23",
+                "r30",
+                "r27",
+                "r26",
+                "r33",
+                "r31",
+                "r32",
+                "r22"
+            ]
+        },
+        {
+            "name": "Hide Most Items",
+            "enabled": true,
+            "ruleType": "hide",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "gems",
+                "potis",
+                "ammo"
+            ],
+            "itemCode": [
+                "r08",
+                "r16",
+                "r05",
+                "r19",
+                "r06",
+                "r07",
+                "r22",
+                "r02",
+                "r13",
+                "r18",
+                "r11",
+                "r01",
+                "r03",
+                "r09",
+                "r20",
+                "r04",
+                "r15",
+                "r17",
+                "r12",
+                "r21",
+                "r14",
+                "r10"
+            ]
+        },
+        {
+            "name": "Hide Inferior",
+            "enabled": true,
+            "ruleType": "hide",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "lowQuality"
+            ],
+            "equipmentQuality": [
+                "normal",
+                "exceptional",
+                "elite"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,228 @@
+{
+    "name": "LaorC Journey",
+    "rules": [
+        {
+            "name": "Hide ALL Pots",
+            "enabled": true,
+            "ruleType": "hide",
+            "filterEtherealSocketed": false,
+            "itemCode": [
+                "hp2",
+                "mp3",
+                "mp4",
+                "wms",
+                "hp1",
+                "rvs",
+                "hp4",
+                "mp1",
+                "mp5",
+                "mp2",
+                "yps",
+                "vps",
+                "hp3"
+            ]
+        },
+        {
+            "name": "Hide things",
+            "enabled": true,
+            "ruleType": "hide",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "lowQuality"
+            ],
+            "itemCategory": [
+                "gems",
+                "ammo",
+                "scrlt"
+            ],
+            "itemCode": [
+                "hp2",
+                "mp3",
+                "mp4",
+                "wms",
+                "hp1",
+                "hp4",
+                "mp1",
+                "mp2",
+                "yps",
+                "vps",
+                "hp3"
+            ],
+            "goldFilterValue": 9092
+        },
+        {
+            "name": "Hide All",
+            "enabled": false,
+            "ruleType": "hide",
+            "filterEtherealSocketed": true,
+            "equipmentRarity": [
+                "rare",
+                "lowQuality",
+                "magic",
+                "hiQuality",
+                "normal"
+            ],
+            "equipmentQuality": [
+                "normal",
+                "exceptional",
+                "elite"
+            ]
+        },
+        {
+            "name": "Show Charms",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentCategory": [
+                "charm"
+            ]
+        },
+        {
+            "name": "Runes",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "runes"
+            ]
+        },
+        {
+            "name": "Show Gems",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "runes"
+            ],
+            "itemCode": [
+                "gpw",
+                "gzv",
+                "skl",
+                "gpb",
+                "glb",
+                "gpr",
+                "gpy",
+                "gly",
+                "glw",
+                "glg",
+                "gpv",
+                "gpg",
+                "glr",
+                "skz"
+            ]
+        },
+        {
+            "name": "Hide throwers",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentItemCode": [
+                "gps",
+                "bal",
+                "bkf",
+                "tkf",
+                "opm",
+                "ops",
+                "tax",
+                "opl",
+                "gpl",
+                "gpm"
+            ]
+        },
+        {
+            "name": "Hide normal bases",
+            "enabled": true,
+            "ruleType": "hide",
+            "filterEtherealSocketed": true,
+            "equipmentRarity": [
+                "lowQuality",
+                "hiQuality",
+                "normal"
+            ],
+            "equipmentQuality": [
+                "normal"
+            ]
+        },
+        {
+            "name": "Hide exceptional items",
+            "enabled": true,
+            "ruleType": "hide",
+            "filterEtherealSocketed": true,
+            "equipmentRarity": [
+                "lowQuality",
+                "hiQuality",
+                "normal"
+            ],
+            "equipmentQuality": [
+                "exceptional"
+            ]
+        },
+        {
+            "name": "good white bases",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": true,
+            "equipmentRarity": [
+                "hiQuality",
+                "normal"
+            ],
+            "equipmentItemCode": [
+                "pa7",
+                "7wc",
+                "ult",
+                "6lw",
+                "7s8",
+                "uth",
+                "ghm",
+                "urn",
+                "xtp",
+                "7pa",
+                "xrn",
+                "xhm",
+                "pab",
+                "6sw",
+                "uhm",
+                "msk",
+                "pac",
+                "6l7",
+                "usk",
+                "6s7",
+                "upl",
+                "urs",
+                "uld",
+                "utp",
+                "uui",
+                "bsd",
+                "ula",
+                "xrs",
+                "9cr",
+                "pa6",
+                "uar",
+                "ucl",
+                "xsk",
+                "crn",
+                "uhn",
+                "uit",
+                "uh9",
+                "ung",
+                "uul",
+                "7cr",
+                "7vo",
+                "crs",
+                "utu",
+                "7o7",
+                "uea"
+            ]
+        },
+        {
+            "name": "show all uniques",
+            "enabled": true,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "unique",
+                "set"
+            ]
+        }
+    ]
+}

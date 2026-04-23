@@ -1,0 +1,135 @@
+{
+    "name": "Starter - Asn",
+    "rules": [
+        {
+            "name": "HIDE ALL",
+            "enabled": false,
+            "ruleType": "hide",
+            "filterEtherealSocketed": true,
+            "equipmentRarity": [
+                "rare",
+                "lowQuality",
+                "magic",
+                "unique",
+                "set",
+                "hiQuality",
+                "normal"
+            ],
+            "equipmentQuality": [
+                "normal",
+                "exceptional",
+                "elite"
+            ],
+            "equipmentCategory": [
+                "acce",
+                "armo",
+                "weap"
+            ],
+            "itemCategory": [
+                "misc"
+            ]
+        },
+        {
+            "name": "SHOW Uniques",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "unique"
+            ]
+        },
+        {
+            "name": "SHOW Runes",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "runes"
+            ]
+        },
+        {
+            "name": "SHOW Sets",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "set"
+            ]
+        },
+        {
+            "name": "SHOW Socketed and Ethereal Items",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": true
+        },
+        {
+            "name": "SHOW Rare Items",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "rare"
+            ]
+        },
+        {
+            "name": "SHOW Magic Items",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "magic"
+            ]
+        },
+        {
+            "name": "SHOW Elite Items",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentQuality": [
+                "elite"
+            ]
+        },
+        {
+            "name": "SHOW Exceptional Items",
+            "enabled": false,
+            "ruleType": "show",
+            "filterEtherealSocketed": false,
+            "equipmentQuality": [
+                "exceptional"
+            ]
+        },
+        {
+            "name": "Hide Other Class Items",
+            "enabled": false,
+            "ruleType": "hide",
+            "filterEtherealSocketed": false,
+            "equipmentCategory": [
+                "sorce",
+                "amazo",
+                "palad",
+                "druid",
+                "necro",
+                "warlo",
+                "barbh"
+            ]
+        },
+        {
+            "name": "HIDE Ammo",
+            "enabled": false,
+            "ruleType": "hide",
+            "filterEtherealSocketed": false,
+            "itemCategory": [
+                "ammo"
+            ]
+        },
+        {
+            "name": "HIDE Inferior Gear",
+            "enabled": false,
+            "ruleType": "hide",
+            "filterEtherealSocketed": false,
+            "equipmentRarity": [
+                "lowQuality"
+            ]
+        }
+    ]
+}

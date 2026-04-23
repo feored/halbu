@@ -1,0 +1,23 @@
+{
+    "Version": 1,
+    "Presets Loaded": true,
+    "Profiles": {
+        "ExcepShortBows": "Grail",
+        "NormalBoots": "Grail",
+        "EliteOHSwords": "Grail",
+        "ExcepSpears": "Grail",
+        "ExcepAmazonWep": "Grail",
+        "ExcepOneHAxes": "Grail",
+        "ExcepOHSwords": "Grail",
+        "NormalDaggers": "Grail",
+        "NormalPoles": "Grail",
+        "ExcepHammers": "Grail",
+        "Shiva": "Shiva",
+        "NormalLongBows": "Grail",
+        "Liu": "Grail",
+        "Alfonz": "Alfonz Journey",
+        "LaorC": "LaorC Journey",
+        "NormalStaves": "Grail",
+        "Locker": "Locker journey"
+    }
+}
