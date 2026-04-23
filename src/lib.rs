@@ -57,8 +57,6 @@ use waypoints::Waypoints;
 pub mod attributes;
 /// Character section model and per-format codecs.
 pub mod character;
-/// Save-layout detection and top-level encode/decode glue.
-pub mod format;
 /// Embedded v105 Excel reference tables (item codes, types, stat-cost, body-locs).
 ///
 /// All items are `pub(crate)` and consumed by upcoming v105 item-handling
@@ -67,6 +65,8 @@ pub mod format;
 /// keep warning output clean during the staged rollout.
 #[allow(dead_code)]
 pub(crate) mod excel;
+/// Save-layout detection and top-level encode/decode glue.
+pub mod format;
 /// Item section placeholder/raw-preserving support.
 pub mod items;
 /// NPC section placeholder/raw-preserving support.
@@ -289,6 +289,12 @@ pub struct Save {
     pub skills: SkillPoints,
     /// Items section (placeholder model).
     pub items: items::Placeholder,
+    /// Fully-typed v105 items model. `Some` only when the save was decoded
+    /// using the V105 layout; `None` for V99 (which keeps using the raw-bytes
+    /// `items` placeholder above). This is a transitional sibling field for
+    /// task 003 and will be reorganized in task 006.
+    #[serde(default)]
+    pub items_v105: Option<items::v105::ItemsTail>,
     /// Auxiliary metadata kept by this library.
     #[serde(default)]
     meta: SaveMeta,
@@ -309,6 +315,7 @@ impl Default for Save {
             attributes: Attributes::new_save_defaults(),
             skills: SkillPoints::default(),
             items: items::Placeholder::default(),
+            items_v105: None,
             meta: SaveMeta { format: FormatId::V99 },
         }
     }
@@ -363,6 +370,7 @@ impl Save {
             attributes: Attributes::new_save_defaults(),
             skills: SkillPoints::default(),
             items: items::Placeholder::default(),
+            items_v105: None,
             meta: SaveMeta { format },
         }
     }

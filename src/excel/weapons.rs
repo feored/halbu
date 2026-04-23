@@ -44,6 +44,12 @@ pub(crate) struct WeaponBase {
     /// `true` if the weapon is strictly two-handed (`2handed` column).
     pub two_handed: bool,
     /// `true` if the base has no durability sub-block.
+    ///
+    /// Derived from the `durability` column being `0` (e.g. Phase Blade).
+    /// **Not** derived from the `nodurability` column — that column has
+    /// inconsistent semantics in `weapons.txt` (set to `1` for many bows
+    /// and crossbows that nonetheless do carry a durability sub-block in
+    /// the save bitstream).
     pub no_durability: bool,
 }
 
@@ -66,7 +72,7 @@ fn rows() -> &'static [WeaponBase] {
         let i_stack = col_idx(&tsv.headers, "stackable");
         let i_1or2 = col_idx(&tsv.headers, "1or2handed");
         let i_2h = col_idx(&tsv.headers, "2handed");
-        let i_nodur = col_idx(&tsv.headers, "nodurability");
+        let i_dur = col_idx(&tsv.headers, "durability");
 
         tsv.rows
             .iter()
@@ -75,6 +81,7 @@ fn rows() -> &'static [WeaponBase] {
                 if code.is_empty() {
                     return None;
                 }
+                let dur = parse_u8(r[i_dur]);
                 Some(WeaponBase {
                     code: code.to_string(),
                     name: r[i_name].to_string(),
@@ -89,7 +96,7 @@ fn rows() -> &'static [WeaponBase] {
                     stackable: parse_bool_01(r[i_stack]),
                     one_or_two_handed: parse_bool_01(r[i_1or2]),
                     two_handed: parse_bool_01(r[i_2h]),
-                    no_durability: parse_bool_01(r[i_nodur]),
+                    no_durability: dur == 0,
                 })
             })
             .collect()

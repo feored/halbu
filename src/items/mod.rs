@@ -6,6 +6,8 @@
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
 
+pub mod v105;
+
 const V99_EMPTY_ITEMS_CLASSIC: [u8; 4] = [0x4A, 0x4D, 0x00, 0x00];
 const V99_EMPTY_ITEMS_EXPANSION: [u8; 13] =
     [0x4A, 0x4D, 0x00, 0x00, 0x4A, 0x4D, 0x00, 0x00, 0x6A, 0x66, 0x6B, 0x66, 0x00];
@@ -63,6 +65,11 @@ pub fn parse(byte_vector: &[u8], mercenary_hired: bool) -> Placeholder {
 impl Placeholder {
     pub(crate) fn mercenary_hire_state_changed(&self, mercenary_hired: bool) -> bool {
         self.original_mercenary_hired != mercenary_hired
+    }
+
+    /// Raw bytes of the items section as captured at parse time.
+    pub fn bytes(&self) -> &[u8] {
+        &self.data
     }
 }
 

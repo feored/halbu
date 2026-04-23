@@ -36,6 +36,11 @@ pub(crate) struct ArmorBase {
     /// Maximum number of sockets allowed on this base.
     pub gem_sockets: u8,
     /// `true` if the base has no durability sub-block (§6.2).
+    ///
+    /// Derived from the `durability` column being `0`. The `nodurability`
+    /// column in `armor.txt` is also consulted, but `durability == 0` is the
+    /// authoritative signal: if a base has no durability stat, no sub-block
+    /// is read regardless of the `nodurability` flag's value.
     pub no_durability: bool,
     /// Shield-block percentage; non-zero indicates shield.
     pub block: u8,
@@ -59,6 +64,7 @@ fn rows() -> &'static [ArmorBase] {
         let i_w = col_idx(&tsv.headers, "invwidth");
         let i_h = col_idx(&tsv.headers, "invheight");
         let i_sockets = col_idx(&tsv.headers, "gemsockets");
+        let i_dur = col_idx(&tsv.headers, "durability");
         let i_nodur = col_idx(&tsv.headers, "nodurability");
         let i_block = col_idx(&tsv.headers, "block");
         let i_stack = col_idx(&tsv.headers, "stackable");
@@ -70,6 +76,8 @@ fn rows() -> &'static [ArmorBase] {
                 if code.is_empty() {
                     return None;
                 }
+                let dur = parse_u8(r[i_dur]);
+                let nodur_flag = parse_bool_01(r[i_nodur]);
                 Some(ArmorBase {
                     code: code.to_string(),
                     name: r[i_name].to_string(),
@@ -81,7 +89,7 @@ fn rows() -> &'static [ArmorBase] {
                     inv_width: parse_u8(r[i_w]),
                     inv_height: parse_u8(r[i_h]),
                     gem_sockets: parse_u8(r[i_sockets]),
-                    no_durability: parse_bool_01(r[i_nodur]),
+                    no_durability: dur == 0 || nodur_flag,
                     block: parse_u8(r[i_block]),
                     stackable: parse_bool_01(r[i_stack]),
                 })

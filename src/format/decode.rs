@@ -450,5 +450,34 @@ pub(crate) fn decode(bytes: &[u8], strictness: Strictness) -> Result<ParsedSave,
     parsed_save.items =
         items::parse(&bytes[items_offset..], parsed_save.character.mercenary.is_hired());
 
+    if matches!(decoded_layout, FormatId::V105) {
+        match items::v105::parse_items_tail(
+            &bytes[items_offset..],
+            parsed_save.expansion_type(),
+            parsed_save.character.mercenary.is_hired(),
+        ) {
+            Ok(tail) => {
+                parsed_save.items_v105 = Some(tail);
+            }
+            Err(parse_error) => {
+                push_issue(
+                    &mut issues,
+                    IssueSeverity::Error,
+                    IssueKind::InvalidValue,
+                    IssueContext {
+                        section_name: section_name_option("items"),
+                        message: format!("v105 items parser failed: {}", parse_error.message),
+                        offset: Some(items_offset),
+                        expected: None,
+                        found: None,
+                    },
+                );
+                if strictness == Strictness::Strict {
+                    return Err(parse_error);
+                }
+            }
+        }
+    }
+
     Ok(finalize(parsed_save, issues, detected_format, decoded_layout, edition_hint))
 }

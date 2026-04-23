@@ -97,7 +97,11 @@ pub(super) fn parse_bool_01(s: &str) -> bool {
 /// Convert an empty cell to `None`, otherwise `Some(owned_string)`.
 pub(super) fn opt_string(s: &str) -> Option<String> {
     let t = s.trim();
-    if t.is_empty() { None } else { Some(t.to_string()) }
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
+    }
 }
 
 #[cfg(test)]
